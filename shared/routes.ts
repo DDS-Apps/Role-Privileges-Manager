@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { insertUserSchema, insertRoleSchema, insertCompanySchema, users, roles, companies } from './schema';
+import { createDelegationSchema, createRequestSchema, approveRejectSchema } from './schema';
 
 export const errorSchemas = {
   validation: z.object({
@@ -9,62 +9,118 @@ export const errorSchemas = {
   notFound: z.object({
     message: z.string(),
   }),
+  forbidden: z.object({
+    message: z.string(),
+  }),
   internal: z.object({
     message: z.string(),
   }),
 };
 
 export const api = {
-  // Bulk Data (for the single page load)
-  data: {
+  // Bootstrap - get all data for frontend init
+  bootstrap: {
     get: {
       method: 'GET' as const,
-      path: '/api/data',
+      path: '/api/bootstrap',
       responses: {
-        200: z.object({
-          users: z.array(z.custom<typeof users.$inferSelect>()),
-          roles: z.array(z.custom<typeof roles.$inferSelect>()),
-          companies: z.array(z.custom<typeof companies.$inferSelect>()),
-        }),
+        200: z.any(), // BootstrapResponse
       },
     },
   },
-  // Users
-  users: {
+
+  // Delegations
+  delegations: {
     create: {
       method: 'POST' as const,
-      path: '/api/users',
-      input: insertUserSchema,
+      path: '/api/delegations',
+      input: createDelegationSchema.extend({
+        actorId: z.string(), // The manager creating the delegation
+      }),
       responses: {
-        201: z.custom<typeof users.$inferSelect>(),
+        201: z.any(),
+        400: errorSchemas.validation,
+        403: errorSchemas.forbidden,
+      },
+    },
+    revoke: {
+      method: 'POST' as const,
+      path: '/api/delegations/:id/revoke',
+      input: z.object({
+        actorId: z.string(),
+      }),
+      responses: {
+        200: z.any(),
+        404: errorSchemas.notFound,
+        403: errorSchemas.forbidden,
+      },
+    },
+  },
+
+  // Requests (privilege change requests)
+  requests: {
+    create: {
+      method: 'POST' as const,
+      path: '/api/requests',
+      input: createRequestSchema.extend({
+        actorId: z.string(),
+      }),
+      responses: {
+        201: z.any(),
         400: errorSchemas.validation,
       },
     },
-    update: {
-      method: 'PUT' as const,
-      path: '/api/users/:id',
-      input: insertUserSchema.partial(),
+    list: {
+      method: 'GET' as const,
+      path: '/api/requests',
       responses: {
-        200: z.custom<typeof users.$inferSelect>(),
-        404: errorSchemas.notFound,
+        200: z.any(),
       },
     },
-    delete: {
-      method: 'DELETE' as const,
-      path: '/api/users/:id',
+    approve: {
+      method: 'POST' as const,
+      path: '/api/requests/:id/approve',
+      input: approveRejectSchema.extend({
+        actorId: z.string(),
+      }),
       responses: {
-        204: z.void(),
+        200: z.any(),
         404: errorSchemas.notFound,
+        403: errorSchemas.forbidden,
+      },
+    },
+    reject: {
+      method: 'POST' as const,
+      path: '/api/requests/:id/reject',
+      input: approveRejectSchema.extend({
+        actorId: z.string(),
+      }),
+      responses: {
+        200: z.any(),
+        404: errorSchemas.notFound,
+        403: errorSchemas.forbidden,
       },
     },
   },
+
+  // Audit Log
+  audit: {
+    list: {
+      method: 'GET' as const,
+      path: '/api/audit',
+      responses: {
+        200: z.any(),
+      },
+    },
+  },
+
   // Export
   export: {
-    download: {
+    employee: {
       method: 'GET' as const,
-      path: '/api/export/excel',
+      path: '/api/export/employee',
       responses: {
-        200: z.any(), // Binary stream
+        200: z.any(), // Binary Excel file
       },
     },
   },

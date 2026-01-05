@@ -1,55 +1,167 @@
-import { pgTable, text, serial, integer, boolean, jsonb } from "drizzle-orm/pg-core";
-import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
-// We are using JSON storage, but we define the schema for types and validation
-// These "tables" won't actually be in Postgres for the JSON MVP, but useful for types.
+// ============================================
+// COMPANIES
+// ============================================
+export interface Company {
+  id: string;
+  name: string;
+}
 
-export const companies = pgTable("companies", {
-  id: serial("id").primaryKey(),
-  name: text("name").notNull(),
-});
+// ============================================
+// EMPLOYEES (also users for "act-as")
+// ============================================
+export interface Employee {
+  id: string;
+  name: string;
+  title: string;
+  email: string;
+  isManager: boolean;
+}
 
-export const roles = pgTable("roles", {
-  id: serial("id").primaryKey(),
-  name: text("name").notNull(),
-  privileges: text("privileges").array().notNull(), // e.g. ["read_users", "edit_users"]
-});
+// ============================================
+// MANAGER-TO-COMPANY ACCESS
+// ============================================
+export interface ManagerCompanyAccess {
+  managerId: string;
+  companyIds: string[];
+}
 
-export const users = pgTable("users", {
-  id: serial("id").primaryKey(),
-  firstName: text("first_name").notNull(),
-  lastName: text("last_name").notNull(),
-  email: text("email").notNull(),
-  roleId: integer("role_id").notNull(),
-  companyId: integer("company_id").notNull(),
-  isActive: boolean("is_active").default(true),
-});
+// ============================================
+// EMPLOYEE-TO-COMPANY MEMBERSHIP
+// ============================================
+export interface EmployeeCompanyMembership {
+  employeeId: string;
+  companyIds: string[];
+}
 
-// Schemas
-export const insertCompanySchema = createInsertSchema(companies).omit({ id: true });
-export const insertRoleSchema = createInsertSchema(roles).omit({ id: true });
-export const insertUserSchema = createInsertSchema(users).omit({ id: true });
+// ============================================
+// PRIVILEGES CATALOG
+// ============================================
+export interface Privilege {
+  id: string;
+  module: string;
+  function: string;
+  role: string;
+}
 
-// Types
-export type Company = typeof companies.$inferSelect;
-export type InsertCompany = z.infer<typeof insertCompanySchema>;
+// ============================================
+// ROLE TEMPLATES
+// ============================================
+export interface RoleTemplate {
+  role: string;
+  privilegeIds: string[];
+}
 
-export type Role = typeof roles.$inferSelect;
-export type InsertRole = z.infer<typeof insertRoleSchema>;
+// ============================================
+// ASSIGNMENTS (employee privileges per company)
+// ============================================
+export interface Assignment {
+  companyId: string;
+  employeeId: string;
+  privilegeIds: string[];
+}
 
-export type User = typeof users.$inferSelect;
-export type InsertUser = z.infer<typeof insertUserSchema>;
+// ============================================
+// DELEGATIONS
+// ============================================
+export type DelegationScope = "company-wide" | "employee-specific";
 
-// Extended types for frontend display
-export type UserWithDetails = User & {
-  roleName: string;
-  companyName: string;
-};
+export interface Delegation {
+  id: string;
+  managerId: string;
+  delegateId: string;
+  companyId: string;
+  scope: DelegationScope;
+  targetEmployeeId?: string; // Only for employee-specific
+  startDate?: string;
+  endDate?: string;
+  revokedAt?: string;
+}
 
-// Full Data Backup/Restore structure
-export type AppData = {
+// ============================================
+// REQUESTS (Approval Workflow)
+// ============================================
+export type RequestStatus = "Draft" | "Submitted" | "Approved" | "Rejected" | "Applied";
+
+export interface PrivilegeRequest {
+  id: string;
+  companyId: string;
+  targetEmployeeId: string;
+  createdBy: string;
+  status: RequestStatus;
+  beforePrivileges: string[];
+  afterPrivileges: string[];
+  approverComment?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// ============================================
+// AUDIT LOG
+// ============================================
+export type AuditActionType = 
+  | "delegation_created"
+  | "delegation_revoked"
+  | "request_submitted"
+  | "request_approved"
+  | "request_rejected"
+  | "assignments_applied";
+
+export interface AuditEntry {
+  id: string;
+  timestamp: string;
+  actorUserId: string;
+  actionType: AuditActionType;
+  companyId?: string;
+  targetEmployeeId?: string;
+  details: string;
+}
+
+// ============================================
+// FULL APP DATA STRUCTURE
+// ============================================
+export interface AppData {
   companies: Company[];
-  roles: Role[];
-  users: User[];
-};
+  employees: Employee[];
+  managerAccess: ManagerCompanyAccess[];
+  employeeMembership: EmployeeCompanyMembership[];
+  privileges: Privilege[];
+  roleTemplates: RoleTemplate[];
+  assignments: Assignment[];
+  delegations: Delegation[];
+  requests: PrivilegeRequest[];
+}
+
+// ============================================
+// BOOTSTRAP RESPONSE (for frontend init)
+// ============================================
+export interface BootstrapResponse extends AppData {
+  auditLog: AuditEntry[];
+}
+
+// ============================================
+// REQUEST/RESPONSE TYPES
+// ============================================
+export const createDelegationSchema = z.object({
+  delegateId: z.string(),
+  companyId: z.string(),
+  scope: z.enum(["company-wide", "employee-specific"]),
+  targetEmployeeId: z.string().optional(),
+  startDate: z.string().optional(),
+  endDate: z.string().optional(),
+});
+export type CreateDelegationRequest = z.infer<typeof createDelegationSchema>;
+
+export const createRequestSchema = z.object({
+  companyId: z.string(),
+  targetEmployeeId: z.string(),
+  afterPrivileges: z.array(z.string()),
+  status: z.enum(["Draft", "Submitted"]),
+});
+export type CreateRequestBody = z.infer<typeof createRequestSchema>;
+
+export const approveRejectSchema = z.object({
+  comment: z.string().optional(),
+});
+export type ApproveRejectBody = z.infer<typeof approveRejectSchema>;
