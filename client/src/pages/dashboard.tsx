@@ -68,6 +68,12 @@ const DICT = {
     approved: "Approved",
     rejected: "Rejected",
     applied: "Applied",
+    allModules: "All Modules",
+    allFunctions: "All Functions",
+    allRoles: "All Roles",
+    filterModule: "Filter by Module",
+    filterFunction: "Filter by Function",
+    filterRole: "Filter by Role",
   },
   ar: {
     title: "أدوار وامتيازات مستخدمي الأعمال",
@@ -119,6 +125,12 @@ const DICT = {
     approved: "موافق عليه",
     rejected: "مرفوض",
     applied: "مطبق",
+    allModules: "جميع الوحدات",
+    allFunctions: "جميع الوظائف",
+    allRoles: "جميع الأدوار",
+    filterModule: "تصفية حسب الوحدة",
+    filterFunction: "تصفية حسب الوظيفة",
+    filterRole: "تصفية حسب الدور",
   }
 };
 
@@ -134,6 +146,9 @@ export default function Dashboard() {
   const [showDelegationModal, setShowDelegationModal] = useState(false);
   const [showUnsavedWarning, setShowUnsavedWarning] = useState(false);
   const [pendingAction, setPendingAction] = useState<(() => void) | null>(null);
+  const [filterModule, setFilterModule] = useState<string>("");
+  const [filterFunction, setFilterFunction] = useState<string>("");
+  const [filterRole, setFilterRole] = useState<string>("");
 
   const { data, isLoading, error } = useBootstrapData();
   const createDelegation = useCreateDelegation();
@@ -176,7 +191,7 @@ export default function Dashboard() {
   }, [data, actingUserId]);
 
   const accessibleCompanyIds = useMemo(() => 
-    [...new Set([...managerCompanies, ...delegatedCompanies])],
+    Array.from(new Set([...managerCompanies, ...delegatedCompanies])),
     [managerCompanies, delegatedCompanies]
   );
 
@@ -228,6 +243,45 @@ export default function Dashboard() {
       r.status === "Submitted" && managerCompanies.includes(r.companyId)
     );
   }, [data, actingUser, managerCompanies]);
+
+  // Unique filter options
+  const uniqueModules = useMemo(() => {
+    if (!data) return [];
+    return Array.from(new Set(data.privileges.map(p => p.module))).sort();
+  }, [data]);
+
+  const uniqueFunctions = useMemo(() => {
+    if (!data) return [];
+    let privs = data.privileges;
+    if (filterModule) privs = privs.filter(p => p.module === filterModule);
+    return Array.from(new Set(privs.map(p => p.function))).sort();
+  }, [data, filterModule]);
+
+  const uniqueRoles = useMemo(() => {
+    if (!data) return [];
+    let privs = data.privileges;
+    if (filterModule) privs = privs.filter(p => p.module === filterModule);
+    if (filterFunction) privs = privs.filter(p => p.function === filterFunction);
+    return Array.from(new Set(privs.map(p => p.role))).sort();
+  }, [data, filterModule, filterFunction]);
+
+  // Filtered privileges for display
+  const displayPrivileges = useMemo(() => {
+    if (!data) return [];
+    let privs = data.privileges;
+    
+    // In view mode, only show assigned privileges
+    if (!isEditMode) {
+      privs = privs.filter(p => currentPrivileges.includes(p.id));
+    } else {
+      // In edit mode, apply filters
+      if (filterModule) privs = privs.filter(p => p.module === filterModule);
+      if (filterFunction) privs = privs.filter(p => p.function === filterFunction);
+      if (filterRole) privs = privs.filter(p => p.role === filterRole);
+    }
+    
+    return privs;
+  }, [data, isEditMode, currentPrivileges, filterModule, filterFunction, filterRole]);
 
   // Auto-select first company
   useEffect(() => {
@@ -326,19 +380,19 @@ export default function Dashboard() {
   return (
     <div className="min-h-screen bg-background font-sans">
       {/* Header */}
-      <header className="sticky top-0 z-50 border-b bg-background/80 backdrop-blur-md px-4 py-3">
+      <header className="sticky top-0 z-50 border-b bg-gradient-to-r from-indigo-600 to-blue-500 dark:from-indigo-800 dark:to-blue-700 px-4 py-3 shadow-md">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 flex-wrap">
           <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/20 text-white">
               <ShieldCheck className="h-5 w-5" />
             </div>
-            <h1 className="text-lg font-bold tracking-tight md:text-xl">{t.title}</h1>
+            <h1 className="text-lg font-bold tracking-tight md:text-xl text-white">{t.title}</h1>
           </div>
 
           <div className="flex items-center gap-3 flex-wrap">
             {/* Act As Dropdown */}
             <div className="flex items-center gap-2">
-              <span className="text-sm text-muted-foreground">{t.actAs}:</span>
+              <span className="text-sm text-white/80">{t.actAs}:</span>
               <select
                 value={actingUserId}
                 onChange={(e) => handleActionWithCheck(() => {
@@ -347,11 +401,11 @@ export default function Dashboard() {
                   setSelectedEmployeeId("");
                   setIsEditMode(false);
                 })}
-                className="rounded-lg border border-input bg-background px-3 py-1.5 text-sm font-medium"
+                className="rounded-lg border border-white/30 bg-white/20 text-white px-3 py-1.5 text-sm font-medium backdrop-blur-sm"
                 data-testid="select-act-as"
               >
                 {data.employees.map(emp => (
-                  <option key={emp.id} value={emp.id}>
+                  <option key={emp.id} value={emp.id} className="text-foreground bg-background">
                     {emp.name} {emp.isManager ? "(Manager)" : ""}
                   </option>
                 ))}
@@ -361,7 +415,7 @@ export default function Dashboard() {
             {/* Language Toggle */}
             <button
               onClick={() => handleActionWithCheck(toggleLanguage)}
-              className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium text-muted-foreground hover:bg-muted"
+              className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium text-white/80 hover:bg-white/20"
               data-testid="button-language-toggle"
             >
               <Globe className="h-4 w-4" />
@@ -374,11 +428,11 @@ export default function Dashboard() {
       <main className="mx-auto max-w-7xl p-4 md:p-6 space-y-6">
         {/* Manager Details Section */}
         {actingUser && (
-          <div className="rounded-xl border bg-card p-4">
+          <div className="rounded-xl border bg-gradient-to-r from-slate-50 to-blue-50 dark:from-slate-800/50 dark:to-blue-900/30 p-4">
             <h2 className="text-sm font-semibold text-muted-foreground mb-3">{t.managerDetails}</h2>
             <div className="flex flex-wrap gap-4 items-center">
               <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold">
+                <div className="h-10 w-10 rounded-full bg-gradient-to-br from-indigo-500 to-blue-600 flex items-center justify-center text-white font-bold shadow-md">
                   {actingUser.name.charAt(0)}
                 </div>
                 <div>
@@ -539,7 +593,7 @@ export default function Dashboard() {
               <button
                 onClick={handleSubmitRequest}
                 disabled={!hasUnsavedChanges || createRequest.isPending}
-                className="flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-50"
+                className="flex items-center gap-1.5 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
                 data-testid="button-submit"
               >
                 {createRequest.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
@@ -548,6 +602,53 @@ export default function Dashboard() {
             </div>
           )}
         </div>
+
+        {/* Filter Dropdowns (Edit Mode Only) */}
+        {isEditMode && (
+          <div className="flex flex-wrap gap-3 items-center p-4 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700/50">
+            <Search className="h-4 w-4 text-amber-600" />
+            <select
+              value={filterModule}
+              onChange={(e) => {
+                setFilterModule(e.target.value);
+                setFilterFunction("");
+                setFilterRole("");
+              }}
+              className="rounded-lg border border-amber-300 dark:border-amber-600 bg-white dark:bg-amber-900/30 px-3 py-2 text-sm"
+              data-testid="filter-module"
+            >
+              <option value="">{t.allModules}</option>
+              {uniqueModules.map(m => (
+                <option key={m} value={m}>{m}</option>
+              ))}
+            </select>
+            <select
+              value={filterFunction}
+              onChange={(e) => {
+                setFilterFunction(e.target.value);
+                setFilterRole("");
+              }}
+              className="rounded-lg border border-amber-300 dark:border-amber-600 bg-white dark:bg-amber-900/30 px-3 py-2 text-sm"
+              data-testid="filter-function"
+            >
+              <option value="">{t.allFunctions}</option>
+              {uniqueFunctions.map(f => (
+                <option key={f} value={f}>{f}</option>
+              ))}
+            </select>
+            <select
+              value={filterRole}
+              onChange={(e) => setFilterRole(e.target.value)}
+              className="rounded-lg border border-amber-300 dark:border-amber-600 bg-white dark:bg-amber-900/30 px-3 py-2 text-sm"
+              data-testid="filter-role"
+            >
+              <option value="">{t.allRoles}</option>
+              {uniqueRoles.map(r => (
+                <option key={r} value={r}>{r}</option>
+              ))}
+            </select>
+          </div>
+        )}
 
         {/* Privileges Grid */}
         <div className="rounded-xl border bg-card overflow-hidden">
@@ -565,17 +666,27 @@ export default function Dashboard() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {data.privileges.map(priv => {
+                {displayPrivileges.length === 0 ? (
+                  <tr>
+                    <td colSpan={4} className="px-4 py-8 text-center text-muted-foreground">
+                      {isEditMode ? "No privileges match the filters" : "No privileges assigned"}
+                    </td>
+                  </tr>
+                ) : displayPrivileges.map(priv => {
                   const isAssigned = isEditMode 
                     ? draftPrivileges.includes(priv.id)
                     : currentPrivileges.includes(priv.id);
 
                   return (
                     <tr key={priv.id} className="hover:bg-muted/30">
-                      <td className="px-4 py-3 font-medium">{priv.module}</td>
+                      <td className="px-4 py-3 font-medium">
+                        <span className="inline-flex items-center rounded-md bg-slate-100 dark:bg-slate-700 px-2 py-0.5 text-xs font-medium text-slate-700 dark:text-slate-300">
+                          {priv.module}
+                        </span>
+                      </td>
                       <td className="px-4 py-3">{priv.function}</td>
                       <td className="px-4 py-3">
-                        <span className="inline-flex items-center rounded-md bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700 dark:bg-blue-400/10 dark:text-blue-400">
+                        <span className="inline-flex items-center rounded-md bg-indigo-50 px-2 py-0.5 text-xs font-medium text-indigo-700 dark:bg-indigo-400/10 dark:text-indigo-400">
                           {priv.role}
                         </span>
                       </td>
@@ -585,19 +696,15 @@ export default function Dashboard() {
                             onClick={() => handlePrivilegeToggle(priv.id)}
                             className={`h-5 w-5 rounded border-2 flex items-center justify-center transition-colors ${
                               isAssigned 
-                                ? "bg-primary border-primary text-white" 
-                                : "border-input hover:border-primary/50"
+                                ? "bg-emerald-500 border-emerald-500 text-white" 
+                                : "border-input hover:border-emerald-400"
                             }`}
                             data-testid={`checkbox-priv-${priv.id}`}
                           >
                             {isAssigned && <Check className="h-3 w-3" />}
                           </button>
                         ) : (
-                          isAssigned ? (
-                            <CheckCircle2 className="h-5 w-5 text-emerald-500 mx-auto" />
-                          ) : (
-                            <XCircle className="h-5 w-5 text-gray-300 mx-auto" />
-                          )
+                          <CheckCircle2 className="h-5 w-5 text-emerald-500 mx-auto" />
                         )}
                       </td>
                     </tr>
@@ -807,14 +914,14 @@ function DelegationModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
       <div className="w-full max-w-lg rounded-2xl bg-card shadow-2xl border flex flex-col max-h-[90vh]">
-        <div className="flex items-center justify-between border-b p-4">
-          <h2 className="text-lg font-bold">{t.createDelegation}</h2>
-          <button onClick={onClose} className="rounded-full p-2 hover:bg-muted">
-            <X className="h-5 w-5" />
+        <div className="flex items-center justify-between border-b bg-indigo-50 dark:bg-indigo-900/30 rounded-t-2xl p-4">
+          <h2 className="text-lg font-bold text-indigo-900 dark:text-indigo-100">{t.createDelegation}</h2>
+          <button onClick={onClose} className="rounded-full p-2 hover:bg-indigo-100 dark:hover:bg-indigo-800">
+            <X className="h-5 w-5 text-indigo-700 dark:text-indigo-300" />
           </button>
         </div>
 
-        <div className="p-4 space-y-4 overflow-y-auto">
+        <div className="p-4 space-y-4 overflow-y-auto bg-gradient-to-b from-indigo-50/50 to-transparent dark:from-indigo-900/10">
           <div>
             <label className="text-sm font-medium">{t.delegateUser}</label>
             <select

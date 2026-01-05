@@ -329,8 +329,9 @@
       "companyId": "C03",
       "employeeId": "E009",
       "privilegeIds": [
-        "P_GEN_VIEW_DASH",
-        "P_GEN_EXPORT"
+        "P_FIN_VIEW_REP",
+        "P_FIN_POST_JRNL",
+        "P_GEN_VIEW_DASH"
       ]
     },
     {
@@ -368,6 +369,15 @@
       "companyId": "C02",
       "scope": "employee-specific",
       "targetEmployeeId": "E007"
+    },
+    {
+      "id": "18766873-2d1e-4c71-afc9-992d6dac0de1",
+      "managerId": "E002",
+      "delegateId": "E009",
+      "companyId": "C02",
+      "scope": "employee-specific",
+      "targetEmployeeId": "E002",
+      "endDate": "2026-10-10"
     }
   ],
   "requests": [
@@ -376,7 +386,7 @@
       "companyId": "C03",
       "targetEmployeeId": "E009",
       "createdBy": "E006",
-      "status": "Submitted",
+      "status": "Applied",
       "beforePrivileges": [
         "P_GEN_VIEW_DASH",
         "P_GEN_EXPORT"
@@ -387,7 +397,7 @@
         "P_GEN_VIEW_DASH"
       ],
       "createdAt": "2026-01-05T09:41:41.436Z",
-      "updatedAt": "2026-01-05T09:41:41.436Z"
+      "updatedAt": "2026-01-05T11:09:02.008Z"
     }
   ]
 }

@@ -15,5 +15,32 @@
     "companyId": "C03",
     "targetEmployeeId": "E009",
     "details": "Ishfaq submitted request to change Noor privileges from Viewer to Accounting & Reporting"
+  },
+  {
+    "id": "e406154c-028a-4c46-866b-dcf40a0a0391",
+    "timestamp": "2026-01-05T09:49:05.546Z",
+    "actorUserId": "E002",
+    "actionType": "delegation_created",
+    "companyId": "C02",
+    "targetEmployeeId": "E002",
+    "details": "Adnan Alqahtani delegated employee-specific access for Dallah Healthcare to Noor Hassan"
+  },
+  {
+    "id": "44e40d28-4766-4f21-8ce0-160f2f07aad3",
+    "timestamp": "2026-01-05T11:09:02.010Z",
+    "actorUserId": "E001",
+    "actionType": "request_approved",
+    "companyId": "C03",
+    "targetEmployeeId": "E009",
+    "details": "Waleed Alahdal approved privilege change for Noor Hassan in Dallah Digital"
+  },
+  {
+    "id": "e113d0d4-4438-4597-b8f8-6af84dd76581",
+    "timestamp": "2026-01-05T11:09:02.011Z",
+    "actorUserId": "E001",
+    "actionType": "assignments_applied",
+    "companyId": "C03",
+    "targetEmployeeId": "E009",
+    "details": "Privileges updated for Noor Hassan in Dallah Digital"
   }
 ]
