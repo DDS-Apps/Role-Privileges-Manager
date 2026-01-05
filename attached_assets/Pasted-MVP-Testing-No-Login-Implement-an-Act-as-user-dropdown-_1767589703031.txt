@@ -1,0 +1,379 @@
+MVP Testing “No Login”
+
+Implement an “Act as user” dropdown at the top to simulate authentication.
+
+The dropdown is populated from seeded users in the JSON store.
+
+Seeded Test Data (Must be included)
+
+On first run, if data.json does not exist, auto-create it with this test data:
+
+Companies (3)
+
+C01 — Dallah Holding
+
+C02 — Dallah Healthcare
+
+C03 — Dallah Digital
+
+Users/Employees (10)
+
+Create 10 employees (also users for act-as testing):
+
+E001 Waleed Alahdal — IT Lead — waleed@example.com
+ — Manager=true
+
+E002 Adnan Alqahtani — Operations Manager — adnan@example.com
+ — Manager=true
+
+E003 Shahad Alharbi — HR Specialist — shahad@example.com
+ — Manager=false
+
+E004 Jameel Ashraf — GM Assistant — jameel@example.com
+ — Manager=false
+
+E005 Souhaib Khairallah — Head of Automation — souhaib@example.com
+ — Manager=true
+
+E006 Ishfaq Pathan — Infrastructure — ishfaq@example.com
+ — Manager=false
+
+E007 Sara Ahmed — Finance Analyst — sara@example.com
+ — Manager=false
+
+E008 Khalid Saleh — Treasury Officer — khalid@example.com
+ — Manager=false
+
+E009 Noor Hassan — Accounting — noor@example.com
+ — Manager=false
+
+E010 Faisal Omar — Business Analyst — faisal@example.com
+ — Manager=false
+
+Manager-to-Company Access (multi-company)
+
+Waleed (E001) manages: C01, C03
+
+Adnan (E002) manages: C02
+
+Souhaib (E005) manages: C03 (and also C01 for multi-company example)
+
+Employee-to-Company Membership (employees in multiple companies)
+
+E003 Shahad: C01
+
+E004 Jameel: C01, C02
+
+E006 Ishfaq: C03
+
+E007 Sara: C02, C01
+
+E008 Khalid: C02
+
+E009 Noor: C02, C03
+
+E010 Faisal: C03, C01
+
+(Managers are also employees; include them as members too:)
+
+E001 Waleed: C01, C03
+
+E002 Adnan: C02
+
+E005 Souhaib: C03, C01
+
+Privileges Catalog (same across all companies)
+
+Create a small but realistic catalog (12 privileges total) with fields:
+
+module, function, role, privilegeId
+
+Example privileges (privilegeId suggested):
+
+FIN | View Reports | Accounting & Reporting | P_FIN_VIEW_REP
+
+FIN | Post Journal | Accounting & Reporting | P_FIN_POST_JRNL
+
+FIN | Approve Payment | Treasury | P_FIN_APPR_PAY
+
+FIN | Create Payment | Treasury | P_FIN_CREATE_PAY
+
+HR | View Employees | HR | P_HR_VIEW_EMP
+
+HR | Update Employee | HR | P_HR_UPD_EMP
+
+SCM | View Suppliers | Procurement | P_SCM_VIEW_SUP
+
+SCM | Create PO | Procurement | P_SCM_CREATE_PO
+
+IT | Manage Users | System Admin | P_IT_MNG_USERS
+
+IT | Reset Password | System Admin | P_IT_RESET_PWD
+
+GEN | View Dashboard | Viewer | P_GEN_VIEW_DASH
+
+GEN | Export Data | Viewer | P_GEN_EXPORT
+
+Roles are fixed values: Accounting & Reporting, Treasury, HR, Procurement, System Admin, Viewer
+
+Role Templates (apply-role feature)
+
+Create role template mapping:
+
+Viewer → P_GEN_VIEW_DASH, P_GEN_EXPORT
+
+System Admin → P_IT_MNG_USERS, P_IT_RESET_PWD, P_GEN_VIEW_DASH
+
+Treasury → P_FIN_APPR_PAY, P_FIN_CREATE_PAY, P_GEN_VIEW_DASH
+
+Accounting & Reporting → P_FIN_VIEW_REP, P_FIN_POST_JRNL, P_GEN_VIEW_DASH
+
+HR → P_HR_VIEW_EMP, P_HR_UPD_EMP, P_GEN_VIEW_DASH
+
+Procurement → P_SCM_VIEW_SUP, P_SCM_CREATE_PO, P_GEN_VIEW_DASH
+
+Existing Assignments (current privileges per employee per company)
+
+Seed some existing assignments to demonstrate “show current privileges”:
+
+E004 (Jameel) in C01: Viewer template applied
+
+E004 (Jameel) in C02: Accounting & Reporting template applied
+
+E007 (Sara) in C02: Treasury template applied
+
+E009 (Noor) in C03: Viewer template applied
+
+E010 (Faisal) in C01: Procurement template applied
+
+E006 (Ishfaq) in C03: System Admin template applied
+
+Seeded Delegations (for testing)
+
+Add at least 2 delegation records:
+
+Manager E001 delegates company-wide for C03 to E006 (Ishfaq), with end date 30 days from now
+
+Manager E002 delegates employee-specific for (C02 + E007 Sara) to E003 (Shahad), no end date
+
+Seeded Requests (optional but preferred)
+
+Create 1 submitted request for manager review:
+
+Request: delegate E006 proposes changing E009 Noor in C03 from Viewer to Accounting & Reporting (checkbox changes)
+
+Status: Submitted
+
+Approver: manager of C03 (E001 or E005)
+
+Include before/after diff in request object
+
+Audit Log Seed
+
+Create a few audit log entries showing:
+
+delegation created
+
+request submitted
+
+Core Access Logic
+Managers
+
+A user is manager if isManager=true.
+
+Manager access to companies is controlled via managerCompanies mapping.
+
+Delegates
+
+Delegate access is controlled by delegation records:
+
+Scope = company-wide OR employee-specific
+
+Validate optional start/end dates
+
+Managers can revoke delegation
+
+Who can edit
+
+Managers + valid delegates can click Edit for the selected company/employee.
+
+Company dropdown
+
+Primary flow: choose company first.
+
+Company dropdown shows companies the acting user can manage or has active delegation for.
+
+When an employee belongs to other companies not accessible to the acting user, show them disabled (read-only).
+
+Page Layout (Single Page)
+1) Header
+
+Title
+
+EN/AR toggle (RTL on Arabic)
+
+Act-as user dropdown
+
+2) Manager Details (read-only)
+
+Show acting user details and their accessible companies.
+
+3) Employee Details
+
+Company dropdown
+
+Employee dropdown filtered by selected company
+
+Search box: search by ID or name (filters the dropdown)
+Show selected employee fields.
+
+4) Privileges Grid (view-only default)
+
+Table: Module | Function | Role | Assigned checkbox
+
+View-only until Edit is clicked.
+
+5) Apply Role Template
+
+Role template dropdown
+
+Button “Apply”
+
+Applying a role checks matching privileges.
+
+6) Buttons
+
+Manager Delegate (manager-only)
+
+Edit Business Users Roles and Privileges (managers + delegates)
+
+Button 1: Manager Delegate (modal)
+
+Modal fields:
+
+Delegation type: Company-wide OR Employee-specific
+
+Delegate user dropdown
+
+Company dropdown
+
+If employee-specific: employee dropdown
+
+Start date (optional)
+
+End date (optional)
+Actions:
+
+Save delegation
+
+List delegations + revoke
+
+Button 2: Edit + Approval Workflow
+
+Edit mode:
+
+Enable checkbox edits
+
+Allow applying role template then manual changes
+
+Draft state stored in UI until submit
+
+Statuses required:
+
+Draft → Submitted → Approved/Rejected → Applied
+
+Submit for approval:
+
+Creates a request record with:
+
+companyId, targetEmployeeId
+
+requestedChanges (before/after)
+
+createdBy (actor)
+
+status Submitted
+
+Manager review panel (same page):
+
+Shows Submitted requests for companies the acting manager manages
+
+Request detail view with before/after
+
+Approve or Reject + optional comment
+
+On Approve:
+
+Automatically apply changes to assignments
+
+Mark status Applied
+
+Write audit log entry
+
+Audit Logging (required)
+
+Log:
+
+Delegations created/revoked
+
+Requests submitted/approved/rejected/applied
+
+Assignments applied
+
+Fields:
+
+timestamp, actorUserId, actionType, companyId, targetEmployeeId, details
+
+Storage (Minimal JSON)
+
+Persist into:
+
+data.json (all core data)
+
+audit.json (audit logs)
+
+Use safe write: write temp then rename.
+
+Optional CSV Import (keep it)
+
+Implement /api/import to upload CSVs later using suggested formats, but the app must already work with seeded data even without CSVs.
+
+Excel Export (.xlsx)
+
+Two buttons:
+
+Export selected employee for selected company
+
+Export selected employee for all companies
+
+Excel content:
+
+Employee details + company
+
+Privileges table with Assigned true/false
+
+Optionally include request history summary
+
+Use exceljs.
+
+Backend API Endpoints
+
+Create endpoints:
+
+GET /api/bootstrap
+
+POST /api/delegations
+
+POST /api/delegations/:id/revoke
+
+POST /api/requests (draft/submit)
+
+POST /api/requests/:id/approve
+
+POST /api/requests/:id/reject
+
+GET /api/requests?status=&companyId=
+
+GET /api/audit
+
+GET /api/export/employee?employeeId=...&scope=company|all&companyId=...
