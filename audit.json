@@ -42,5 +42,32 @@
     "companyId": "C03",
     "targetEmployeeId": "E009",
     "details": "Privileges updated for Noor Hassan in Dallah Digital"
+  },
+  {
+    "id": "31c57d2f-ccf0-40e6-b8e1-6c19b961aee5",
+    "timestamp": "2026-01-05T11:22:01.191Z",
+    "actorUserId": "E001",
+    "actionType": "request_submitted",
+    "companyId": "C03",
+    "targetEmployeeId": "E001",
+    "details": "Waleed Alahdal submitted privilege change request for Waleed Alahdal in Dallah Digital"
+  },
+  {
+    "id": "c0b22d82-b174-46ee-be4e-06a3fbc849a7",
+    "timestamp": "2026-01-05T11:22:07.981Z",
+    "actorUserId": "E001",
+    "actionType": "request_approved",
+    "companyId": "C03",
+    "targetEmployeeId": "E001",
+    "details": "Waleed Alahdal approved privilege change for Waleed Alahdal in Dallah Digital"
+  },
+  {
+    "id": "12a071a8-74a6-4c5e-9f71-513467bedb19",
+    "timestamp": "2026-01-05T11:22:07.982Z",
+    "actorUserId": "E001",
+    "actionType": "assignments_applied",
+    "companyId": "C03",
+    "targetEmployeeId": "E001",
+    "details": "Privileges updated for Waleed Alahdal in Dallah Digital"
   }
 ]

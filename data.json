@@ -351,6 +351,14 @@
         "P_IT_RESET_PWD",
         "P_GEN_VIEW_DASH"
       ]
+    },
+    {
+      "companyId": "C03",
+      "employeeId": "E001",
+      "privilegeIds": [
+        "P_FIN_VIEW_REP",
+        "P_FIN_POST_JRNL"
+      ]
     }
   ],
   "delegations": [
@@ -398,6 +406,20 @@
       ],
       "createdAt": "2026-01-05T09:41:41.436Z",
       "updatedAt": "2026-01-05T11:09:02.008Z"
+    },
+    {
+      "id": "4c0634f6-e82d-4053-b215-ab77afb56825",
+      "companyId": "C03",
+      "targetEmployeeId": "E001",
+      "createdBy": "E001",
+      "status": "Applied",
+      "beforePrivileges": [],
+      "afterPrivileges": [
+        "P_FIN_VIEW_REP",
+        "P_FIN_POST_JRNL"
+      ],
+      "createdAt": "2026-01-05T11:22:01.184Z",
+      "updatedAt": "2026-01-05T11:22:07.978Z"
     }
   ]
 }
