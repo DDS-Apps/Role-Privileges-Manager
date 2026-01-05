@@ -388,6 +388,19 @@ export class JsonStorage implements IStorage {
     await this.initialized;
     const request = this.data.requests.find(r => r.id === id);
     if (!request) throw new Error("Request not found");
+    
+    // Check status
+    if (request.status !== "Submitted") {
+      throw new Error("Request is not in Submitted status");
+    }
+    
+    // Check authorization - actor must be manager or delegate for the company
+    const managerCompanies = await this.getManagerCompanies(actorId);
+    const delegatedCompanies = await this.getDelegatedCompanies(actorId);
+    const accessibleCompanies = [...new Set([...managerCompanies, ...delegatedCompanies])];
+    if (!accessibleCompanies.includes(request.companyId)) {
+      throw new Error("Not authorized to approve requests for this company");
+    }
 
     request.status = "Approved";
     request.approverComment = comment;
@@ -435,6 +448,19 @@ export class JsonStorage implements IStorage {
     await this.initialized;
     const request = this.data.requests.find(r => r.id === id);
     if (!request) throw new Error("Request not found");
+    
+    // Check status
+    if (request.status !== "Submitted") {
+      throw new Error("Request is not in Submitted status");
+    }
+    
+    // Check authorization - actor must be manager or delegate for the company
+    const managerCompanies = await this.getManagerCompanies(actorId);
+    const delegatedCompanies = await this.getDelegatedCompanies(actorId);
+    const accessibleCompanies = [...new Set([...managerCompanies, ...delegatedCompanies])];
+    if (!accessibleCompanies.includes(request.companyId)) {
+      throw new Error("Not authorized to reject requests for this company");
+    }
 
     request.status = "Rejected";
     request.approverComment = comment;

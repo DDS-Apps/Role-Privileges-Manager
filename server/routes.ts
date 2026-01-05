@@ -103,8 +103,16 @@ export async function registerRoutes(
       const request = await storage.approveRequest(id, actorId, comment);
       res.json(request);
     } catch (err) {
-      if (err instanceof Error && err.message === "Request not found") {
-        return res.status(404).json({ message: "Request not found" });
+      if (err instanceof Error) {
+        if (err.message === "Request not found") {
+          return res.status(404).json({ message: "Request not found" });
+        }
+        if (err.message.includes("Not authorized")) {
+          return res.status(403).json({ message: err.message });
+        }
+        if (err.message.includes("not in Submitted status")) {
+          return res.status(409).json({ message: err.message });
+        }
       }
       console.error("Approve request error:", err);
       res.status(500).json({ message: "Failed to approve request" });
@@ -120,8 +128,16 @@ export async function registerRoutes(
       const request = await storage.rejectRequest(id, actorId, comment);
       res.json(request);
     } catch (err) {
-      if (err instanceof Error && err.message === "Request not found") {
-        return res.status(404).json({ message: "Request not found" });
+      if (err instanceof Error) {
+        if (err.message === "Request not found") {
+          return res.status(404).json({ message: "Request not found" });
+        }
+        if (err.message.includes("Not authorized")) {
+          return res.status(403).json({ message: err.message });
+        }
+        if (err.message.includes("not in Submitted status")) {
+          return res.status(409).json({ message: err.message });
+        }
       }
       console.error("Reject request error:", err);
       res.status(500).json({ message: "Failed to reject request" });

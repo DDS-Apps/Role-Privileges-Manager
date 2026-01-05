@@ -1,0 +1,19 @@
+[
+  {
+    "id": "AUD001",
+    "timestamp": "2026-01-03T09:41:41.438Z",
+    "actorUserId": "E001",
+    "actionType": "delegation_created",
+    "companyId": "C03",
+    "details": "Waleed delegated company-wide access for C03 to Ishfaq"
+  },
+  {
+    "id": "AUD002",
+    "timestamp": "2026-01-04T09:41:41.438Z",
+    "actorUserId": "E006",
+    "actionType": "request_submitted",
+    "companyId": "C03",
+    "targetEmployeeId": "E009",
+    "details": "Ishfaq submitted request to change Noor privileges from Viewer to Accounting & Reporting"
+  }
+]

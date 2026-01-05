@@ -1,80 +1,393 @@
 {
   "companies": [
     {
-      "id": 1,
-      "name": "Acme Corp"
+      "id": "C01",
+      "name": "Dallah Holding"
     },
     {
-      "id": 2,
-      "name": "Globex Corporation"
+      "id": "C02",
+      "name": "Dallah Healthcare"
     },
     {
-      "id": 3,
-      "name": "Soylent Corp"
+      "id": "C03",
+      "name": "Dallah Digital"
     }
   ],
-  "roles": [
+  "employees": [
     {
-      "id": 1,
-      "name": "Administrator",
-      "privileges": [
-        "view_all",
-        "edit_all",
-        "manage_users"
+      "id": "E001",
+      "name": "Waleed Alahdal",
+      "title": "IT Lead",
+      "email": "waleed@example.com",
+      "isManager": true
+    },
+    {
+      "id": "E002",
+      "name": "Adnan Alqahtani",
+      "title": "Operations Manager",
+      "email": "adnan@example.com",
+      "isManager": true
+    },
+    {
+      "id": "E003",
+      "name": "Shahad Alharbi",
+      "title": "HR Specialist",
+      "email": "shahad@example.com",
+      "isManager": false
+    },
+    {
+      "id": "E004",
+      "name": "Jameel Ashraf",
+      "title": "GM Assistant",
+      "email": "jameel@example.com",
+      "isManager": false
+    },
+    {
+      "id": "E005",
+      "name": "Souhaib Khairallah",
+      "title": "Head of Automation",
+      "email": "souhaib@example.com",
+      "isManager": true
+    },
+    {
+      "id": "E006",
+      "name": "Ishfaq Pathan",
+      "title": "Infrastructure",
+      "email": "ishfaq@example.com",
+      "isManager": false
+    },
+    {
+      "id": "E007",
+      "name": "Sara Ahmed",
+      "title": "Finance Analyst",
+      "email": "sara@example.com",
+      "isManager": false
+    },
+    {
+      "id": "E008",
+      "name": "Khalid Saleh",
+      "title": "Treasury Officer",
+      "email": "khalid@example.com",
+      "isManager": false
+    },
+    {
+      "id": "E009",
+      "name": "Noor Hassan",
+      "title": "Accounting",
+      "email": "noor@example.com",
+      "isManager": false
+    },
+    {
+      "id": "E010",
+      "name": "Faisal Omar",
+      "title": "Business Analyst",
+      "email": "faisal@example.com",
+      "isManager": false
+    }
+  ],
+  "managerAccess": [
+    {
+      "managerId": "E001",
+      "companyIds": [
+        "C01",
+        "C03"
       ]
     },
     {
-      "id": 2,
-      "name": "Manager",
-      "privileges": [
-        "view_reports",
-        "approve_requests"
+      "managerId": "E002",
+      "companyIds": [
+        "C02"
       ]
     },
     {
-      "id": 3,
-      "name": "Employee",
-      "privileges": [
-        "view_own_data"
+      "managerId": "E005",
+      "companyIds": [
+        "C03",
+        "C01"
       ]
     }
   ],
-  "users": [
+  "employeeMembership": [
     {
-      "id": 1,
-      "firstName": "Alice",
-      "lastName": "Admin",
-      "email": "alice@acme.com",
-      "roleId": 1,
-      "companyId": 1,
-      "isActive": true
+      "employeeId": "E001",
+      "companyIds": [
+        "C01",
+        "C03"
+      ]
     },
     {
-      "id": 2,
-      "firstName": "Bob",
-      "lastName": "Builder",
-      "email": "bob@acme.com",
-      "roleId": 2,
-      "companyId": 1,
-      "isActive": true
+      "employeeId": "E002",
+      "companyIds": [
+        "C02"
+      ]
     },
     {
-      "id": 3,
-      "firstName": "Charlie",
-      "lastName": "Client",
-      "email": "charlie@globex.com",
-      "roleId": 3,
-      "companyId": 2,
-      "isActive": true
+      "employeeId": "E003",
+      "companyIds": [
+        "C01"
+      ]
     },
     {
-      "id": 4,
-      "firstName": "David",
-      "lastName": "Developer",
-      "email": "david@soylent.com",
-      "roleId": 3,
-      "companyId": 3,
-      "isActive": false
+      "employeeId": "E004",
+      "companyIds": [
+        "C01",
+        "C02"
+      ]
+    },
+    {
+      "employeeId": "E005",
+      "companyIds": [
+        "C03",
+        "C01"
+      ]
+    },
+    {
+      "employeeId": "E006",
+      "companyIds": [
+        "C03"
+      ]
+    },
+    {
+      "employeeId": "E007",
+      "companyIds": [
+        "C02",
+        "C01"
+      ]
+    },
+    {
+      "employeeId": "E008",
+      "companyIds": [
+        "C02"
+      ]
+    },
+    {
+      "employeeId": "E009",
+      "companyIds": [
+        "C02",
+        "C03"
+      ]
+    },
+    {
+      "employeeId": "E010",
+      "companyIds": [
+        "C03",
+        "C01"
+      ]
+    }
+  ],
+  "privileges": [
+    {
+      "id": "P_FIN_VIEW_REP",
+      "module": "FIN",
+      "function": "View Reports",
+      "role": "Accounting & Reporting"
+    },
+    {
+      "id": "P_FIN_POST_JRNL",
+      "module": "FIN",
+      "function": "Post Journal",
+      "role": "Accounting & Reporting"
+    },
+    {
+      "id": "P_FIN_APPR_PAY",
+      "module": "FIN",
+      "function": "Approve Payment",
+      "role": "Treasury"
+    },
+    {
+      "id": "P_FIN_CREATE_PAY",
+      "module": "FIN",
+      "function": "Create Payment",
+      "role": "Treasury"
+    },
+    {
+      "id": "P_HR_VIEW_EMP",
+      "module": "HR",
+      "function": "View Employees",
+      "role": "HR"
+    },
+    {
+      "id": "P_HR_UPD_EMP",
+      "module": "HR",
+      "function": "Update Employee",
+      "role": "HR"
+    },
+    {
+      "id": "P_SCM_VIEW_SUP",
+      "module": "SCM",
+      "function": "View Suppliers",
+      "role": "Procurement"
+    },
+    {
+      "id": "P_SCM_CREATE_PO",
+      "module": "SCM",
+      "function": "Create PO",
+      "role": "Procurement"
+    },
+    {
+      "id": "P_IT_MNG_USERS",
+      "module": "IT",
+      "function": "Manage Users",
+      "role": "System Admin"
+    },
+    {
+      "id": "P_IT_RESET_PWD",
+      "module": "IT",
+      "function": "Reset Password",
+      "role": "System Admin"
+    },
+    {
+      "id": "P_GEN_VIEW_DASH",
+      "module": "GEN",
+      "function": "View Dashboard",
+      "role": "Viewer"
+    },
+    {
+      "id": "P_GEN_EXPORT",
+      "module": "GEN",
+      "function": "Export Data",
+      "role": "Viewer"
+    }
+  ],
+  "roleTemplates": [
+    {
+      "role": "Viewer",
+      "privilegeIds": [
+        "P_GEN_VIEW_DASH",
+        "P_GEN_EXPORT"
+      ]
+    },
+    {
+      "role": "System Admin",
+      "privilegeIds": [
+        "P_IT_MNG_USERS",
+        "P_IT_RESET_PWD",
+        "P_GEN_VIEW_DASH"
+      ]
+    },
+    {
+      "role": "Treasury",
+      "privilegeIds": [
+        "P_FIN_APPR_PAY",
+        "P_FIN_CREATE_PAY",
+        "P_GEN_VIEW_DASH"
+      ]
+    },
+    {
+      "role": "Accounting & Reporting",
+      "privilegeIds": [
+        "P_FIN_VIEW_REP",
+        "P_FIN_POST_JRNL",
+        "P_GEN_VIEW_DASH"
+      ]
+    },
+    {
+      "role": "HR",
+      "privilegeIds": [
+        "P_HR_VIEW_EMP",
+        "P_HR_UPD_EMP",
+        "P_GEN_VIEW_DASH"
+      ]
+    },
+    {
+      "role": "Procurement",
+      "privilegeIds": [
+        "P_SCM_VIEW_SUP",
+        "P_SCM_CREATE_PO",
+        "P_GEN_VIEW_DASH"
+      ]
+    }
+  ],
+  "assignments": [
+    {
+      "companyId": "C01",
+      "employeeId": "E004",
+      "privilegeIds": [
+        "P_GEN_VIEW_DASH",
+        "P_GEN_EXPORT"
+      ]
+    },
+    {
+      "companyId": "C02",
+      "employeeId": "E004",
+      "privilegeIds": [
+        "P_FIN_VIEW_REP",
+        "P_FIN_POST_JRNL",
+        "P_GEN_VIEW_DASH"
+      ]
+    },
+    {
+      "companyId": "C02",
+      "employeeId": "E007",
+      "privilegeIds": [
+        "P_FIN_APPR_PAY",
+        "P_FIN_CREATE_PAY",
+        "P_GEN_VIEW_DASH"
+      ]
+    },
+    {
+      "companyId": "C03",
+      "employeeId": "E009",
+      "privilegeIds": [
+        "P_GEN_VIEW_DASH",
+        "P_GEN_EXPORT"
+      ]
+    },
+    {
+      "companyId": "C01",
+      "employeeId": "E010",
+      "privilegeIds": [
+        "P_SCM_VIEW_SUP",
+        "P_SCM_CREATE_PO",
+        "P_GEN_VIEW_DASH"
+      ]
+    },
+    {
+      "companyId": "C03",
+      "employeeId": "E006",
+      "privilegeIds": [
+        "P_IT_MNG_USERS",
+        "P_IT_RESET_PWD",
+        "P_GEN_VIEW_DASH"
+      ]
+    }
+  ],
+  "delegations": [
+    {
+      "id": "DEL001",
+      "managerId": "E001",
+      "delegateId": "E006",
+      "companyId": "C03",
+      "scope": "company-wide",
+      "endDate": "2026-02-04T09:41:41.436Z"
+    },
+    {
+      "id": "DEL002",
+      "managerId": "E002",
+      "delegateId": "E003",
+      "companyId": "C02",
+      "scope": "employee-specific",
+      "targetEmployeeId": "E007"
+    }
+  ],
+  "requests": [
+    {
+      "id": "REQ001",
+      "companyId": "C03",
+      "targetEmployeeId": "E009",
+      "createdBy": "E006",
+      "status": "Submitted",
+      "beforePrivileges": [
+        "P_GEN_VIEW_DASH",
+        "P_GEN_EXPORT"
+      ],
+      "afterPrivileges": [
+        "P_FIN_VIEW_REP",
+        "P_FIN_POST_JRNL",
+        "P_GEN_VIEW_DASH"
+      ],
+      "createdAt": "2026-01-05T09:41:41.436Z",
+      "updatedAt": "2026-01-05T09:41:41.436Z"
     }
   ]
 }
