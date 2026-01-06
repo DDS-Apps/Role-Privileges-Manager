@@ -139,7 +139,7 @@ function ExpandableHierarchy({
   // Only show companies that have assigned roles
   if (companyAssignments.length === 0) {
     return (
-      <div className="text-center py-8 text-muted-foreground border rounded-lg bg-violet-100/50 dark:bg-violet-900/20">
+      <div className="text-center py-8 text-muted-foreground border rounded-lg bg-slate-100/50 dark:bg-slate-900/20">
         <ShieldCheck className="h-10 w-10 mx-auto mb-2 opacity-30" />
         <p className="text-sm">{t.noPrivileges}</p>
       </div>
@@ -153,26 +153,26 @@ function ExpandableHierarchy({
         const assignedCount = privilegeIds.length;
 
         return (
-          <div key={company.id} className="border border-violet-200 dark:border-violet-700 rounded-lg bg-white/50 dark:bg-violet-950/30 overflow-hidden">
+          <div key={company.id} className="border border-slate-200 dark:border-slate-700 rounded-lg bg-white/50 dark:bg-slate-950/30 overflow-hidden">
             {/* Company Header */}
             <button
               onClick={() => toggleCompany(company.id)}
-              className="w-full flex items-center justify-between p-3 hover:bg-violet-100/50 dark:hover:bg-violet-900/30 transition-colors"
+              className="w-full flex items-center justify-between p-3 hover:bg-slate-100/50 dark:hover:bg-slate-800/30 transition-colors"
               data-testid={`toggle-company-${company.id}`}
             >
               <div className="flex items-center gap-2">
-                {isCompanyExpanded ? <ChevronDown className="h-4 w-4 text-violet-600" /> : <ChevronRight className="h-4 w-4 text-violet-600" />}
-                <Building2 className="h-4 w-4 text-violet-500" />
+                {isCompanyExpanded ? <ChevronDown className="h-4 w-4 text-indigo-600" /> : <ChevronRight className="h-4 w-4 text-indigo-600" />}
+                <Building2 className="h-4 w-4 text-indigo-500" />
                 <span className="font-medium">{company.name}</span>
               </div>
-              <span className="text-xs text-violet-600 dark:text-violet-400">
+              <span className="text-xs text-slate-600 dark:text-slate-400">
                 {assignedCount} {t.rolesAssigned}
               </span>
             </button>
 
             {/* Modules - show modules with assigned roles */}
             {isCompanyExpanded && (
-              <div className="border-t border-violet-200 dark:border-violet-700">
+              <div className="border-t border-slate-200 dark:border-slate-700">
                 {Object.entries(moduleGroups).sort(([a], [b]) => a.localeCompare(b)).map(([moduleName, functionGroups]) => {
                   const moduleKey = `${company.id}-${moduleName}`;
                   const isModuleExpanded = expandedModules.has(moduleKey);
@@ -188,18 +188,18 @@ function ExpandableHierarchy({
                   const moduleTotalCount = Object.values(functionGroups).flat().length;
 
                   return (
-                    <div key={moduleKey} className="border-t border-violet-200 dark:border-violet-700 first:border-t-0">
+                    <div key={moduleKey} className="border-t border-slate-200 dark:border-slate-700 first:border-t-0">
                       {/* Module Header */}
                       <button
                         onClick={() => toggleModule(moduleKey)}
-                        className="w-full flex items-center gap-2 p-2 pl-6 hover:bg-violet-100/50 dark:hover:bg-violet-900/30 transition-colors text-left"
+                        className="w-full flex items-center gap-2 p-2 pl-6 hover:bg-slate-100/50 dark:hover:bg-slate-800/30 transition-colors text-left"
                         data-testid={`toggle-module-${moduleKey}`}
                       >
-                        {isModuleExpanded ? <ChevronDown className="h-3 w-3 text-violet-600" /> : <ChevronRight className="h-3 w-3 text-violet-600" />}
-                        <span className="inline-flex items-center rounded-md bg-violet-100 dark:bg-violet-900/50 px-2 py-0.5 text-xs font-medium text-violet-700 dark:text-violet-300">
+                        {isModuleExpanded ? <ChevronDown className="h-3 w-3 text-indigo-600" /> : <ChevronRight className="h-3 w-3 text-indigo-600" />}
+                        <span className="inline-flex items-center rounded-md bg-indigo-100 dark:bg-indigo-900/50 px-2 py-0.5 text-xs font-medium text-indigo-700 dark:text-indigo-300">
                           {moduleName}
                         </span>
-                        <span className="text-xs text-violet-600/70 dark:text-violet-400/70">({moduleAssignedCount}/{moduleTotalCount})</span>
+                        <span className="text-xs text-slate-600/70 dark:text-slate-400/70">({moduleAssignedCount}/{moduleTotalCount})</span>
                       </button>
 
                       {/* Functions - only show functions with assigned roles */}
@@ -225,12 +225,12 @@ function ExpandableHierarchy({
                                 {/* Function Header */}
                                 <button
                                   onClick={() => toggleFunction(funcKey)}
-                                  className="w-full flex items-center gap-2 p-2 pl-10 hover:bg-violet-100/50 dark:hover:bg-violet-900/30 transition-colors text-left"
+                                  className="w-full flex items-center gap-2 p-2 pl-10 hover:bg-slate-100/50 dark:hover:bg-slate-800/30 transition-colors text-left"
                                   data-testid={`toggle-function-${funcKey}`}
                                 >
-                                  {isFuncExpanded ? <ChevronDown className="h-3 w-3 text-violet-600" /> : <ChevronRight className="h-3 w-3 text-violet-600" />}
+                                  {isFuncExpanded ? <ChevronDown className="h-3 w-3 text-indigo-600" /> : <ChevronRight className="h-3 w-3 text-indigo-600" />}
                                   <span className="text-sm text-muted-foreground">{funcName}</span>
-                                  <span className="text-xs text-violet-600/70 dark:text-violet-400/70">({funcAssignedCount}/{funcPrivs.length})</span>
+                                  <span className="text-xs text-slate-600/70 dark:text-slate-400/70">({funcAssignedCount}/{funcPrivs.length})</span>
                                 </button>
 
                                 {/* Roles - only show assigned roles */}
@@ -249,7 +249,7 @@ function ExpandableHierarchy({
                                           data-testid={`checkbox-current-${company.id}-${priv.id}`}
                                         />
                                         <span className="text-sm">{priv.role}</span>
-                                        <span className="text-xs text-green-600 dark:text-green-400">({t.assigned})</span>
+                                        <span className="text-xs text-indigo-600 dark:text-indigo-400">({t.assigned})</span>
                                       </label>
                                     ))}
                                   </div>
@@ -282,7 +282,7 @@ export default function Dashboard() {
   const [editorModule, setEditorModule] = useState<string>("");
   const [editorFunction, setEditorFunction] = useState<string>("");
   const [roleSelections, setRoleSelections] = useState<Record<string, boolean>>({});
-  const [isAddRemoveExpanded, setIsAddRemoveExpanded] = useState(true);
+  const [isAddRemoveExpanded, setIsAddRemoveExpanded] = useState(false);
 
   const { data, isLoading, error } = useBootstrapData();
   const applyAssignments = useApplyAssignments();
@@ -627,25 +627,25 @@ export default function Dashboard() {
 
         {/* Employee Details Card */}
         {selectedEmployee && (
-          <div className="rounded-xl border-2 border-emerald-200 dark:border-emerald-800 bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-950/50 dark:to-teal-950/50 p-4 shadow-sm">
-            <h3 className="text-sm font-semibold text-emerald-600 dark:text-emerald-400 mb-3">{t.employeeDetails}</h3>
+          <div className="rounded-xl border-2 border-slate-200 dark:border-slate-700 bg-gradient-to-r from-slate-50 to-gray-50 dark:from-slate-900/50 dark:to-gray-900/50 p-4 shadow-sm">
+            <h3 className="text-sm font-semibold text-slate-600 dark:text-slate-400 mb-3">{t.employeeDetails}</h3>
             <div className="flex flex-wrap gap-4 items-center">
               <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white font-bold">
+                <div className="h-10 w-10 rounded-full bg-gradient-to-br from-slate-500 to-gray-600 flex items-center justify-center text-white font-bold">
                   {selectedEmployee.name.charAt(0)}
                 </div>
                 <div>
                   <p className="font-semibold">{selectedEmployee.name}</p>
-                  <p className="text-sm text-muted-foreground">{selectedEmployee.title} - {selectedEmployee.email}</p>
+                  <p className="text-sm text-muted-foreground">{selectedEmployee.title}</p>
                 </div>
               </div>
-              <div className="h-8 w-px bg-emerald-200 dark:bg-emerald-700 hidden sm:block" />
+              <div className="h-8 w-px bg-slate-200 dark:bg-slate-700 hidden sm:block" />
               <div>
                 <div className="flex items-center gap-2 mb-1">
-                  <Building2 className="h-4 w-4 text-emerald-500" />
-                  <span className="text-sm font-medium text-emerald-600 dark:text-emerald-400">{t.legalCompany}</span>
+                  <Building2 className="h-4 w-4 text-slate-500" />
+                  <span className="text-sm font-medium text-slate-600 dark:text-slate-400">{t.legalCompany}</span>
                 </div>
-                <span className="inline-flex items-center rounded-md bg-emerald-100 dark:bg-emerald-900/50 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:text-emerald-300">
+                <span className="inline-flex items-center rounded-md bg-slate-100 dark:bg-slate-800 px-2 py-0.5 text-xs font-medium text-slate-700 dark:text-slate-300">
                   {employeeLegalCompany?.name || "N/A"}
                 </span>
               </div>
@@ -655,17 +655,17 @@ export default function Dashboard() {
 
         {/* Add / Remove Privileges (Full Width) - with Company Context inside */}
         {selectedEmployee && (
-          <div className="rounded-xl border-2 border-amber-200 dark:border-amber-800 bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-950/50 dark:to-orange-950/50 p-4 shadow-sm">
+          <div className="rounded-xl border-2 border-indigo-200 dark:border-indigo-800 bg-gradient-to-r from-indigo-50 to-blue-50 dark:from-indigo-950/50 dark:to-blue-950/50 p-4 shadow-sm">
             <button
               onClick={() => setIsAddRemoveExpanded(!isAddRemoveExpanded)}
-              className="w-full flex items-center justify-between mb-2"
+              className="w-full flex items-center justify-between"
               data-testid="toggle-add-remove"
             >
               <div className="flex items-center gap-2">
-                <ShieldCheck className="h-5 w-5 text-amber-600 dark:text-amber-400" />
-                <h3 className="text-lg font-semibold text-amber-700 dark:text-amber-300">{t.addRemove}</h3>
+                <ShieldCheck className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
+                <h3 className="text-lg font-semibold text-indigo-700 dark:text-indigo-300">{t.addRemove}</h3>
               </div>
-              {isAddRemoveExpanded ? <ChevronDown className="h-5 w-5 text-amber-600" /> : <ChevronRight className="h-5 w-5 text-amber-600" />}
+              {isAddRemoveExpanded ? <ChevronDown className="h-5 w-5 text-indigo-600" /> : <ChevronRight className="h-5 w-5 text-indigo-600" />}
             </button>
 
             {isAddRemoveExpanded && (
@@ -803,11 +803,11 @@ export default function Dashboard() {
 
         {/* Current Privilege - Multi-company hierarchical view */}
         {selectedEmployee && (
-          <div className="rounded-xl border-2 border-violet-200 dark:border-violet-800 bg-gradient-to-r from-violet-50 to-purple-50 dark:from-violet-950/50 dark:to-purple-950/50 p-4 shadow-sm">
+          <div className="rounded-xl border-2 border-slate-200 dark:border-slate-700 bg-gradient-to-r from-slate-50 to-gray-50 dark:from-slate-900/50 dark:to-gray-900/50 p-4 shadow-sm">
             <div className="flex items-center gap-2 mb-4">
-              <ShieldCheck className="h-5 w-5 text-violet-600 dark:text-violet-400" />
-              <h3 className="text-lg font-semibold text-violet-700 dark:text-violet-300">{t.currentPrivilege}</h3>
-              <span className="text-sm text-violet-600/70 dark:text-violet-400/70">
+              <ShieldCheck className="h-5 w-5 text-slate-600 dark:text-slate-400" />
+              <h3 className="text-lg font-semibold text-slate-700 dark:text-slate-300">{t.currentPrivilege}</h3>
+              <span className="text-sm text-slate-600/70 dark:text-slate-400/70">
                 ({employeeAssignmentsWithCompanies.length} {employeeAssignmentsWithCompanies.length === 1 ? 'company' : 'companies'})
               </span>
             </div>
