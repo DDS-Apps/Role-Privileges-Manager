@@ -51,24 +51,53 @@ export class JsonStorage implements IStorage {
 
   private getDefaultData(): AppData {
     const companies: Company[] = [
-      { id: "C01", name: "Dallah Holding" },
-      { id: "C02", name: "Dallah Healthcare" },
-      { id: "C03", name: "Dallah Digital" },
+      { id: "001", name: "شركة دله البركة القابضة" },
+      { id: "002", name: "شركة دله الرقمية" },
+      { id: "008", name: "شركة دله جسر الشرق للإستثمار" },
+      { id: "009", name: "شركة الروابي الاقليمية للفنادق والمنتجعات السياحية" },
+      { id: "010", name: "شركة وكن العالمية للمجمعات السكنية المحدودة" },
+      { id: "012", name: "شركة مكاسب الدولية" },
+      { id: "019", name: "نشاط التشغيل والصيانة" },
+      { id: "020", name: "شركة مجموعة خدمات الطعام" },
+      { id: "021", name: "شركة دله للمقاولات والصيانة" },
+      { id: "022", name: "شركة دله لتعليم قيادة السيارات" },
+      { id: "028", name: "شركة دله عبر البلاد العربية" },
+      { id: "030", name: "شركة دله العقارية" },
+      { id: "045", name: "شركة دله المتقدمه للحافلات والمعدات المحدودة" },
+      { id: "046", name: "شركة دله لنقل الحجاج" },
+      { id: "050", name: "شركة دله التجارية" },
+      { id: "052", name: "شركة دله لصيانة وتشغيل أجهزة تكييف الهواء" },
+      { id: "053", name: "وكالة دارين للسفر و السياحة" },
+      { id: "054", name: "شركة دله للتنمية العقارية والسياحية" },
+      { id: "055", name: "الشركة السعودية للمدن السياحية" },
+      { id: "058", name: "شركة الدرة الخليجية للصيانة والتشغيل المحدودة" },
+      { id: "060", name: "شركة امام الحديثة للعقار" },
+      { id: "061", name: "شركة دله للفنادق والمنتجعات السياحية" },
+      { id: "066", name: "شركة شريك للتسويق والصيانة والتشغيل والتجارة" },
+      { id: "069", name: "شركة دله حلول الأعمال" },
+      { id: "077", name: "شركة ألف و سبعمائة وستون المحدودة" },
+      { id: "079", name: "الشركة العربية للإعلان والخدمات العامة" },
+      { id: "167", name: "دله البركة للإستثمار القابضة" },
+      { id: "186", name: "شركة درة الرياض للتطوير العقاري المحدودة" },
+      { id: "246", name: "شركة المناخة لتطوير المشاريع العمرانية" },
+      { id: "260", name: "شركة البوادر المتميزة القابضة" },
+      { id: "261", name: "شركة فواصل المتطورة لتنظيم الفعاليات والمهرجانات السياحية" },
+      { id: "276", name: "شركة الرواق للمحاماة و الاستشارات القانونية" },
     ];
 
-    // Updated employees with legalCompanyId and managerId
-    // Managers: E001 (Waleed - C01), E002 (Adnan - C02), E005 (Souhaib - C03)
+    // Employees with legalCompanyId and managerId
+    // Managers: E001 (Waleed - 001), E002 (Adnan - 002), E005 (Souhaib - 008)
     const employees: Employee[] = [
-      { id: "E001", name: "Waleed Alahdal", title: "IT Lead", email: "waleed@example.com", isManager: true, legalCompanyId: "C01" },
-      { id: "E002", name: "Adnan Alqahtani", title: "Operations Manager", email: "adnan@example.com", isManager: true, legalCompanyId: "C02" },
-      { id: "E003", name: "Shahad Alharbi", title: "HR Specialist", email: "shahad@example.com", isManager: false, legalCompanyId: "C01", managerId: "E001" },
-      { id: "E004", name: "Jameel Ashraf", title: "GM Assistant", email: "jameel@example.com", isManager: false, legalCompanyId: "C01", managerId: "E001" },
-      { id: "E005", name: "Souhaib Khairallah", title: "Head of Automation", email: "souhaib@example.com", isManager: true, legalCompanyId: "C03" },
-      { id: "E006", name: "Ishfaq Pathan", title: "Infrastructure", email: "ishfaq@example.com", isManager: false, legalCompanyId: "C03", managerId: "E005" },
-      { id: "E007", name: "Sara Ahmed", title: "Finance Analyst", email: "sara@example.com", isManager: false, legalCompanyId: "C02", managerId: "E002" },
-      { id: "E008", name: "Khalid Saleh", title: "Treasury Officer", email: "khalid@example.com", isManager: false, legalCompanyId: "C02", managerId: "E002" },
-      { id: "E009", name: "Noor Hassan", title: "Accounting", email: "noor@example.com", isManager: false, legalCompanyId: "C02", managerId: "E002" },
-      { id: "E010", name: "Faisal Omar", title: "Business Analyst", email: "faisal@example.com", isManager: false, legalCompanyId: "C03", managerId: "E005" },
+      { id: "E001", name: "Waleed Alahdal", title: "IT Lead", email: "waleed@example.com", isManager: true, legalCompanyId: "001" },
+      { id: "E002", name: "Adnan Alqahtani", title: "Operations Manager", email: "adnan@example.com", isManager: true, legalCompanyId: "002" },
+      { id: "E003", name: "Shahad Alharbi", title: "HR Specialist", email: "shahad@example.com", isManager: false, legalCompanyId: "001", managerId: "E001" },
+      { id: "E004", name: "Jameel Ashraf", title: "GM Assistant", email: "jameel@example.com", isManager: false, legalCompanyId: "001", managerId: "E001" },
+      { id: "E005", name: "Souhaib Khairallah", title: "Head of Automation", email: "souhaib@example.com", isManager: true, legalCompanyId: "008" },
+      { id: "E006", name: "Ishfaq Pathan", title: "Infrastructure", email: "ishfaq@example.com", isManager: false, legalCompanyId: "008", managerId: "E005" },
+      { id: "E007", name: "Sara Ahmed", title: "Finance Analyst", email: "sara@example.com", isManager: false, legalCompanyId: "002", managerId: "E002" },
+      { id: "E008", name: "Khalid Saleh", title: "Treasury Officer", email: "khalid@example.com", isManager: false, legalCompanyId: "002", managerId: "E002" },
+      { id: "E009", name: "Noor Hassan", title: "Accounting", email: "noor@example.com", isManager: false, legalCompanyId: "002", managerId: "E002" },
+      { id: "E010", name: "Faisal Omar", title: "Business Analyst", email: "faisal@example.com", isManager: false, legalCompanyId: "008", managerId: "E005" },
     ];
 
     // Privileges catalog from Excel file - Finance, HR, SCM modules
@@ -216,14 +245,14 @@ export class JsonStorage implements IStorage {
 
     // Seeded assignments - employees can have privileges in ANY company (cross-company)
     const assignments: Assignment[] = [
-      // E003 has privileges in C01 (their legal company)
-      { companyId: "C01", employeeId: "E003", privilegeIds: ["P_FIN_ACC_09"] },
-      // E007 has privileges in C02 (their legal company) 
-      { companyId: "C02", employeeId: "E007", privilegeIds: ["P_FIN_TM_01", "P_FIN_TM_02"] },
-      // E006 has privileges in C03 (their legal company)
-      { companyId: "C03", employeeId: "E006", privilegeIds: ["P_FIN_FA_01", "P_FIN_FA_02"] },
-      // Cross-company example: E004 (legal C01) has privileges in C02
-      { companyId: "C02", employeeId: "E004", privilegeIds: ["P_FIN_AR_01"] },
+      // E003 has privileges in 001 (their legal company)
+      { companyId: "001", employeeId: "E003", privilegeIds: ["P_FIN_ACC_09"] },
+      // E007 has privileges in 002 (their legal company) 
+      { companyId: "002", employeeId: "E007", privilegeIds: ["P_FIN_TM_01", "P_FIN_TM_02"] },
+      // E006 has privileges in 008 (their legal company)
+      { companyId: "008", employeeId: "E006", privilegeIds: ["P_FIN_FA_01", "P_FIN_FA_02"] },
+      // Cross-company example: E004 (legal 001) has privileges in 002
+      { companyId: "002", employeeId: "E004", privilegeIds: ["P_FIN_AR_01"] },
     ];
 
     return {

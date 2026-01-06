@@ -1,16 +1,132 @@
 {
   "companies": [
     {
-      "id": "C01",
-      "name": "Dallah Holding"
+      "id": "001",
+      "name": "شركة دله البركة القابضة"
     },
     {
-      "id": "C02",
-      "name": "Dallah Healthcare"
+      "id": "002",
+      "name": "شركة دله الرقمية"
     },
     {
-      "id": "C03",
-      "name": "Dallah Digital"
+      "id": "008",
+      "name": "شركة دله جسر الشرق للإستثمار"
+    },
+    {
+      "id": "009",
+      "name": "شركة الروابي الاقليمية للفنادق والمنتجعات السياحية"
+    },
+    {
+      "id": "010",
+      "name": "شركة وكن العالمية للمجمعات السكنية المحدودة"
+    },
+    {
+      "id": "012",
+      "name": "شركة مكاسب الدولية"
+    },
+    {
+      "id": "019",
+      "name": "نشاط التشغيل والصيانة"
+    },
+    {
+      "id": "020",
+      "name": "شركة مجموعة خدمات الطعام"
+    },
+    {
+      "id": "021",
+      "name": "شركة دله للمقاولات والصيانة"
+    },
+    {
+      "id": "022",
+      "name": "شركة دله لتعليم قيادة السيارات"
+    },
+    {
+      "id": "028",
+      "name": "شركة دله عبر البلاد العربية"
+    },
+    {
+      "id": "030",
+      "name": "شركة دله العقارية"
+    },
+    {
+      "id": "045",
+      "name": "شركة دله المتقدمه للحافلات والمعدات المحدودة"
+    },
+    {
+      "id": "046",
+      "name": "شركة دله لنقل الحجاج"
+    },
+    {
+      "id": "050",
+      "name": "شركة دله التجارية"
+    },
+    {
+      "id": "052",
+      "name": "شركة دله لصيانة وتشغيل أجهزة تكييف الهواء"
+    },
+    {
+      "id": "053",
+      "name": "وكالة دارين للسفر و السياحة"
+    },
+    {
+      "id": "054",
+      "name": "شركة دله للتنمية العقارية والسياحية"
+    },
+    {
+      "id": "055",
+      "name": "الشركة السعودية للمدن السياحية"
+    },
+    {
+      "id": "058",
+      "name": "شركة الدرة الخليجية للصيانة والتشغيل المحدودة"
+    },
+    {
+      "id": "060",
+      "name": "شركة امام الحديثة للعقار"
+    },
+    {
+      "id": "061",
+      "name": "شركة دله للفنادق والمنتجعات السياحية"
+    },
+    {
+      "id": "066",
+      "name": "شركة شريك للتسويق والصيانة والتشغيل والتجارة"
+    },
+    {
+      "id": "069",
+      "name": "شركة دله حلول الأعمال"
+    },
+    {
+      "id": "077",
+      "name": "شركة ألف و سبعمائة وستون المحدودة"
+    },
+    {
+      "id": "079",
+      "name": "الشركة العربية للإعلان والخدمات العامة"
+    },
+    {
+      "id": "167",
+      "name": "دله البركة للإستثمار القابضة"
+    },
+    {
+      "id": "186",
+      "name": "شركة درة الرياض للتطوير العقاري المحدودة"
+    },
+    {
+      "id": "246",
+      "name": "شركة المناخة لتطوير المشاريع العمرانية"
+    },
+    {
+      "id": "260",
+      "name": "شركة البوادر المتميزة القابضة"
+    },
+    {
+      "id": "261",
+      "name": "شركة فواصل المتطورة لتنظيم الفعاليات والمهرجانات السياحية"
+    },
+    {
+      "id": "276",
+      "name": "شركة الرواق للمحاماة و الاستشارات القانونية"
     }
   ],
   "employees": [
@@ -20,7 +136,7 @@
       "title": "IT Lead",
       "email": "waleed@example.com",
       "isManager": true,
-      "legalCompanyId": "C01"
+      "legalCompanyId": "001"
     },
     {
       "id": "E002",
@@ -28,7 +144,7 @@
       "title": "Operations Manager",
       "email": "adnan@example.com",
       "isManager": true,
-      "legalCompanyId": "C02"
+      "legalCompanyId": "002"
     },
     {
       "id": "E003",
@@ -36,7 +152,7 @@
       "title": "HR Specialist",
       "email": "shahad@example.com",
       "isManager": false,
-      "legalCompanyId": "C01",
+      "legalCompanyId": "001",
       "managerId": "E001"
     },
     {
@@ -45,7 +161,7 @@
       "title": "GM Assistant",
       "email": "jameel@example.com",
       "isManager": false,
-      "legalCompanyId": "C01",
+      "legalCompanyId": "001",
       "managerId": "E001"
     },
     {
@@ -54,7 +170,7 @@
       "title": "Head of Automation",
       "email": "souhaib@example.com",
       "isManager": true,
-      "legalCompanyId": "C03"
+      "legalCompanyId": "008"
     },
     {
       "id": "E006",
@@ -62,7 +178,7 @@
       "title": "Infrastructure",
       "email": "ishfaq@example.com",
       "isManager": false,
-      "legalCompanyId": "C03",
+      "legalCompanyId": "008",
       "managerId": "E005"
     },
     {
@@ -71,7 +187,7 @@
       "title": "Finance Analyst",
       "email": "sara@example.com",
       "isManager": false,
-      "legalCompanyId": "C02",
+      "legalCompanyId": "002",
       "managerId": "E002"
     },
     {
@@ -80,7 +196,7 @@
       "title": "Treasury Officer",
       "email": "khalid@example.com",
       "isManager": false,
-      "legalCompanyId": "C02",
+      "legalCompanyId": "002",
       "managerId": "E002"
     },
     {
@@ -89,7 +205,7 @@
       "title": "Accounting",
       "email": "noor@example.com",
       "isManager": false,
-      "legalCompanyId": "C02",
+      "legalCompanyId": "002",
       "managerId": "E002"
     },
     {
@@ -98,7 +214,7 @@
       "title": "Business Analyst",
       "email": "faisal@example.com",
       "isManager": false,
-      "legalCompanyId": "C03",
+      "legalCompanyId": "008",
       "managerId": "E005"
     }
   ],
@@ -820,14 +936,14 @@
   ],
   "assignments": [
     {
-      "companyId": "C01",
+      "companyId": "001",
       "employeeId": "E003",
       "privilegeIds": [
         "P_FIN_ACC_09"
       ]
     },
     {
-      "companyId": "C02",
+      "companyId": "002",
       "employeeId": "E007",
       "privilegeIds": [
         "P_FIN_TM_01",
@@ -835,7 +951,7 @@
       ]
     },
     {
-      "companyId": "C03",
+      "companyId": "008",
       "employeeId": "E006",
       "privilegeIds": [
         "P_FIN_FA_01",
@@ -843,7 +959,7 @@
       ]
     },
     {
-      "companyId": "C02",
+      "companyId": "002",
       "employeeId": "E004",
       "privilegeIds": [
         "P_FIN_AR_01"
