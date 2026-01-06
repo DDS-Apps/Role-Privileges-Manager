@@ -1,1 +1,65 @@
-[]
+[
+  {
+    "id": "32868f03-96e9-44dc-ac8e-abcc731006d1",
+    "timestamp": "2026-01-06T12:38:05.272Z",
+    "managerUserId": "E001",
+    "actionType": "ADD_ROLE",
+    "companyId": "C02",
+    "targetEmployeeId": "E003",
+    "details": "Waleed Alahdal added Finance/Accountant/Create customer invoices, credit notes, advances and make receipts to Shahad Alharbi in Dallah Healthcare"
+  },
+  {
+    "id": "104cd209-65a0-4ac3-a54f-da2c865d9f36",
+    "timestamp": "2026-01-06T12:38:05.273Z",
+    "managerUserId": "E001",
+    "actionType": "ADD_ROLE",
+    "companyId": "C02",
+    "targetEmployeeId": "E003",
+    "details": "Waleed Alahdal added Finance/Accountant/Reconcile customer accounts to Shahad Alharbi in Dallah Healthcare"
+  },
+  {
+    "id": "5a806f7f-888f-4ac1-9d6d-54846d8a121e",
+    "timestamp": "2026-01-06T12:38:05.273Z",
+    "managerUserId": "E001",
+    "actionType": "ADD_ROLE",
+    "companyId": "C02",
+    "targetEmployeeId": "E003",
+    "details": "Waleed Alahdal added Finance/Accountant/Record, transfer, disposal and manage asset register to Shahad Alharbi in Dallah Healthcare"
+  },
+  {
+    "id": "f91973f1-f2da-488e-85e9-3a42feb49c2c",
+    "timestamp": "2026-01-06T12:38:05.274Z",
+    "managerUserId": "E001",
+    "actionType": "ADD_ROLE",
+    "companyId": "C02",
+    "targetEmployeeId": "E003",
+    "details": "Waleed Alahdal added Finance/Accountant/Run system depreciation and impairment entries to Shahad Alharbi in Dallah Healthcare"
+  },
+  {
+    "id": "0117f3ab-1632-4301-841f-a9072eac2124",
+    "timestamp": "2026-01-06T12:38:05.274Z",
+    "managerUserId": "E001",
+    "actionType": "ADD_ROLE",
+    "companyId": "C02",
+    "targetEmployeeId": "E003",
+    "details": "Waleed Alahdal added Finance/Accountant/Analyze accounts for accuracy to Shahad Alharbi in Dallah Healthcare"
+  },
+  {
+    "id": "2b16782b-0598-435c-9e82-a247e2541680",
+    "timestamp": "2026-01-06T12:38:05.275Z",
+    "managerUserId": "E001",
+    "actionType": "ADD_ROLE",
+    "companyId": "C02",
+    "targetEmployeeId": "E003",
+    "details": "Waleed Alahdal added Finance/Accountant/Generate financial reports to Shahad Alharbi in Dallah Healthcare"
+  },
+  {
+    "id": "c38e69b0-4058-4701-ae9c-e1948ca2a86c",
+    "timestamp": "2026-01-06T12:38:05.276Z",
+    "managerUserId": "E001",
+    "actionType": "ADD_ROLE",
+    "companyId": "C02",
+    "targetEmployeeId": "E003",
+    "details": "Waleed Alahdal added Finance/Accountant/Ensure system mapping is correct (sub-ledgers to GL) to Shahad Alharbi in Dallah Healthcare"
+  }
+]

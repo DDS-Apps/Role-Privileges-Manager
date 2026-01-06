@@ -356,6 +356,19 @@
       "privilegeIds": [
         "P_FIN_AR_01"
       ]
+    },
+    {
+      "companyId": "C02",
+      "employeeId": "E003",
+      "privilegeIds": [
+        "P_FIN_ACC_04",
+        "P_FIN_ACC_05",
+        "P_FIN_ACC_06",
+        "P_FIN_ACC_07",
+        "P_FIN_ACC_08",
+        "P_FIN_ACC_09",
+        "P_FIN_ACC_10"
+      ]
     }
   ]
 }
