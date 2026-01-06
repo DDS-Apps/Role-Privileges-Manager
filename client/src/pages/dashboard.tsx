@@ -1,26 +1,18 @@
 import { useState, useMemo, useEffect } from "react";
+import { useBootstrapData, useApplyAssignments, useUploadCatalog } from "@/hooks/use-app-data";
 import { 
-  useBootstrapData, 
-  useCreateDelegation, 
-  useRevokeDelegation,
-  useCreateRequest,
-  useApproveRequest,
-  useRejectRequest
-} from "@/hooks/use-app-data";
-import { 
-  Loader2, Pencil, Search, Globe, Download, Building2, Users, ShieldCheck,
-  UserPlus, X, Check, Clock, CheckCircle2, XCircle, ChevronDown, AlertTriangle
+  Loader2, Search, Globe, Download, Building2, Users, ShieldCheck,
+  Plus, Minus, X, Check, Upload, ChevronDown
 } from "lucide-react";
-import type { 
-  Employee, Company, Privilege, Assignment, Delegation, PrivilegeRequest, RoleTemplate 
-} from "@shared/schema";
+import type { Employee, Company, Privilege, Assignment } from "@shared/schema";
+import { useToast } from "@/hooks/use-toast";
 
 type Language = "en" | "ar";
 
 const DICT = {
   en: {
     title: "Business Users Roles and Privileges",
-    actAs: "Act as",
+    actAs: "Act as Manager",
     company: "Company",
     employee: "Employee",
     search: "Search by ID or name...",
@@ -29,55 +21,29 @@ const DICT = {
     function: "Function",
     role: "Role",
     assigned: "Assigned",
-    applyTemplate: "Apply Role Template",
-    apply: "Apply",
-    edit: "Edit",
-    save: "Save",
+    addRemove: "Add/Remove",
+    applyChanges: "Apply Changes",
     cancel: "Cancel",
-    submit: "Submit for Approval",
-    delegate: "Manager Delegate",
     export: "Export",
     exportCompany: "Export (This Company)",
     exportAll: "Export (All Companies)",
     managerDetails: "Manager Details",
     accessibleCompanies: "Accessible Companies",
     noAccess: "No companies accessible",
-    delegations: "Delegations",
-    createDelegation: "Create Delegation",
-    delegateUser: "Delegate User",
-    scope: "Scope",
-    companyWide: "Company-wide",
-    employeeSpecific: "Employee-specific",
-    targetEmployee: "Target Employee",
-    startDate: "Start Date",
-    endDate: "End Date",
-    revoke: "Revoke",
-    pendingRequests: "Pending Requests",
-    approve: "Approve",
-    reject: "Reject",
-    before: "Before",
-    after: "After",
-    noChanges: "No changes detected",
-    unsavedWarning: "Unsaved Changes",
-    unsavedDesc: "You have unsaved changes. Discard them?",
-    discard: "Discard",
-    viewMode: "View Mode",
-    editMode: "Edit Mode",
-    draft: "Draft",
-    submitted: "Submitted",
-    approved: "Approved",
-    rejected: "Rejected",
-    applied: "Applied",
-    allModules: "All Modules",
-    allFunctions: "All Functions",
-    allRoles: "All Roles",
-    filterModule: "Filter by Module",
-    filterFunction: "Filter by Function",
-    filterRole: "Filter by Role",
+    selectModule: "Select Module",
+    selectFunction: "Select Function",
+    noPrivileges: "No privileges assigned",
+    uploadData: "Upload Data",
+    uploadCatalog: "Upload Catalog (CSV)",
+    uploading: "Uploading...",
+    uploadSuccess: "Catalog uploaded successfully",
+    allRolesSelected: "All roles selected by default",
+    employeeDetails: "Employee Details",
+    companyContext: "Company Context",
   },
   ar: {
     title: "أدوار وامتيازات مستخدمي الأعمال",
-    actAs: "تصرف كـ",
+    actAs: "تصرف كمدير",
     company: "الشركة",
     employee: "الموظف",
     search: "ابحث بالرقم أو الاسم...",
@@ -86,76 +52,44 @@ const DICT = {
     function: "الوظيفة",
     role: "الدور",
     assigned: "مخصص",
-    applyTemplate: "تطبيق قالب الدور",
-    apply: "تطبيق",
-    edit: "تعديل",
-    save: "حفظ",
+    addRemove: "إضافة/إزالة",
+    applyChanges: "تطبيق التغييرات",
     cancel: "إلغاء",
-    submit: "إرسال للموافقة",
-    delegate: "تفويض المدير",
     export: "تصدير",
     exportCompany: "تصدير (هذه الشركة)",
     exportAll: "تصدير (جميع الشركات)",
     managerDetails: "تفاصيل المدير",
     accessibleCompanies: "الشركات المتاحة",
     noAccess: "لا توجد شركات متاحة",
-    delegations: "التفويضات",
-    createDelegation: "إنشاء تفويض",
-    delegateUser: "المستخدم المفوض",
-    scope: "النطاق",
-    companyWide: "على مستوى الشركة",
-    employeeSpecific: "لموظف محدد",
-    targetEmployee: "الموظف المستهدف",
-    startDate: "تاريخ البدء",
-    endDate: "تاريخ الانتهاء",
-    revoke: "إلغاء",
-    pendingRequests: "الطلبات المعلقة",
-    approve: "موافقة",
-    reject: "رفض",
-    before: "قبل",
-    after: "بعد",
-    noChanges: "لم يتم الكشف عن أي تغييرات",
-    unsavedWarning: "تغييرات غير محفوظة",
-    unsavedDesc: "لديك تغييرات غير محفوظة. هل تريد تجاهلها؟",
-    discard: "تجاهل",
-    viewMode: "وضع العرض",
-    editMode: "وضع التحرير",
-    draft: "مسودة",
-    submitted: "مرسل",
-    approved: "موافق عليه",
-    rejected: "مرفوض",
-    applied: "مطبق",
-    allModules: "جميع الوحدات",
-    allFunctions: "جميع الوظائف",
-    allRoles: "جميع الأدوار",
-    filterModule: "تصفية حسب الوحدة",
-    filterFunction: "تصفية حسب الوظيفة",
-    filterRole: "تصفية حسب الدور",
+    selectModule: "اختر الوحدة",
+    selectFunction: "اختر الوظيفة",
+    noPrivileges: "لا توجد امتيازات مخصصة",
+    uploadData: "تحميل البيانات",
+    uploadCatalog: "تحميل الكتالوج (CSV)",
+    uploading: "جاري التحميل...",
+    uploadSuccess: "تم تحميل الكتالوج بنجاح",
+    allRolesSelected: "جميع الأدوار محددة افتراضياً",
+    employeeDetails: "تفاصيل الموظف",
+    companyContext: "سياق الشركة",
   }
 };
 
 export default function Dashboard() {
   const [language, setLanguage] = useState<Language>("en");
-  const [actingUserId, setActingUserId] = useState<string>("E001");
+  const [actingUserId, setActingUserId] = useState<string>("");
   const [selectedCompanyId, setSelectedCompanyId] = useState<string>("");
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>("");
   const [searchQuery, setSearchQuery] = useState("");
-  const [isEditMode, setIsEditMode] = useState(false);
-  const [draftPrivileges, setDraftPrivileges] = useState<string[]>([]);
-  const [selectedTemplate, setSelectedTemplate] = useState<string>("");
-  const [showDelegationModal, setShowDelegationModal] = useState(false);
-  const [showUnsavedWarning, setShowUnsavedWarning] = useState(false);
-  const [pendingAction, setPendingAction] = useState<(() => void) | null>(null);
-  const [filterModule, setFilterModule] = useState<string>("");
-  const [filterFunction, setFilterFunction] = useState<string>("");
-  const [filterRole, setFilterRole] = useState<string>("");
+  const [showAddRemoveModal, setShowAddRemoveModal] = useState(false);
+  const [modalModule, setModalModule] = useState<string>("");
+  const [modalFunction, setModalFunction] = useState<string>("");
+  const [modalRoleSelections, setModalRoleSelections] = useState<Record<string, boolean>>({});
+  const [showUploadSection, setShowUploadSection] = useState(false);
 
   const { data, isLoading, error } = useBootstrapData();
-  const createDelegation = useCreateDelegation();
-  const revokeDelegation = useRevokeDelegation();
-  const createRequest = useCreateRequest();
-  const approveRequest = useApproveRequest();
-  const rejectRequest = useRejectRequest();
+  const applyAssignments = useApplyAssignments();
+  const uploadCatalog = useUploadCatalog();
+  const { toast } = useToast();
 
   const t = DICT[language];
 
@@ -164,6 +98,19 @@ export default function Dashboard() {
     setLanguage(newLang);
     document.documentElement.dir = newLang === "ar" ? "rtl" : "ltr";
   };
+
+  // Only show managers in the Act-as dropdown
+  const managers = useMemo(() => 
+    data?.employees.filter(e => e.isManager) || [],
+    [data]
+  );
+
+  // Auto-select first manager
+  useEffect(() => {
+    if (data && !actingUserId && managers.length > 0) {
+      setActingUserId(managers[0].id);
+    }
+  }, [data, actingUserId, managers]);
 
   const actingUser = useMemo(() => 
     data?.employees.find(e => e.id === actingUserId), 
@@ -176,29 +123,27 @@ export default function Dashboard() {
     return access?.companyIds || [];
   }, [data, actingUser, actingUserId]);
 
-  const delegatedCompanies = useMemo(() => {
-    if (!data) return [];
-    const now = new Date();
-    return data.delegations
-      .filter(d => {
-        if (d.delegateId !== actingUserId) return false;
-        if (d.revokedAt) return false;
-        if (d.startDate && new Date(d.startDate) > now) return false;
-        if (d.endDate && new Date(d.endDate) < now) return false;
-        return true;
-      })
-      .map(d => d.companyId);
-  }, [data, actingUserId]);
-
-  const accessibleCompanyIds = useMemo(() => 
-    Array.from(new Set([...managerCompanies, ...delegatedCompanies])),
-    [managerCompanies, delegatedCompanies]
-  );
-
   const accessibleCompanies = useMemo(() => 
-    data?.companies.filter(c => accessibleCompanyIds.includes(c.id)) || [],
-    [data, accessibleCompanyIds]
+    data?.companies.filter(c => managerCompanies.includes(c.id)) || [],
+    [data, managerCompanies]
   );
+
+  // Auto-select first company
+  useEffect(() => {
+    if (data && !selectedCompanyId && accessibleCompanies.length > 0) {
+      setSelectedCompanyId(accessibleCompanies[0].id);
+    }
+  }, [data, selectedCompanyId, accessibleCompanies]);
+
+  // Reset company selection when manager changes
+  useEffect(() => {
+    if (actingUserId && accessibleCompanies.length > 0) {
+      if (!accessibleCompanies.find(c => c.id === selectedCompanyId)) {
+        setSelectedCompanyId(accessibleCompanies[0].id);
+        setSelectedEmployeeId("");
+      }
+    }
+  }, [actingUserId, accessibleCompanies, selectedCompanyId]);
 
   const employeesInSelectedCompany = useMemo(() => {
     if (!data || !selectedCompanyId) return [];
@@ -216,10 +161,38 @@ export default function Dashboard() {
     );
   }, [employeesInSelectedCompany, searchQuery]);
 
+  // Auto-select first employee
+  useEffect(() => {
+    if (data && selectedCompanyId && !selectedEmployeeId && filteredEmployees.length > 0) {
+      setSelectedEmployeeId(filteredEmployees[0].id);
+    }
+  }, [data, selectedCompanyId, selectedEmployeeId, filteredEmployees]);
+
+  // Reset employee when not in filtered list
+  useEffect(() => {
+    if (selectedEmployeeId && filteredEmployees.length > 0) {
+      if (!filteredEmployees.find(e => e.id === selectedEmployeeId)) {
+        setSelectedEmployeeId(filteredEmployees[0].id);
+      }
+    }
+  }, [selectedEmployeeId, filteredEmployees]);
+
   const selectedEmployee = useMemo(() => 
     data?.employees.find(e => e.id === selectedEmployeeId),
     [data, selectedEmployeeId]
   );
+
+  // Get employee's company membership for context dropdown
+  const employeeCompanyMembership = useMemo(() => {
+    if (!data || !selectedEmployeeId) return [];
+    const membership = data.employeeMembership.find(m => m.employeeId === selectedEmployeeId);
+    return membership?.companyIds || [];
+  }, [data, selectedEmployeeId]);
+
+  // Overlapping companies: both manager has access AND employee belongs to
+  const contextCompanies = useMemo(() => {
+    return accessibleCompanies.filter(c => employeeCompanyMembership.includes(c.id));
+  }, [accessibleCompanies, employeeCompanyMembership]);
 
   const currentAssignment = useMemo(() => {
     if (!data || !selectedCompanyId || !selectedEmployeeId) return undefined;
@@ -230,133 +203,134 @@ export default function Dashboard() {
 
   const currentPrivileges = currentAssignment?.privilegeIds || [];
 
-  const hasUnsavedChanges = useMemo(() => {
-    if (!isEditMode) return false;
-    const sorted1 = [...currentPrivileges].sort();
-    const sorted2 = [...draftPrivileges].sort();
-    return JSON.stringify(sorted1) !== JSON.stringify(sorted2);
-  }, [isEditMode, currentPrivileges, draftPrivileges]);
+  // Get assigned privilege details
+  const assignedPrivilegeDetails = useMemo(() => {
+    if (!data) return [];
+    return data.privileges.filter(p => currentPrivileges.includes(p.id));
+  }, [data, currentPrivileges]);
 
-  const pendingRequestsForManager = useMemo(() => {
-    if (!data || !actingUser?.isManager) return [];
-    return data.requests.filter(r => 
-      r.status === "Submitted" && managerCompanies.includes(r.companyId)
-    );
-  }, [data, actingUser, managerCompanies]);
-
-  // Unique filter options
+  // Modal: unique modules
   const uniqueModules = useMemo(() => {
     if (!data) return [];
     return Array.from(new Set(data.privileges.map(p => p.module))).sort();
   }, [data]);
 
-  const uniqueFunctions = useMemo(() => {
-    if (!data) return [];
-    let privs = data.privileges;
-    if (filterModule) privs = privs.filter(p => p.module === filterModule);
-    return Array.from(new Set(privs.map(p => p.function))).sort();
-  }, [data, filterModule]);
+  // Modal: functions filtered by selected module
+  const functionsForModule = useMemo(() => {
+    if (!data || !modalModule) return [];
+    return Array.from(new Set(
+      data.privileges.filter(p => p.module === modalModule).map(p => p.function)
+    )).sort();
+  }, [data, modalModule]);
 
-  const uniqueRoles = useMemo(() => {
-    if (!data) return [];
-    let privs = data.privileges;
-    if (filterModule) privs = privs.filter(p => p.module === filterModule);
-    if (filterFunction) privs = privs.filter(p => p.function === filterFunction);
-    return Array.from(new Set(privs.map(p => p.role))).sort();
-  }, [data, filterModule, filterFunction]);
+  // Modal: roles for selected module + function
+  const rolesForFunction = useMemo(() => {
+    if (!data || !modalModule || !modalFunction) return [];
+    return data.privileges.filter(p => p.module === modalModule && p.function === modalFunction);
+  }, [data, modalModule, modalFunction]);
 
-  // Filtered privileges for display
-  const displayPrivileges = useMemo(() => {
-    if (!data) return [];
-    let privs = data.privileges;
-    
-    // In view mode, only show assigned privileges
-    if (!isEditMode) {
-      privs = privs.filter(p => currentPrivileges.includes(p.id));
-    } else {
-      // In edit mode, apply filters
-      if (filterModule) privs = privs.filter(p => p.module === filterModule);
-      if (filterFunction) privs = privs.filter(p => p.function === filterFunction);
-      if (filterRole) privs = privs.filter(p => p.role === filterRole);
-    }
-    
-    return privs;
-  }, [data, isEditMode, currentPrivileges, filterModule, filterFunction, filterRole]);
-
-  // Auto-select first company
+  // When function is selected, initialize all checkboxes to checked (per requirements)
+  // "All checkboxes are checked by default (meaning add the function with its default roles)"
+  // Manager can uncheck to NOT add, or to remove if currently assigned
   useEffect(() => {
-    if (data && !selectedCompanyId && accessibleCompanies.length > 0) {
-      setSelectedCompanyId(accessibleCompanies[0].id);
+    if (modalFunction && rolesForFunction.length > 0) {
+      const selections: Record<string, boolean> = {};
+      for (const priv of rolesForFunction) {
+        // All roles default to checked per requirements
+        selections[priv.id] = true;
+      }
+      setModalRoleSelections(selections);
     }
-  }, [data, selectedCompanyId, accessibleCompanies]);
+  }, [modalFunction, rolesForFunction]);
 
-  // Auto-select first employee
-  useEffect(() => {
-    if (data && selectedCompanyId && !selectedEmployeeId && filteredEmployees.length > 0) {
-      setSelectedEmployeeId(filteredEmployees[0].id);
-    }
-  }, [data, selectedCompanyId, selectedEmployeeId, filteredEmployees]);
-
-  const handleActionWithCheck = (action: () => void) => {
-    if (hasUnsavedChanges) {
-      setPendingAction(() => action);
-      setShowUnsavedWarning(true);
-    } else {
-      action();
-    }
+  const handleOpenAddRemoveModal = () => {
+    setModalModule("");
+    setModalFunction("");
+    setModalRoleSelections({});
+    setShowAddRemoveModal(true);
   };
 
-  const confirmPendingAction = () => {
-    if (pendingAction) pendingAction();
-    setShowUnsavedWarning(false);
-    setPendingAction(null);
-    setIsEditMode(false);
-    setDraftPrivileges([]);
-  };
-
-  const handleEditToggle = () => {
-    if (isEditMode) {
-      handleActionWithCheck(() => {
-        setIsEditMode(false);
-        setDraftPrivileges([]);
-      });
-    } else {
-      setIsEditMode(true);
-      setDraftPrivileges([...currentPrivileges]);
-    }
-  };
-
-  const handlePrivilegeToggle = (privId: string) => {
-    setDraftPrivileges(prev => 
-      prev.includes(privId) ? prev.filter(p => p !== privId) : [...prev, privId]
-    );
-  };
-
-  const handleApplyTemplate = () => {
-    if (!selectedTemplate || !data) return;
-    const template = data.roleTemplates.find(rt => rt.role === selectedTemplate);
-    if (template) {
-      setDraftPrivileges([...template.privilegeIds]);
-    }
-  };
-
-  const handleSubmitRequest = async () => {
+  const handleApplyChanges = async () => {
     if (!selectedCompanyId || !selectedEmployeeId) return;
-    await createRequest.mutateAsync({
-      actorId: actingUserId,
-      companyId: selectedCompanyId,
-      targetEmployeeId: selectedEmployeeId,
-      afterPrivileges: draftPrivileges,
-      status: "Submitted",
-    });
-    setIsEditMode(false);
-    setDraftPrivileges([]);
+
+    // Calculate new privileges
+    const newPrivileges = new Set(currentPrivileges);
+    
+    for (const [privId, isChecked] of Object.entries(modalRoleSelections)) {
+      if (isChecked) {
+        newPrivileges.add(privId);
+      } else {
+        newPrivileges.delete(privId);
+      }
+    }
+
+    try {
+      await applyAssignments.mutateAsync({
+        actorId: actingUserId,
+        companyId: selectedCompanyId,
+        targetEmployeeId: selectedEmployeeId,
+        privilegeIds: Array.from(newPrivileges),
+      });
+      toast({ title: "Changes applied successfully" });
+      setShowAddRemoveModal(false);
+    } catch (err) {
+      toast({ 
+        title: "Failed to apply changes", 
+        description: err instanceof Error ? err.message : "Unknown error",
+        variant: "destructive" 
+      });
+    }
   };
 
   const handleExport = (scope: "company" | "all") => {
     if (!selectedEmployeeId) return;
     const url = `/api/export/employee?employeeId=${selectedEmployeeId}&scope=${scope}${scope === "company" ? `&companyId=${selectedCompanyId}` : ""}`;
     window.location.href = url;
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const text = await file.text();
+    const lines = text.split("\n").filter(l => l.trim());
+    
+    // Skip header row if present
+    const startIdx = lines[0]?.toLowerCase().includes("module") ? 1 : 0;
+    
+    const catalog: { module: string; function: string; role: string }[] = [];
+    for (let i = startIdx; i < lines.length; i++) {
+      const parts = lines[i].split(",").map(p => p.trim());
+      if (parts.length >= 3) {
+        catalog.push({
+          module: parts[0],
+          function: parts[1],
+          role: parts[2],
+        });
+      }
+    }
+
+    if (catalog.length === 0) {
+      toast({ title: "No valid data found in file", variant: "destructive" });
+      return;
+    }
+
+    try {
+      await uploadCatalog.mutateAsync({
+        actorId: actingUserId,
+        catalog,
+      });
+      toast({ title: t.uploadSuccess });
+    } catch (err) {
+      toast({ 
+        title: "Failed to upload catalog", 
+        description: err instanceof Error ? err.message : "Unknown error",
+        variant: "destructive" 
+      });
+    }
+    
+    // Reset input
+    e.target.value = "";
   };
 
   if (isLoading) {
@@ -379,7 +353,7 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-background font-sans">
-      {/* Header */}
+      {/* Section A: Act as Manager (Highlighted) */}
       <header className="sticky top-0 z-50 border-b bg-gradient-to-r from-indigo-600 to-blue-500 dark:from-indigo-800 dark:to-blue-700 px-4 py-3 shadow-md">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 flex-wrap">
           <div className="flex items-center gap-3">
@@ -390,23 +364,22 @@ export default function Dashboard() {
           </div>
 
           <div className="flex items-center gap-3 flex-wrap">
-            {/* Act As Dropdown */}
-            <div className="flex items-center gap-2">
+            {/* Act As Dropdown - Managers Only */}
+            <div className="flex items-center gap-2 bg-white/10 rounded-lg px-3 py-2">
               <span className="text-sm text-white/80">{t.actAs}:</span>
               <select
                 value={actingUserId}
-                onChange={(e) => handleActionWithCheck(() => {
+                onChange={(e) => {
                   setActingUserId(e.target.value);
                   setSelectedCompanyId("");
                   setSelectedEmployeeId("");
-                  setIsEditMode(false);
-                })}
+                }}
                 className="rounded-lg border border-white/30 bg-white/20 text-white px-3 py-1.5 text-sm font-medium backdrop-blur-sm"
                 data-testid="select-act-as"
               >
-                {data.employees.map(emp => (
+                {managers.map(emp => (
                   <option key={emp.id} value={emp.id} className="text-foreground bg-background">
-                    {emp.name} {emp.isManager ? "(Manager)" : ""}
+                    {emp.name}
                   </option>
                 ))}
               </select>
@@ -414,7 +387,7 @@ export default function Dashboard() {
 
             {/* Language Toggle */}
             <button
-              onClick={() => handleActionWithCheck(toggleLanguage)}
+              onClick={toggleLanguage}
               className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium text-white/80 hover:bg-white/20"
               data-testid="button-language-toggle"
             >
@@ -426,102 +399,136 @@ export default function Dashboard() {
       </header>
 
       <main className="mx-auto max-w-7xl p-4 md:p-6 space-y-6">
-        {/* Manager Details Section */}
+        {/* Section B: Manager Details (Highlighted Card) */}
         {actingUser && (
-          <div className="rounded-xl border bg-gradient-to-r from-slate-50 to-blue-50 dark:from-slate-800/50 dark:to-blue-900/30 p-4">
-            <h2 className="text-sm font-semibold text-muted-foreground mb-3">{t.managerDetails}</h2>
+          <div className="rounded-xl border-2 border-indigo-200 dark:border-indigo-800 bg-gradient-to-r from-indigo-50 to-blue-50 dark:from-indigo-950/50 dark:to-blue-950/50 p-4 shadow-sm">
+            <h2 className="text-sm font-semibold text-indigo-600 dark:text-indigo-400 mb-3">{t.managerDetails}</h2>
             <div className="flex flex-wrap gap-4 items-center">
               <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-full bg-gradient-to-br from-indigo-500 to-blue-600 flex items-center justify-center text-white font-bold shadow-md">
+                <div className="h-12 w-12 rounded-full bg-gradient-to-br from-indigo-500 to-blue-600 flex items-center justify-center text-white font-bold text-lg shadow-md">
                   {actingUser.name.charAt(0)}
                 </div>
                 <div>
-                  <p className="font-semibold">{actingUser.name}</p>
+                  <p className="font-semibold text-lg">{actingUser.name}</p>
                   <p className="text-sm text-muted-foreground">{actingUser.title}</p>
                 </div>
               </div>
-              <div className="h-8 w-px bg-border hidden sm:block" />
+              <div className="h-10 w-px bg-indigo-200 dark:bg-indigo-700 hidden sm:block" />
               <div>
-                <p className="text-xs text-muted-foreground">{t.accessibleCompanies}</p>
+                <div className="flex items-center gap-2 mb-1">
+                  <Building2 className="h-4 w-4 text-indigo-500" />
+                  <span className="text-sm font-medium text-indigo-600 dark:text-indigo-400">{t.accessibleCompanies}</span>
+                </div>
                 <div className="flex gap-1 flex-wrap mt-1">
                   {accessibleCompanies.length > 0 ? accessibleCompanies.map(c => (
-                    <span key={c.id} className="inline-flex items-center rounded-md bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700 dark:bg-blue-400/10 dark:text-blue-400">
+                    <span key={c.id} className="inline-flex items-center rounded-md bg-indigo-100 dark:bg-indigo-900/50 px-2 py-0.5 text-xs font-medium text-indigo-700 dark:text-indigo-300">
                       {c.name}
                     </span>
                   )) : <span className="text-xs text-muted-foreground">{t.noAccess}</span>}
                 </div>
               </div>
             </div>
+
+            {/* Employee Selector */}
+            <div className="mt-4 pt-4 border-t border-indigo-200 dark:border-indigo-700">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                {/* Company Dropdown */}
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground flex items-center gap-1">
+                    <Building2 className="h-3 w-3" />
+                    {t.company}
+                  </label>
+                  <select
+                    value={selectedCompanyId}
+                    onChange={(e) => {
+                      setSelectedCompanyId(e.target.value);
+                      setSelectedEmployeeId("");
+                    }}
+                    className="mt-1 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm"
+                    data-testid="select-company"
+                  >
+                    {accessibleCompanies.map(c => (
+                      <option key={c.id} value={c.id}>{c.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Employee Dropdown with Company Badge */}
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground flex items-center gap-1">
+                    <Users className="h-3 w-3" />
+                    {t.employee}
+                  </label>
+                  <select
+                    value={selectedEmployeeId}
+                    onChange={(e) => setSelectedEmployeeId(e.target.value)}
+                    className="mt-1 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm"
+                    data-testid="select-employee"
+                  >
+                    {filteredEmployees.map(emp => {
+                      const membership = data.employeeMembership.find(m => m.employeeId === emp.id);
+                      const companyCount = membership?.companyIds.length || 0;
+                      return (
+                        <option key={emp.id} value={emp.id}>
+                          {emp.id} - {emp.name} {companyCount > 1 ? `(${companyCount} companies)` : ""}
+                        </option>
+                      );
+                    })}
+                  </select>
+                </div>
+
+                {/* Search */}
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground">{t.search}</label>
+                  <div className="relative mt-1">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <input
+                      type="text"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      placeholder={t.search}
+                      className="w-full rounded-lg border border-input bg-background pl-9 pr-3 py-2 text-sm"
+                      data-testid="input-search"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         )}
 
-        {/* Employee Selection */}
-        <div className="rounded-xl border bg-card p-4">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            {/* Company Dropdown */}
-            <div>
-              <label className="text-sm font-medium text-muted-foreground">{t.company}</label>
-              <select
-                value={selectedCompanyId}
-                onChange={(e) => handleActionWithCheck(() => {
-                  setSelectedCompanyId(e.target.value);
-                  setSelectedEmployeeId("");
-                  setIsEditMode(false);
-                })}
-                className="mt-1 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm"
-                data-testid="select-company"
-              >
-                {accessibleCompanies.map(c => (
-                  <option key={c.id} value={c.id}>{c.name}</option>
-                ))}
-              </select>
-            </div>
-
-            {/* Employee Dropdown */}
-            <div>
-              <label className="text-sm font-medium text-muted-foreground">{t.employee}</label>
-              <select
-                value={selectedEmployeeId}
-                onChange={(e) => handleActionWithCheck(() => {
-                  setSelectedEmployeeId(e.target.value);
-                  setIsEditMode(false);
-                })}
-                className="mt-1 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm"
-                data-testid="select-employee"
-              >
-                {filteredEmployees.map(emp => (
-                  <option key={emp.id} value={emp.id}>{emp.id} - {emp.name}</option>
-                ))}
-              </select>
-            </div>
-
-            {/* Search */}
-            <div>
-              <label className="text-sm font-medium text-muted-foreground">{t.search}</label>
-              <div className="relative mt-1">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder={t.search}
-                  className="w-full rounded-lg border border-input bg-background pl-9 pr-3 py-2 text-sm"
-                  data-testid="input-search"
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Selected Employee Info */}
-          {selectedEmployee && (
-            <div className="mt-4 pt-4 border-t flex flex-wrap gap-4 items-center justify-between">
+        {/* Section C: Employee Details (Card) */}
+        {selectedEmployee && (
+          <div className="rounded-xl border bg-card p-4 shadow-sm">
+            <h3 className="text-sm font-semibold text-muted-foreground mb-3">{t.employeeDetails}</h3>
+            <div className="flex flex-wrap gap-4 items-center justify-between">
               <div className="flex items-center gap-3">
-                <Users className="h-5 w-5 text-muted-foreground" />
+                <div className="h-10 w-10 rounded-full bg-gradient-to-br from-slate-400 to-slate-600 flex items-center justify-center text-white font-bold">
+                  {selectedEmployee.name.charAt(0)}
+                </div>
                 <div>
                   <p className="font-semibold">{selectedEmployee.name}</p>
-                  <p className="text-sm text-muted-foreground">{selectedEmployee.email}</p>
+                  <p className="text-sm text-muted-foreground">{selectedEmployee.title} - {selectedEmployee.email}</p>
                 </div>
               </div>
+              
+              {/* Company Context Dropdown (if employee in multiple companies) */}
+              {contextCompanies.length > 1 && (
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-muted-foreground">{t.companyContext}:</span>
+                  <select
+                    value={selectedCompanyId}
+                    onChange={(e) => setSelectedCompanyId(e.target.value)}
+                    className="rounded-lg border border-input bg-background px-3 py-1.5 text-sm"
+                    data-testid="select-company-context"
+                  >
+                    {contextCompanies.map(c => (
+                      <option key={c.id} value={c.id}>{c.name}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
               <div className="flex gap-2">
                 <button
                   onClick={() => handleExport("company")}
@@ -541,470 +548,223 @@ export default function Dashboard() {
                 </button>
               </div>
             </div>
-          )}
-        </div>
+          </div>
+        )}
 
-        {/* Actions Bar */}
-        <div className="flex flex-wrap gap-3 items-center justify-between">
-          <div className="flex gap-2 items-center">
-            {actingUser?.isManager && (
-              <button
-                onClick={() => setShowDelegationModal(true)}
-                className="flex items-center gap-1.5 rounded-lg bg-secondary px-4 py-2 text-sm font-medium hover:bg-secondary/80"
-                data-testid="button-delegate"
-              >
-                <UserPlus className="h-4 w-4" />
-                {t.delegate}
-              </button>
-            )}
+        {/* Section D: Privileges (Card) */}
+        <div className="rounded-xl border bg-card p-4 shadow-sm">
+          <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+            <h3 className="text-lg font-semibold flex items-center gap-2">
+              <ShieldCheck className="h-5 w-5 text-indigo-500" />
+              {t.privileges}
+            </h3>
             <button
-              onClick={handleEditToggle}
-              className={`flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold transition-colors ${
-                isEditMode ? "bg-amber-100 text-amber-700" : "bg-primary text-primary-foreground"
-              }`}
-              data-testid="button-edit-toggle"
+              onClick={handleOpenAddRemoveModal}
+              disabled={!selectedEmployeeId || !selectedCompanyId}
+              className="flex items-center gap-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+              data-testid="button-add-remove"
             >
-              <Pencil className="h-4 w-4" />
-              {isEditMode ? t.editMode : t.viewMode}
+              <Plus className="h-4 w-4" />
+              <Minus className="h-4 w-4" />
+              {t.addRemove}
             </button>
           </div>
 
-          {isEditMode && (
-            <div className="flex gap-2 items-center flex-wrap">
-              <select
-                value={selectedTemplate}
-                onChange={(e) => setSelectedTemplate(e.target.value)}
-                className="rounded-lg border border-input bg-background px-3 py-2 text-sm"
-                data-testid="select-template"
-              >
-                <option value="">{t.applyTemplate}</option>
-                {data.roleTemplates.map(rt => (
-                  <option key={rt.role} value={rt.role}>{rt.role}</option>
-                ))}
-              </select>
-              <button
-                onClick={handleApplyTemplate}
-                disabled={!selectedTemplate}
-                className="rounded-lg bg-secondary px-3 py-2 text-sm font-medium hover:bg-secondary/80 disabled:opacity-50"
-                data-testid="button-apply-template"
-              >
-                {t.apply}
-              </button>
-              <button
-                onClick={handleSubmitRequest}
-                disabled={!hasUnsavedChanges || createRequest.isPending}
-                className="flex items-center gap-1.5 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
-                data-testid="button-submit"
-              >
-                {createRequest.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
-                {t.submit}
-              </button>
-            </div>
-          )}
-        </div>
-
-        {/* Filter Dropdowns (Edit Mode Only) */}
-        {isEditMode && (
-          <div className="flex flex-wrap gap-3 items-center p-4 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700/50">
-            <Search className="h-4 w-4 text-amber-600" />
-            <select
-              value={filterModule}
-              onChange={(e) => {
-                setFilterModule(e.target.value);
-                setFilterFunction("");
-                setFilterRole("");
-              }}
-              className="rounded-lg border border-amber-300 dark:border-amber-600 bg-white dark:bg-amber-900/30 px-3 py-2 text-sm"
-              data-testid="filter-module"
-            >
-              <option value="">{t.allModules}</option>
-              {uniqueModules.map(m => (
-                <option key={m} value={m}>{m}</option>
-              ))}
-            </select>
-            <select
-              value={filterFunction}
-              onChange={(e) => {
-                setFilterFunction(e.target.value);
-                setFilterRole("");
-              }}
-              className="rounded-lg border border-amber-300 dark:border-amber-600 bg-white dark:bg-amber-900/30 px-3 py-2 text-sm"
-              data-testid="filter-function"
-            >
-              <option value="">{t.allFunctions}</option>
-              {uniqueFunctions.map(f => (
-                <option key={f} value={f}>{f}</option>
-              ))}
-            </select>
-            <select
-              value={filterRole}
-              onChange={(e) => setFilterRole(e.target.value)}
-              className="rounded-lg border border-amber-300 dark:border-amber-600 bg-white dark:bg-amber-900/30 px-3 py-2 text-sm"
-              data-testid="filter-role"
-            >
-              <option value="">{t.allRoles}</option>
-              {uniqueRoles.map(r => (
-                <option key={r} value={r}>{r}</option>
-              ))}
-            </select>
-          </div>
-        )}
-
-        {/* Privileges Grid */}
-        <div className="rounded-xl border bg-card overflow-hidden">
-          <div className="border-b bg-muted/30 px-4 py-3">
-            <h3 className="font-semibold">{t.privileges}</h3>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-muted/50 text-muted-foreground">
-                <tr>
-                  <th className="px-4 py-3 text-left font-semibold">{t.module}</th>
-                  <th className="px-4 py-3 text-left font-semibold">{t.function}</th>
-                  <th className="px-4 py-3 text-left font-semibold">{t.role}</th>
-                  <th className="px-4 py-3 text-center font-semibold">{t.assigned}</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {displayPrivileges.length === 0 ? (
-                  <tr>
-                    <td colSpan={4} className="px-4 py-8 text-center text-muted-foreground">
-                      {isEditMode ? "No privileges match the filters" : "No privileges assigned"}
-                    </td>
+          {/* Privileges Table */}
+          {assignedPrivilegeDetails.length > 0 ? (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b bg-muted/50">
+                    <th className="text-left px-4 py-2 font-medium">{t.module}</th>
+                    <th className="text-left px-4 py-2 font-medium">{t.function}</th>
+                    <th className="text-left px-4 py-2 font-medium">{t.role}</th>
                   </tr>
-                ) : displayPrivileges.map(priv => {
-                  const isAssigned = isEditMode 
-                    ? draftPrivileges.includes(priv.id)
-                    : currentPrivileges.includes(priv.id);
-
-                  return (
-                    <tr key={priv.id} className="hover:bg-muted/30">
-                      <td className="px-4 py-3 font-medium">
-                        <span className="inline-flex items-center rounded-md bg-slate-100 dark:bg-slate-700 px-2 py-0.5 text-xs font-medium text-slate-700 dark:text-slate-300">
+                </thead>
+                <tbody>
+                  {assignedPrivilegeDetails.map(priv => (
+                    <tr key={priv.id} className="border-b hover:bg-muted/30">
+                      <td className="px-4 py-2">
+                        <span className="inline-flex items-center rounded-md bg-slate-100 dark:bg-slate-800 px-2 py-0.5 text-xs font-medium">
                           {priv.module}
                         </span>
                       </td>
-                      <td className="px-4 py-3">{priv.function}</td>
-                      <td className="px-4 py-3">
-                        <span className="inline-flex items-center rounded-md bg-indigo-50 px-2 py-0.5 text-xs font-medium text-indigo-700 dark:bg-indigo-400/10 dark:text-indigo-400">
+                      <td className="px-4 py-2">{priv.function}</td>
+                      <td className="px-4 py-2">
+                        <span className="inline-flex items-center rounded-md bg-indigo-50 dark:bg-indigo-900/50 px-2 py-0.5 text-xs font-medium text-indigo-700 dark:text-indigo-300">
                           {priv.role}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-center">
-                        {isEditMode ? (
-                          <button
-                            onClick={() => handlePrivilegeToggle(priv.id)}
-                            className={`h-5 w-5 rounded border-2 flex items-center justify-center transition-colors ${
-                              isAssigned 
-                                ? "bg-emerald-500 border-emerald-500 text-white" 
-                                : "border-input hover:border-emerald-400"
-                            }`}
-                            data-testid={`checkbox-priv-${priv.id}`}
-                          >
-                            {isAssigned && <Check className="h-3 w-3" />}
-                          </button>
-                        ) : (
-                          <CheckCircle2 className="h-5 w-5 text-emerald-500 mx-auto" />
-                        )}
-                      </td>
                     </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        {/* Pending Requests for Manager */}
-        {actingUser?.isManager && pendingRequestsForManager.length > 0 && (
-          <div className="rounded-xl border bg-card overflow-hidden">
-            <div className="border-b bg-amber-50 dark:bg-amber-400/10 px-4 py-3 flex items-center gap-2">
-              <Clock className="h-5 w-5 text-amber-600" />
-              <h3 className="font-semibold text-amber-700 dark:text-amber-400">{t.pendingRequests}</h3>
+                  ))}
+                </tbody>
+              </table>
             </div>
-            <div className="divide-y">
-              {pendingRequestsForManager.map(req => {
-                const targetEmp = data.employees.find(e => e.id === req.targetEmployeeId);
-                const company = data.companies.find(c => c.id === req.companyId);
-                const creator = data.employees.find(e => e.id === req.createdBy);
-                
-                return (
-                  <div key={req.id} className="p-4">
-                    <div className="flex flex-wrap gap-4 items-start justify-between">
-                      <div>
-                        <p className="font-semibold">{targetEmp?.name} - {company?.name}</p>
-                        <p className="text-sm text-muted-foreground">
-                          Requested by {creator?.name} on {new Date(req.createdAt).toLocaleDateString()}
-                        </p>
-                        <div className="mt-2 flex gap-4 text-xs">
-                          <div>
-                            <span className="font-medium">{t.before}:</span>{" "}
-                            {req.beforePrivileges.length > 0 ? req.beforePrivileges.join(", ") : "-"}
-                          </div>
-                          <div>
-                            <span className="font-medium">{t.after}:</span>{" "}
-                            {req.afterPrivileges.join(", ")}
-                          </div>
-                        </div>
-                      </div>
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => approveRequest.mutate({ id: req.id, actorId: actingUserId })}
-                          disabled={approveRequest.isPending}
-                          className="flex items-center gap-1 rounded-lg bg-emerald-100 px-3 py-1.5 text-sm font-medium text-emerald-700 hover:bg-emerald-200"
-                          data-testid={`button-approve-${req.id}`}
-                        >
-                          <Check className="h-4 w-4" />
-                          {t.approve}
-                        </button>
-                        <button
-                          onClick={() => rejectRequest.mutate({ id: req.id, actorId: actingUserId })}
-                          disabled={rejectRequest.isPending}
-                          className="flex items-center gap-1 rounded-lg bg-red-100 px-3 py-1.5 text-sm font-medium text-red-700 hover:bg-red-200"
-                          data-testid={`button-reject-${req.id}`}
-                        >
-                          <X className="h-4 w-4" />
-                          {t.reject}
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
-        {/* Active Delegations */}
-        {actingUser?.isManager && (
-          <div className="rounded-xl border bg-card overflow-hidden">
-            <div className="border-b bg-muted/30 px-4 py-3">
-              <h3 className="font-semibold">{t.delegations}</h3>
-            </div>
-            <div className="divide-y">
-              {data.delegations.filter(d => d.managerId === actingUserId && !d.revokedAt).length === 0 ? (
-                <p className="p-4 text-sm text-muted-foreground">No active delegations</p>
-              ) : (
-                data.delegations
-                  .filter(d => d.managerId === actingUserId && !d.revokedAt)
-                  .map(del => {
-                    const delegate = data.employees.find(e => e.id === del.delegateId);
-                    const company = data.companies.find(c => c.id === del.companyId);
-                    const targetEmp = del.targetEmployeeId 
-                      ? data.employees.find(e => e.id === del.targetEmployeeId)
-                      : null;
-
-                    return (
-                      <div key={del.id} className="p-4 flex flex-wrap gap-4 items-center justify-between">
-                        <div>
-                          <p className="font-semibold">{delegate?.name}</p>
-                          <p className="text-sm text-muted-foreground">
-                            {del.scope === "company-wide" ? t.companyWide : t.employeeSpecific}: {company?.name}
-                            {targetEmp && ` - ${targetEmp.name}`}
-                          </p>
-                          {del.endDate && (
-                            <p className="text-xs text-muted-foreground">
-                              Expires: {new Date(del.endDate).toLocaleDateString()}
-                            </p>
-                          )}
-                        </div>
-                        <button
-                          onClick={() => revokeDelegation.mutate({ id: del.id, actorId: actingUserId })}
-                          disabled={revokeDelegation.isPending}
-                          className="rounded-lg bg-red-100 px-3 py-1.5 text-sm font-medium text-red-700 hover:bg-red-200"
-                          data-testid={`button-revoke-${del.id}`}
-                        >
-                          {t.revoke}
-                        </button>
-                      </div>
-                    );
-                  })
-              )}
-            </div>
-          </div>
-        )}
-      </main>
-
-      {/* Delegation Modal */}
-      {showDelegationModal && (
-        <DelegationModal
-          data={data}
-          actorId={actingUserId}
-          managerCompanies={managerCompanies}
-          t={t}
-          onClose={() => setShowDelegationModal(false)}
-          onCreate={createDelegation.mutateAsync}
-          isPending={createDelegation.isPending}
-        />
-      )}
-
-      {/* Unsaved Changes Warning */}
-      {showUnsavedWarning && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-          <div className="w-full max-w-md rounded-2xl bg-card p-6 shadow-2xl border">
-            <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-orange-100 text-orange-600">
-              <AlertTriangle className="h-6 w-6" />
-            </div>
-            <h3 className="text-lg font-bold">{t.unsavedWarning}</h3>
-            <p className="mt-2 text-muted-foreground">{t.unsavedDesc}</p>
-            <div className="mt-6 flex justify-end gap-3">
-              <button
-                onClick={() => setShowUnsavedWarning(false)}
-                className="rounded-lg px-4 py-2 text-sm font-medium hover:bg-muted"
-              >
-                {t.cancel}
-              </button>
-              <button
-                onClick={confirmPendingAction}
-                className="rounded-lg bg-destructive px-4 py-2 text-sm font-medium text-destructive-foreground"
-              >
-                {t.discard}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// Delegation Modal Component
-function DelegationModal({ 
-  data, 
-  actorId, 
-  managerCompanies, 
-  t, 
-  onClose, 
-  onCreate, 
-  isPending 
-}: {
-  data: any;
-  actorId: string;
-  managerCompanies: string[];
-  t: typeof DICT.en;
-  onClose: () => void;
-  onCreate: (data: any) => Promise<any>;
-  isPending: boolean;
-}) {
-  const [delegateId, setDelegateId] = useState("");
-  const [companyId, setCompanyId] = useState(managerCompanies[0] || "");
-  const [scope, setScope] = useState<"company-wide" | "employee-specific">("company-wide");
-  const [targetEmployeeId, setTargetEmployeeId] = useState("");
-  const [endDate, setEndDate] = useState("");
-
-  const eligibleDelegates = data.employees.filter((e: Employee) => e.id !== actorId);
-  const eligibleCompanies = data.companies.filter((c: Company) => managerCompanies.includes(c.id));
-  const employeesInCompany = data.employees.filter((emp: Employee) => {
-    const membership = data.employeeMembership.find((m: any) => m.employeeId === emp.id);
-    return membership?.companyIds.includes(companyId);
-  });
-
-  const handleSubmit = async () => {
-    await onCreate({
-      actorId,
-      delegateId,
-      companyId,
-      scope,
-      targetEmployeeId: scope === "employee-specific" ? targetEmployeeId : undefined,
-      endDate: endDate || undefined,
-    });
-    onClose();
-  };
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-      <div className="w-full max-w-lg rounded-2xl bg-card shadow-2xl border flex flex-col max-h-[90vh]">
-        <div className="flex items-center justify-between border-b bg-indigo-50 dark:bg-indigo-900/30 rounded-t-2xl p-4">
-          <h2 className="text-lg font-bold text-indigo-900 dark:text-indigo-100">{t.createDelegation}</h2>
-          <button onClick={onClose} className="rounded-full p-2 hover:bg-indigo-100 dark:hover:bg-indigo-800">
-            <X className="h-5 w-5 text-indigo-700 dark:text-indigo-300" />
-          </button>
-        </div>
-
-        <div className="p-4 space-y-4 overflow-y-auto bg-gradient-to-b from-indigo-50/50 to-transparent dark:from-indigo-900/10">
-          <div>
-            <label className="text-sm font-medium">{t.delegateUser}</label>
-            <select
-              value={delegateId}
-              onChange={(e) => setDelegateId(e.target.value)}
-              className="mt-1 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm"
-            >
-              <option value="">Select...</option>
-              {eligibleDelegates.map((emp: Employee) => (
-                <option key={emp.id} value={emp.id}>{emp.name}</option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="text-sm font-medium">{t.company}</label>
-            <select
-              value={companyId}
-              onChange={(e) => setCompanyId(e.target.value)}
-              className="mt-1 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm"
-            >
-              {eligibleCompanies.map((c: Company) => (
-                <option key={c.id} value={c.id}>{c.name}</option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="text-sm font-medium">{t.scope}</label>
-            <select
-              value={scope}
-              onChange={(e) => setScope(e.target.value as any)}
-              className="mt-1 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm"
-            >
-              <option value="company-wide">{t.companyWide}</option>
-              <option value="employee-specific">{t.employeeSpecific}</option>
-            </select>
-          </div>
-
-          {scope === "employee-specific" && (
-            <div>
-              <label className="text-sm font-medium">{t.targetEmployee}</label>
-              <select
-                value={targetEmployeeId}
-                onChange={(e) => setTargetEmployeeId(e.target.value)}
-                className="mt-1 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm"
-              >
-                <option value="">Select...</option>
-                {employeesInCompany.map((emp: Employee) => (
-                  <option key={emp.id} value={emp.id}>{emp.name}</option>
-                ))}
-              </select>
+          ) : (
+            <div className="text-center py-8 text-muted-foreground">
+              <ShieldCheck className="h-12 w-12 mx-auto mb-2 opacity-30" />
+              <p>{t.noPrivileges}</p>
             </div>
           )}
+        </div>
 
-          <div>
-            <label className="text-sm font-medium">{t.endDate} (optional)</label>
-            <input
-              type="date"
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-              className="mt-1 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm"
-            />
+        {/* Upload Data Section (Collapsible) */}
+        <div className="rounded-xl border bg-card p-4 shadow-sm">
+          <button
+            onClick={() => setShowUploadSection(!showUploadSection)}
+            className="flex items-center justify-between w-full"
+            data-testid="button-toggle-upload"
+          >
+            <h3 className="text-sm font-semibold flex items-center gap-2">
+              <Upload className="h-4 w-4" />
+              {t.uploadData}
+            </h3>
+            <ChevronDown className={`h-4 w-4 transition-transform ${showUploadSection ? "rotate-180" : ""}`} />
+          </button>
+          
+          {showUploadSection && (
+            <div className="mt-4 pt-4 border-t">
+              <p className="text-sm text-muted-foreground mb-3">
+                Upload a CSV file with columns: module, function, role
+              </p>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="file"
+                  accept=".csv"
+                  onChange={handleFileUpload}
+                  className="hidden"
+                  data-testid="input-file-upload"
+                />
+                <span className="flex items-center gap-1.5 rounded-lg border px-4 py-2 text-sm font-medium hover:bg-muted">
+                  <Upload className="h-4 w-4" />
+                  {uploadCatalog.isPending ? t.uploading : t.uploadCatalog}
+                </span>
+              </label>
+            </div>
+          )}
+        </div>
+      </main>
+
+      {/* Add/Remove Modal */}
+      {showAddRemoveModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-lg rounded-xl bg-card shadow-xl">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between border-b bg-gradient-to-r from-indigo-600 to-blue-500 rounded-t-xl px-4 py-3">
+              <h3 className="font-semibold text-white">{t.addRemove}</h3>
+              <button
+                onClick={() => setShowAddRemoveModal(false)}
+                className="text-white/80 hover:text-white"
+                data-testid="button-close-modal"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="p-4 space-y-4">
+              {/* Module Dropdown */}
+              <div>
+                <label className="text-sm font-medium">{t.module}</label>
+                <select
+                  value={modalModule}
+                  onChange={(e) => {
+                    setModalModule(e.target.value);
+                    setModalFunction("");
+                    setModalRoleSelections({});
+                  }}
+                  className="mt-1 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm"
+                  data-testid="select-modal-module"
+                >
+                  <option value="">{t.selectModule}</option>
+                  {uniqueModules.map(m => (
+                    <option key={m} value={m}>{m}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Function Dropdown (filtered by module) */}
+              {modalModule && (
+                <div>
+                  <label className="text-sm font-medium">{t.function}</label>
+                  <select
+                    value={modalFunction}
+                    onChange={(e) => setModalFunction(e.target.value)}
+                    className="mt-1 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm"
+                    data-testid="select-modal-function"
+                  >
+                    <option value="">{t.selectFunction}</option>
+                    {functionsForModule.map(f => (
+                      <option key={f} value={f}>{f}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {/* Role Checkboxes */}
+              {modalFunction && rolesForFunction.length > 0 && (
+                <div>
+                  <label className="text-sm font-medium block mb-2">{t.role}</label>
+                  <p className="text-xs text-muted-foreground mb-2">{t.allRolesSelected}</p>
+                  <div className="space-y-2 max-h-48 overflow-y-auto border rounded-lg p-3 bg-muted/30">
+                    {rolesForFunction.map(priv => {
+                      const isCurrentlyAssigned = currentPrivileges.includes(priv.id);
+                      const isChecked = modalRoleSelections[priv.id] ?? false;
+                      
+                      return (
+                        <label 
+                          key={priv.id} 
+                          className="flex items-center gap-2 cursor-pointer hover:bg-muted/50 p-1 rounded"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={(e) => {
+                              setModalRoleSelections(prev => ({
+                                ...prev,
+                                [priv.id]: e.target.checked
+                              }));
+                            }}
+                            className="rounded border-gray-300"
+                            data-testid={`checkbox-role-${priv.id}`}
+                          />
+                          <span className="text-sm">{priv.role}</span>
+                          {isCurrentlyAssigned && (
+                            <span className="text-xs text-green-600 dark:text-green-400">(currently assigned)</span>
+                          )}
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Modal Actions */}
+              <div className="flex gap-2 justify-end pt-4 border-t">
+                <button
+                  onClick={() => setShowAddRemoveModal(false)}
+                  className="rounded-lg border px-4 py-2 text-sm font-medium hover:bg-muted"
+                  data-testid="button-modal-cancel"
+                >
+                  {t.cancel}
+                </button>
+                <button
+                  onClick={handleApplyChanges}
+                  disabled={!modalFunction || applyAssignments.isPending}
+                  className="flex items-center gap-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 text-sm font-medium disabled:opacity-50"
+                  data-testid="button-modal-apply"
+                >
+                  {applyAssignments.isPending ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Check className="h-4 w-4" />
+                  )}
+                  {t.applyChanges}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
-
-        <div className="border-t p-4 flex justify-end gap-3">
-          <button
-            onClick={onClose}
-            className="rounded-lg px-4 py-2 text-sm font-medium hover:bg-muted"
-          >
-            {t.cancel}
-          </button>
-          <button
-            onClick={handleSubmit}
-            disabled={!delegateId || !companyId || isPending}
-            className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-50"
-          >
-            {isPending && <Loader2 className="h-4 w-4 animate-spin" />}
-            {t.save}
-          </button>
-        </div>
-      </div>
+      )}
     </div>
   );
 }

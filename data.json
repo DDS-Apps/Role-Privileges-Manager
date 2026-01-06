@@ -177,125 +177,64 @@
   ],
   "privileges": [
     {
-      "id": "P_FIN_VIEW_REP",
+      "id": "P_FIN_PAY_TAPPR",
       "module": "FIN",
-      "function": "View Reports",
-      "role": "Accounting & Reporting"
+      "function": "Payments",
+      "role": "Treasury Approver"
     },
     {
-      "id": "P_FIN_POST_JRNL",
+      "id": "P_FIN_PAY_TCREA",
       "module": "FIN",
-      "function": "Post Journal",
-      "role": "Accounting & Reporting"
+      "function": "Payments",
+      "role": "Treasury Creator"
     },
     {
-      "id": "P_FIN_APPR_PAY",
+      "id": "P_FIN_REP_AVIEW",
       "module": "FIN",
-      "function": "Approve Payment",
-      "role": "Treasury"
+      "function": "Reporting",
+      "role": "Accounting Viewer"
     },
     {
-      "id": "P_FIN_CREATE_PAY",
+      "id": "P_FIN_REP_APOST",
       "module": "FIN",
-      "function": "Create Payment",
-      "role": "Treasury"
+      "function": "Reporting",
+      "role": "Accounting Poster"
     },
     {
-      "id": "P_HR_VIEW_EMP",
+      "id": "P_HR_EMP_VIEW",
       "module": "HR",
-      "function": "View Employees",
-      "role": "HR"
+      "function": "Employee Data",
+      "role": "HR Viewer"
     },
     {
-      "id": "P_HR_UPD_EMP",
+      "id": "P_HR_EMP_EDIT",
       "module": "HR",
-      "function": "Update Employee",
-      "role": "HR"
+      "function": "Employee Data",
+      "role": "HR Editor"
     },
     {
-      "id": "P_SCM_VIEW_SUP",
-      "module": "SCM",
-      "function": "View Suppliers",
-      "role": "Procurement"
-    },
-    {
-      "id": "P_SCM_CREATE_PO",
-      "module": "SCM",
-      "function": "Create PO",
-      "role": "Procurement"
-    },
-    {
-      "id": "P_IT_MNG_USERS",
+      "id": "P_IT_USR_MNGR",
       "module": "IT",
-      "function": "Manage Users",
-      "role": "System Admin"
+      "function": "User Admin",
+      "role": "User Manager"
     },
     {
-      "id": "P_IT_RESET_PWD",
+      "id": "P_IT_USR_PWRST",
       "module": "IT",
-      "function": "Reset Password",
-      "role": "System Admin"
+      "function": "User Admin",
+      "role": "Password Reset"
     },
     {
-      "id": "P_GEN_VIEW_DASH",
+      "id": "P_GEN_DASH_VIEW",
       "module": "GEN",
-      "function": "View Dashboard",
-      "role": "Viewer"
+      "function": "Dashboard",
+      "role": "Dashboard Viewer"
     },
     {
-      "id": "P_GEN_EXPORT",
+      "id": "P_GEN_DASH_EXP",
       "module": "GEN",
-      "function": "Export Data",
-      "role": "Viewer"
-    }
-  ],
-  "roleTemplates": [
-    {
-      "role": "Viewer",
-      "privilegeIds": [
-        "P_GEN_VIEW_DASH",
-        "P_GEN_EXPORT"
-      ]
-    },
-    {
-      "role": "System Admin",
-      "privilegeIds": [
-        "P_IT_MNG_USERS",
-        "P_IT_RESET_PWD",
-        "P_GEN_VIEW_DASH"
-      ]
-    },
-    {
-      "role": "Treasury",
-      "privilegeIds": [
-        "P_FIN_APPR_PAY",
-        "P_FIN_CREATE_PAY",
-        "P_GEN_VIEW_DASH"
-      ]
-    },
-    {
-      "role": "Accounting & Reporting",
-      "privilegeIds": [
-        "P_FIN_VIEW_REP",
-        "P_FIN_POST_JRNL",
-        "P_GEN_VIEW_DASH"
-      ]
-    },
-    {
-      "role": "HR",
-      "privilegeIds": [
-        "P_HR_VIEW_EMP",
-        "P_HR_UPD_EMP",
-        "P_GEN_VIEW_DASH"
-      ]
-    },
-    {
-      "role": "Procurement",
-      "privilegeIds": [
-        "P_SCM_VIEW_SUP",
-        "P_SCM_CREATE_PO",
-        "P_GEN_VIEW_DASH"
-      ]
+      "function": "Dashboard",
+      "role": "Exporter"
     }
   ],
   "assignments": [
@@ -303,158 +242,30 @@
       "companyId": "C01",
       "employeeId": "E004",
       "privilegeIds": [
-        "P_GEN_VIEW_DASH",
-        "P_GEN_EXPORT"
+        "P_GEN_DASH_VIEW"
       ]
     },
     {
       "companyId": "C02",
       "employeeId": "E004",
       "privilegeIds": [
-        "P_FIN_VIEW_REP",
-        "P_FIN_POST_JRNL",
-        "P_GEN_VIEW_DASH"
+        "P_FIN_REP_AVIEW"
       ]
     },
     {
       "companyId": "C02",
       "employeeId": "E007",
       "privilegeIds": [
-        "P_FIN_APPR_PAY",
-        "P_FIN_CREATE_PAY",
-        "P_GEN_VIEW_DASH"
-      ]
-    },
-    {
-      "companyId": "C03",
-      "employeeId": "E009",
-      "privilegeIds": [
-        "P_FIN_VIEW_REP",
-        "P_FIN_POST_JRNL",
-        "P_GEN_VIEW_DASH"
-      ]
-    },
-    {
-      "companyId": "C01",
-      "employeeId": "E010",
-      "privilegeIds": [
-        "P_SCM_VIEW_SUP",
-        "P_SCM_CREATE_PO",
-        "P_GEN_VIEW_DASH"
+        "P_FIN_PAY_TCREA"
       ]
     },
     {
       "companyId": "C03",
       "employeeId": "E006",
       "privilegeIds": [
-        "P_IT_MNG_USERS",
-        "P_IT_RESET_PWD",
-        "P_GEN_VIEW_DASH"
+        "P_IT_USR_MNGR",
+        "P_IT_USR_PWRST"
       ]
-    },
-    {
-      "companyId": "C03",
-      "employeeId": "E001",
-      "privilegeIds": [
-        "P_FIN_VIEW_REP",
-        "P_FIN_POST_JRNL"
-      ]
-    },
-    {
-      "companyId": "C01",
-      "employeeId": "E001",
-      "privilegeIds": [
-        "P_SCM_VIEW_SUP",
-        "P_SCM_CREATE_PO"
-      ]
-    }
-  ],
-  "delegations": [
-    {
-      "id": "DEL001",
-      "managerId": "E001",
-      "delegateId": "E006",
-      "companyId": "C03",
-      "scope": "company-wide",
-      "endDate": "2026-02-04T09:41:41.436Z"
-    },
-    {
-      "id": "DEL002",
-      "managerId": "E002",
-      "delegateId": "E003",
-      "companyId": "C02",
-      "scope": "employee-specific",
-      "targetEmployeeId": "E007"
-    },
-    {
-      "id": "18766873-2d1e-4c71-afc9-992d6dac0de1",
-      "managerId": "E002",
-      "delegateId": "E009",
-      "companyId": "C02",
-      "scope": "employee-specific",
-      "targetEmployeeId": "E002",
-      "endDate": "2026-10-10"
-    }
-  ],
-  "requests": [
-    {
-      "id": "REQ001",
-      "companyId": "C03",
-      "targetEmployeeId": "E009",
-      "createdBy": "E006",
-      "status": "Applied",
-      "beforePrivileges": [
-        "P_GEN_VIEW_DASH",
-        "P_GEN_EXPORT"
-      ],
-      "afterPrivileges": [
-        "P_FIN_VIEW_REP",
-        "P_FIN_POST_JRNL",
-        "P_GEN_VIEW_DASH"
-      ],
-      "createdAt": "2026-01-05T09:41:41.436Z",
-      "updatedAt": "2026-01-05T11:09:02.008Z"
-    },
-    {
-      "id": "4c0634f6-e82d-4053-b215-ab77afb56825",
-      "companyId": "C03",
-      "targetEmployeeId": "E001",
-      "createdBy": "E001",
-      "status": "Applied",
-      "beforePrivileges": [],
-      "afterPrivileges": [
-        "P_FIN_VIEW_REP",
-        "P_FIN_POST_JRNL"
-      ],
-      "createdAt": "2026-01-05T11:22:01.184Z",
-      "updatedAt": "2026-01-05T11:22:07.978Z"
-    },
-    {
-      "id": "eb880e20-d214-486a-bedc-715b0033c2f9",
-      "companyId": "C01",
-      "targetEmployeeId": "E001",
-      "createdBy": "E001",
-      "status": "Applied",
-      "beforePrivileges": [],
-      "afterPrivileges": [
-        "P_SCM_VIEW_SUP",
-        "P_SCM_CREATE_PO"
-      ],
-      "createdAt": "2026-01-05T11:27:01.617Z",
-      "updatedAt": "2026-01-05T11:27:10.891Z"
-    },
-    {
-      "id": "f4f03254-8c18-4c07-bcb7-9d94ed0db8f8",
-      "companyId": "C01",
-      "targetEmployeeId": "E007",
-      "createdBy": "E001",
-      "status": "Rejected",
-      "beforePrivileges": [],
-      "afterPrivileges": [
-        "P_FIN_APPR_PAY"
-      ],
-      "createdAt": "2026-01-05T11:47:46.099Z",
-      "updatedAt": "2026-01-05T11:52:37.942Z"
     }
   ]
 }

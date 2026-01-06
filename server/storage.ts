@@ -6,13 +6,8 @@ import {
   ManagerCompanyAccess,
   EmployeeCompanyMembership,
   Privilege,
-  RoleTemplate,
   Assignment,
-  Delegation,
-  PrivilegeRequest,
   BootstrapResponse,
-  CreateDelegationRequest,
-  CreateRequestBody,
   AuditActionType,
 } from "@shared/schema";
 import fs from "fs/promises";
@@ -22,15 +17,16 @@ import { randomUUID } from "crypto";
 export interface IStorage {
   getBootstrapData(): Promise<BootstrapResponse>;
   
-  // Delegations
-  createDelegation(managerId: string, data: CreateDelegationRequest): Promise<Delegation>;
-  revokeDelegation(id: string, actorId: string): Promise<Delegation>;
+  // Assignments
+  applyAssignments(
+    managerId: string, 
+    companyId: string, 
+    employeeId: string, 
+    privilegeIds: string[]
+  ): Promise<Assignment>;
   
-  // Requests
-  createRequest(actorId: string, data: CreateRequestBody): Promise<PrivilegeRequest>;
-  getRequests(status?: string, companyId?: string): Promise<PrivilegeRequest[]>;
-  approveRequest(id: string, actorId: string, comment?: string): Promise<PrivilegeRequest>;
-  rejectRequest(id: string, actorId: string, comment?: string): Promise<PrivilegeRequest>;
+  // Catalog
+  uploadCatalog(managerId: string, catalog: { module: string; function: string; role: string }[]): Promise<Privilege[]>;
   
   // Audit
   getAuditLog(): Promise<AuditEntry[]>;
@@ -38,7 +34,6 @@ export interface IStorage {
   // Helpers
   getAssignment(companyId: string, employeeId: string): Promise<Assignment | undefined>;
   getManagerCompanies(managerId: string): Promise<string[]>;
-  getDelegatedCompanies(userId: string): Promise<string[]>;
 }
 
 export class JsonStorage implements IStorage {
@@ -95,73 +90,31 @@ export class JsonStorage implements IStorage {
       { employeeId: "E010", companyIds: ["C03", "C01"] },
     ];
 
+    // Updated privileges catalog per new requirements
     const privileges: Privilege[] = [
-      { id: "P_FIN_VIEW_REP", module: "FIN", function: "View Reports", role: "Accounting & Reporting" },
-      { id: "P_FIN_POST_JRNL", module: "FIN", function: "Post Journal", role: "Accounting & Reporting" },
-      { id: "P_FIN_APPR_PAY", module: "FIN", function: "Approve Payment", role: "Treasury" },
-      { id: "P_FIN_CREATE_PAY", module: "FIN", function: "Create Payment", role: "Treasury" },
-      { id: "P_HR_VIEW_EMP", module: "HR", function: "View Employees", role: "HR" },
-      { id: "P_HR_UPD_EMP", module: "HR", function: "Update Employee", role: "HR" },
-      { id: "P_SCM_VIEW_SUP", module: "SCM", function: "View Suppliers", role: "Procurement" },
-      { id: "P_SCM_CREATE_PO", module: "SCM", function: "Create PO", role: "Procurement" },
-      { id: "P_IT_MNG_USERS", module: "IT", function: "Manage Users", role: "System Admin" },
-      { id: "P_IT_RESET_PWD", module: "IT", function: "Reset Password", role: "System Admin" },
-      { id: "P_GEN_VIEW_DASH", module: "GEN", function: "View Dashboard", role: "Viewer" },
-      { id: "P_GEN_EXPORT", module: "GEN", function: "Export Data", role: "Viewer" },
+      // FIN - Payments
+      { id: "P_FIN_PAY_TAPPR", module: "FIN", function: "Payments", role: "Treasury Approver" },
+      { id: "P_FIN_PAY_TCREA", module: "FIN", function: "Payments", role: "Treasury Creator" },
+      // FIN - Reporting
+      { id: "P_FIN_REP_AVIEW", module: "FIN", function: "Reporting", role: "Accounting Viewer" },
+      { id: "P_FIN_REP_APOST", module: "FIN", function: "Reporting", role: "Accounting Poster" },
+      // HR - Employee Data
+      { id: "P_HR_EMP_VIEW", module: "HR", function: "Employee Data", role: "HR Viewer" },
+      { id: "P_HR_EMP_EDIT", module: "HR", function: "Employee Data", role: "HR Editor" },
+      // IT - User Admin
+      { id: "P_IT_USR_MNGR", module: "IT", function: "User Admin", role: "User Manager" },
+      { id: "P_IT_USR_PWRST", module: "IT", function: "User Admin", role: "Password Reset" },
+      // GEN - Dashboard
+      { id: "P_GEN_DASH_VIEW", module: "GEN", function: "Dashboard", role: "Dashboard Viewer" },
+      { id: "P_GEN_DASH_EXP", module: "GEN", function: "Dashboard", role: "Exporter" },
     ];
 
-    const roleTemplates: RoleTemplate[] = [
-      { role: "Viewer", privilegeIds: ["P_GEN_VIEW_DASH", "P_GEN_EXPORT"] },
-      { role: "System Admin", privilegeIds: ["P_IT_MNG_USERS", "P_IT_RESET_PWD", "P_GEN_VIEW_DASH"] },
-      { role: "Treasury", privilegeIds: ["P_FIN_APPR_PAY", "P_FIN_CREATE_PAY", "P_GEN_VIEW_DASH"] },
-      { role: "Accounting & Reporting", privilegeIds: ["P_FIN_VIEW_REP", "P_FIN_POST_JRNL", "P_GEN_VIEW_DASH"] },
-      { role: "HR", privilegeIds: ["P_HR_VIEW_EMP", "P_HR_UPD_EMP", "P_GEN_VIEW_DASH"] },
-      { role: "Procurement", privilegeIds: ["P_SCM_VIEW_SUP", "P_SCM_CREATE_PO", "P_GEN_VIEW_DASH"] },
-    ];
-
+    // Seeded current assignments per requirements
     const assignments: Assignment[] = [
-      { companyId: "C01", employeeId: "E004", privilegeIds: ["P_GEN_VIEW_DASH", "P_GEN_EXPORT"] }, // Viewer
-      { companyId: "C02", employeeId: "E004", privilegeIds: ["P_FIN_VIEW_REP", "P_FIN_POST_JRNL", "P_GEN_VIEW_DASH"] }, // Accounting
-      { companyId: "C02", employeeId: "E007", privilegeIds: ["P_FIN_APPR_PAY", "P_FIN_CREATE_PAY", "P_GEN_VIEW_DASH"] }, // Treasury
-      { companyId: "C03", employeeId: "E009", privilegeIds: ["P_GEN_VIEW_DASH", "P_GEN_EXPORT"] }, // Viewer
-      { companyId: "C01", employeeId: "E010", privilegeIds: ["P_SCM_VIEW_SUP", "P_SCM_CREATE_PO", "P_GEN_VIEW_DASH"] }, // Procurement
-      { companyId: "C03", employeeId: "E006", privilegeIds: ["P_IT_MNG_USERS", "P_IT_RESET_PWD", "P_GEN_VIEW_DASH"] }, // System Admin
-    ];
-
-    const now = new Date();
-    const thirtyDaysLater = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
-
-    const delegations: Delegation[] = [
-      {
-        id: "DEL001",
-        managerId: "E001",
-        delegateId: "E006",
-        companyId: "C03",
-        scope: "company-wide",
-        endDate: thirtyDaysLater.toISOString(),
-      },
-      {
-        id: "DEL002",
-        managerId: "E002",
-        delegateId: "E003",
-        companyId: "C02",
-        scope: "employee-specific",
-        targetEmployeeId: "E007",
-      },
-    ];
-
-    const requests: PrivilegeRequest[] = [
-      {
-        id: "REQ001",
-        companyId: "C03",
-        targetEmployeeId: "E009",
-        createdBy: "E006",
-        status: "Submitted",
-        beforePrivileges: ["P_GEN_VIEW_DASH", "P_GEN_EXPORT"],
-        afterPrivileges: ["P_FIN_VIEW_REP", "P_FIN_POST_JRNL", "P_GEN_VIEW_DASH"],
-        createdAt: now.toISOString(),
-        updatedAt: now.toISOString(),
-      },
+      { companyId: "C01", employeeId: "E004", privilegeIds: ["P_GEN_DASH_VIEW"] },
+      { companyId: "C02", employeeId: "E004", privilegeIds: ["P_FIN_REP_AVIEW"] },
+      { companyId: "C02", employeeId: "E007", privilegeIds: ["P_FIN_PAY_TCREA"] },
+      { companyId: "C03", employeeId: "E006", privilegeIds: ["P_IT_USR_MNGR", "P_IT_USR_PWRST"] },
     ];
 
     return {
@@ -170,34 +123,12 @@ export class JsonStorage implements IStorage {
       managerAccess,
       employeeMembership,
       privileges,
-      roleTemplates,
       assignments,
-      delegations,
-      requests,
     };
   }
 
   private getDefaultAuditLog(): AuditEntry[] {
-    const now = new Date();
-    return [
-      {
-        id: "AUD001",
-        timestamp: new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-        actorUserId: "E001",
-        actionType: "delegation_created",
-        companyId: "C03",
-        details: "Waleed delegated company-wide access for C03 to Ishfaq",
-      },
-      {
-        id: "AUD002",
-        timestamp: new Date(now.getTime() - 1 * 24 * 60 * 60 * 1000).toISOString(),
-        actorUserId: "E006",
-        actionType: "request_submitted",
-        companyId: "C03",
-        targetEmployeeId: "E009",
-        details: "Ishfaq submitted request to change Noor privileges from Viewer to Accounting & Reporting",
-      },
-    ];
+    return [];
   }
 
   private async init() {
@@ -231,7 +162,7 @@ export class JsonStorage implements IStorage {
   }
 
   private async addAuditEntry(
-    actorUserId: string,
+    managerUserId: string,
     actionType: AuditActionType,
     details: string,
     companyId?: string,
@@ -241,7 +172,7 @@ export class JsonStorage implements IStorage {
     const entry: AuditEntry = {
       id: randomUUID(),
       timestamp: new Date().toISOString(),
-      actorUserId,
+      managerUserId,
       actionType,
       companyId,
       targetEmployeeId,
@@ -269,19 +200,6 @@ export class JsonStorage implements IStorage {
     return access?.companyIds || [];
   }
 
-  async getDelegatedCompanies(userId: string): Promise<string[]> {
-    await this.initialized;
-    const now = new Date();
-    const activeDelegations = this.data.delegations.filter(d => {
-      if (d.delegateId !== userId) return false;
-      if (d.revokedAt) return false;
-      if (d.startDate && new Date(d.startDate) > now) return false;
-      if (d.endDate && new Date(d.endDate) < now) return false;
-      return true;
-    });
-    return [...new Set(activeDelegations.map(d => d.companyId))];
-  }
-
   async getAssignment(companyId: string, employeeId: string): Promise<Assignment | undefined> {
     await this.initialized;
     return this.data.assignments.find(
@@ -289,196 +207,145 @@ export class JsonStorage implements IStorage {
     );
   }
 
-  async createDelegation(managerId: string, data: CreateDelegationRequest): Promise<Delegation> {
+  async applyAssignments(
+    managerId: string,
+    companyId: string,
+    employeeId: string,
+    privilegeIds: string[]
+  ): Promise<Assignment> {
     await this.initialized;
-    const delegation: Delegation = {
-      id: randomUUID(),
-      managerId,
-      delegateId: data.delegateId,
-      companyId: data.companyId,
-      scope: data.scope,
-      targetEmployeeId: data.targetEmployeeId,
-      startDate: data.startDate,
-      endDate: data.endDate,
+
+    // Validate manager has access to the company
+    const managerAccess = this.data.managerAccess.find(m => m.managerId === managerId);
+    if (!managerAccess || !managerAccess.companyIds.includes(companyId)) {
+      throw new Error("Manager does not have access to this company");
+    }
+
+    // Validate employee belongs to the company
+    const membership = this.data.employeeMembership.find(m => m.employeeId === employeeId);
+    if (!membership || !membership.companyIds.includes(companyId)) {
+      throw new Error("Employee does not belong to this company");
+    }
+
+    // Validate all privilege IDs exist in the catalog
+    const validPrivilegeIds = this.data.privileges.map(p => p.id);
+    const invalidIds = privilegeIds.filter(id => !validPrivilegeIds.includes(id));
+    if (invalidIds.length > 0) {
+      throw new Error(`Invalid privilege IDs: ${invalidIds.join(", ")}`);
+    }
+
+    // Get existing assignment
+    const existing = await this.getAssignment(companyId, employeeId);
+    const beforePrivileges = existing?.privilegeIds || [];
+
+    // Determine added and removed privileges
+    const added = privilegeIds.filter(p => !beforePrivileges.includes(p));
+    const removed = beforePrivileges.filter(p => !privilegeIds.includes(p));
+
+    // Update or create assignment
+    const existingIdx = this.data.assignments.findIndex(
+      a => a.companyId === companyId && a.employeeId === employeeId
+    );
+    
+    const assignment: Assignment = {
+      companyId,
+      employeeId,
+      privilegeIds,
     };
-    this.data.delegations.push(delegation);
+
+    if (existingIdx >= 0) {
+      this.data.assignments[existingIdx] = assignment;
+    } else {
+      this.data.assignments.push(assignment);
+    }
+
     await this.saveData();
 
+    // Log audit entries
     const manager = this.data.employees.find(e => e.id === managerId);
-    const delegate = this.data.employees.find(e => e.id === data.delegateId);
-    const company = this.data.companies.find(c => c.id === data.companyId);
-    await this.addAuditEntry(
-      managerId,
-      "delegation_created",
-      `${manager?.name} delegated ${data.scope} access for ${company?.name} to ${delegate?.name}`,
-      data.companyId,
-      data.targetEmployeeId
-    );
+    const target = this.data.employees.find(e => e.id === employeeId);
+    const company = this.data.companies.find(c => c.id === companyId);
 
-    return delegation;
-  }
-
-  async revokeDelegation(id: string, actorId: string): Promise<Delegation> {
-    await this.initialized;
-    const delegation = this.data.delegations.find(d => d.id === id);
-    if (!delegation) throw new Error("Delegation not found");
-
-    delegation.revokedAt = new Date().toISOString();
-    await this.saveData();
-
-    const actor = this.data.employees.find(e => e.id === actorId);
-    const delegate = this.data.employees.find(e => e.id === delegation.delegateId);
-    const company = this.data.companies.find(c => c.id === delegation.companyId);
-    await this.addAuditEntry(
-      actorId,
-      "delegation_revoked",
-      `${actor?.name} revoked delegation for ${company?.name} from ${delegate?.name}`,
-      delegation.companyId
-    );
-
-    return delegation;
-  }
-
-  async createRequest(actorId: string, data: CreateRequestBody): Promise<PrivilegeRequest> {
-    await this.initialized;
-    const existing = await this.getAssignment(data.companyId, data.targetEmployeeId);
-    const request: PrivilegeRequest = {
-      id: randomUUID(),
-      companyId: data.companyId,
-      targetEmployeeId: data.targetEmployeeId,
-      createdBy: actorId,
-      status: data.status,
-      beforePrivileges: existing?.privilegeIds || [],
-      afterPrivileges: data.afterPrivileges,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-    this.data.requests.push(request);
-    await this.saveData();
-
-    if (data.status === "Submitted") {
-      const actor = this.data.employees.find(e => e.id === actorId);
-      const target = this.data.employees.find(e => e.id === data.targetEmployeeId);
-      const company = this.data.companies.find(c => c.id === data.companyId);
+    for (const privId of added) {
+      const priv = this.data.privileges.find(p => p.id === privId);
       await this.addAuditEntry(
-        actorId,
-        "request_submitted",
-        `${actor?.name} submitted privilege change request for ${target?.name} in ${company?.name}`,
-        data.companyId,
-        data.targetEmployeeId
+        managerId,
+        "ADD_ROLE",
+        `${manager?.name} added ${priv?.module}/${priv?.function}/${priv?.role} to ${target?.name} in ${company?.name}`,
+        companyId,
+        employeeId
       );
     }
 
-    return request;
+    for (const privId of removed) {
+      const priv = this.data.privileges.find(p => p.id === privId);
+      await this.addAuditEntry(
+        managerId,
+        "REMOVE_ROLE",
+        `${manager?.name} removed ${priv?.module}/${priv?.function}/${priv?.role} from ${target?.name} in ${company?.name}`,
+        companyId,
+        employeeId
+      );
+    }
+
+    return assignment;
   }
 
-  async getRequests(status?: string, companyId?: string): Promise<PrivilegeRequest[]> {
+  async uploadCatalog(
+    managerId: string,
+    catalog: { module: string; function: string; role: string }[]
+  ): Promise<Privilege[]> {
     await this.initialized;
-    let requests = this.data.requests;
-    if (status) {
-      requests = requests.filter(r => r.status === status);
-    }
-    if (companyId) {
-      requests = requests.filter(r => r.companyId === companyId);
-    }
-    return requests;
-  }
 
-  async approveRequest(id: string, actorId: string, comment?: string): Promise<PrivilegeRequest> {
-    await this.initialized;
-    const request = this.data.requests.find(r => r.id === id);
-    if (!request) throw new Error("Request not found");
+    // Generate new privileges from catalog with unique IDs
+    const newPrivileges: Privilege[] = catalog.map((item, idx) => ({
+      id: `P_${item.module}_${item.function.replace(/\s+/g, '')}_${item.role.replace(/\s+/g, '')}_${idx}`.toUpperCase(),
+      module: item.module,
+      function: item.function,
+      role: item.role,
+    }));
+
+    const newPrivilegeIds = new Set(newPrivileges.map(p => p.id));
     
-    // Check status
-    if (request.status !== "Submitted") {
-      throw new Error("Request is not in Submitted status");
+    // Reconcile existing assignments - remove stale privilege IDs
+    const manager = this.data.employees.find(e => e.id === managerId);
+    
+    for (const assignment of this.data.assignments) {
+      const beforeIds = [...assignment.privilegeIds];
+      const validIds = assignment.privilegeIds.filter(id => newPrivilegeIds.has(id));
+      const removedIds = beforeIds.filter(id => !newPrivilegeIds.has(id));
+      
+      // Log removed privileges
+      for (const removedId of removedIds) {
+        const oldPriv = this.data.privileges.find(p => p.id === removedId);
+        const target = this.data.employees.find(e => e.id === assignment.employeeId);
+        const company = this.data.companies.find(c => c.id === assignment.companyId);
+        await this.addAuditEntry(
+          managerId,
+          "REMOVE_ROLE",
+          `${manager?.name} catalog upload removed ${oldPriv?.module || "unknown"}/${oldPriv?.function || "unknown"}/${oldPriv?.role || "unknown"} from ${target?.name} in ${company?.name}`,
+          assignment.companyId,
+          assignment.employeeId
+        );
+      }
+      
+      assignment.privilegeIds = validIds;
     }
     
-    // Check authorization - actor must be manager or delegate for the company
-    const managerCompanies = await this.getManagerCompanies(actorId);
-    const delegatedCompanies = await this.getDelegatedCompanies(actorId);
-    const accessibleCompanies = [...new Set([...managerCompanies, ...delegatedCompanies])];
-    if (!accessibleCompanies.includes(request.companyId)) {
-      throw new Error("Not authorized to approve requests for this company");
-    }
+    // Remove empty assignments
+    this.data.assignments = this.data.assignments.filter(a => a.privilegeIds.length > 0);
 
-    request.status = "Approved";
-    request.approverComment = comment;
-    request.updatedAt = new Date().toISOString();
-
-    // Apply the changes
-    const existingIdx = this.data.assignments.findIndex(
-      a => a.companyId === request.companyId && a.employeeId === request.targetEmployeeId
-    );
-    if (existingIdx >= 0) {
-      this.data.assignments[existingIdx].privilegeIds = request.afterPrivileges;
-    } else {
-      this.data.assignments.push({
-        companyId: request.companyId,
-        employeeId: request.targetEmployeeId,
-        privilegeIds: request.afterPrivileges,
-      });
-    }
-
-    request.status = "Applied";
+    this.data.privileges = newPrivileges;
+    
     await this.saveData();
 
-    const actor = this.data.employees.find(e => e.id === actorId);
-    const target = this.data.employees.find(e => e.id === request.targetEmployeeId);
-    const company = this.data.companies.find(c => c.id === request.companyId);
     await this.addAuditEntry(
-      actorId,
-      "request_approved",
-      `${actor?.name} approved privilege change for ${target?.name} in ${company?.name}`,
-      request.companyId,
-      request.targetEmployeeId
-    );
-    await this.addAuditEntry(
-      actorId,
-      "assignments_applied",
-      `Privileges updated for ${target?.name} in ${company?.name}`,
-      request.companyId,
-      request.targetEmployeeId
+      managerId,
+      "UPLOAD_CATALOG",
+      `${manager?.name} uploaded new privilege catalog with ${newPrivileges.length} entries`
     );
 
-    return request;
-  }
-
-  async rejectRequest(id: string, actorId: string, comment?: string): Promise<PrivilegeRequest> {
-    await this.initialized;
-    const request = this.data.requests.find(r => r.id === id);
-    if (!request) throw new Error("Request not found");
-    
-    // Check status
-    if (request.status !== "Submitted") {
-      throw new Error("Request is not in Submitted status");
-    }
-    
-    // Check authorization - actor must be manager or delegate for the company
-    const managerCompanies = await this.getManagerCompanies(actorId);
-    const delegatedCompanies = await this.getDelegatedCompanies(actorId);
-    const accessibleCompanies = [...new Set([...managerCompanies, ...delegatedCompanies])];
-    if (!accessibleCompanies.includes(request.companyId)) {
-      throw new Error("Not authorized to reject requests for this company");
-    }
-
-    request.status = "Rejected";
-    request.approverComment = comment;
-    request.updatedAt = new Date().toISOString();
-    await this.saveData();
-
-    const actor = this.data.employees.find(e => e.id === actorId);
-    const target = this.data.employees.find(e => e.id === request.targetEmployeeId);
-    const company = this.data.companies.find(c => c.id === request.companyId);
-    await this.addAuditEntry(
-      actorId,
-      "request_rejected",
-      `${actor?.name} rejected privilege change for ${target?.name} in ${company?.name}`,
-      request.companyId,
-      request.targetEmployeeId
-    );
-
-    return request;
+    return newPrivileges;
   }
 
   async getAuditLog(): Promise<AuditEntry[]> {

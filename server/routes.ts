@@ -2,7 +2,7 @@ import type { Express } from "express";
 import type { Server } from "http";
 import { storage } from "./storage";
 import { api } from "@shared/routes";
-import { createDelegationSchema, createRequestSchema, approveRejectSchema } from "@shared/schema";
+import { applyAssignmentsSchema, uploadCatalogSchema } from "@shared/schema";
 import { z } from "zod";
 import * as XLSX from "xlsx";
 
@@ -22,125 +22,48 @@ export async function registerRoutes(
     }
   });
 
-  // Create Delegation
-  app.post(api.delegations.create.path, async (req, res) => {
+  // Apply Assignments (direct add/remove)
+  app.post(api.assignments.apply.path, async (req, res) => {
     try {
-      const schema = createDelegationSchema.extend({ actorId: z.string() });
-      const { actorId, ...data } = schema.parse(req.body);
+      const { actorId, companyId, targetEmployeeId, privilegeIds } = applyAssignmentsSchema.parse(req.body);
       
       // Verify actor is a manager with access to this company
       const managerCompanies = await storage.getManagerCompanies(actorId);
-      if (!managerCompanies.includes(data.companyId)) {
-        return res.status(403).json({ message: "Not authorized to delegate for this company" });
+      if (!managerCompanies.includes(companyId)) {
+        return res.status(403).json({ message: "Not authorized to manage privileges for this company" });
       }
 
-      const delegation = await storage.createDelegation(actorId, data);
-      res.status(201).json(delegation);
+      const assignment = await storage.applyAssignments(actorId, companyId, targetEmployeeId, privilegeIds);
+      res.json(assignment);
     } catch (err) {
       if (err instanceof z.ZodError) {
         return res.status(400).json({ message: err.errors[0].message, field: err.errors[0].path.join('.') });
       }
-      console.error("Create delegation error:", err);
-      res.status(500).json({ message: "Failed to create delegation" });
+      console.error("Apply assignments error:", err);
+      res.status(500).json({ message: "Failed to apply assignments" });
     }
   });
 
-  // Revoke Delegation
-  app.post(api.delegations.revoke.path, async (req, res) => {
+  // Upload Catalog
+  app.post(api.catalog.upload.path, async (req, res) => {
     try {
-      const id = req.params.id;
-      const { actorId } = z.object({ actorId: z.string() }).parse(req.body);
+      const { actorId, catalog } = uploadCatalogSchema.parse(req.body);
       
-      const delegation = await storage.revokeDelegation(id, actorId);
-      res.json(delegation);
-    } catch (err) {
-      if (err instanceof Error && err.message === "Delegation not found") {
-        return res.status(404).json({ message: "Delegation not found" });
+      // Verify actor is a manager
+      const data = await storage.getBootstrapData();
+      const manager = data.employees.find(e => e.id === actorId);
+      if (!manager?.isManager) {
+        return res.status(403).json({ message: "Only managers can upload catalog" });
       }
-      console.error("Revoke delegation error:", err);
-      res.status(500).json({ message: "Failed to revoke delegation" });
-    }
-  });
 
-  // Create Request
-  app.post(api.requests.create.path, async (req, res) => {
-    try {
-      const schema = createRequestSchema.extend({ actorId: z.string() });
-      const { actorId, ...data } = schema.parse(req.body);
-      
-      const request = await storage.createRequest(actorId, data);
-      res.status(201).json(request);
+      const privileges = await storage.uploadCatalog(actorId, catalog);
+      res.json({ privileges });
     } catch (err) {
       if (err instanceof z.ZodError) {
         return res.status(400).json({ message: err.errors[0].message, field: err.errors[0].path.join('.') });
       }
-      console.error("Create request error:", err);
-      res.status(500).json({ message: "Failed to create request" });
-    }
-  });
-
-  // List Requests
-  app.get(api.requests.list.path, async (req, res) => {
-    try {
-      const { status, companyId } = req.query;
-      const requests = await storage.getRequests(
-        status as string | undefined,
-        companyId as string | undefined
-      );
-      res.json(requests);
-    } catch (err) {
-      console.error("List requests error:", err);
-      res.status(500).json({ message: "Failed to list requests" });
-    }
-  });
-
-  // Approve Request
-  app.post(api.requests.approve.path, async (req, res) => {
-    try {
-      const id = req.params.id;
-      const { actorId, comment } = approveRejectSchema.extend({ actorId: z.string() }).parse(req.body);
-      
-      const request = await storage.approveRequest(id, actorId, comment);
-      res.json(request);
-    } catch (err) {
-      if (err instanceof Error) {
-        if (err.message === "Request not found") {
-          return res.status(404).json({ message: "Request not found" });
-        }
-        if (err.message.includes("Not authorized")) {
-          return res.status(403).json({ message: err.message });
-        }
-        if (err.message.includes("not in Submitted status")) {
-          return res.status(409).json({ message: err.message });
-        }
-      }
-      console.error("Approve request error:", err);
-      res.status(500).json({ message: "Failed to approve request" });
-    }
-  });
-
-  // Reject Request
-  app.post(api.requests.reject.path, async (req, res) => {
-    try {
-      const id = req.params.id;
-      const { actorId, comment } = approveRejectSchema.extend({ actorId: z.string() }).parse(req.body);
-      
-      const request = await storage.rejectRequest(id, actorId, comment);
-      res.json(request);
-    } catch (err) {
-      if (err instanceof Error) {
-        if (err.message === "Request not found") {
-          return res.status(404).json({ message: "Request not found" });
-        }
-        if (err.message.includes("Not authorized")) {
-          return res.status(403).json({ message: err.message });
-        }
-        if (err.message.includes("not in Submitted status")) {
-          return res.status(409).json({ message: err.message });
-        }
-      }
-      console.error("Reject request error:", err);
-      res.status(500).json({ message: "Failed to reject request" });
+      console.error("Upload catalog error:", err);
+      res.status(500).json({ message: "Failed to upload catalog" });
     }
   });
 
@@ -195,6 +118,7 @@ export async function registerRoutes(
         const ws = XLSX.utils.json_to_sheet([
           { Module: "Employee", Function: employee.name, Role: employee.title, Assigned: employee.email },
           { Module: "Company", Function: company?.name || cid, Role: "", Assigned: "" },
+          { Module: "Export Date", Function: new Date().toISOString(), Role: "", Assigned: "" },
           { Module: "", Function: "", Role: "", Assigned: "" },
           ...rows,
         ]);

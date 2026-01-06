@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { createDelegationSchema, createRequestSchema, approveRejectSchema } from './schema';
+import { applyAssignmentsSchema, uploadCatalogSchema } from './schema';
 
 export const errorSchemas = {
   validation: z.object({
@@ -29,75 +29,29 @@ export const api = {
     },
   },
 
-  // Delegations
-  delegations: {
-    create: {
+  // Apply Assignments (direct add/remove)
+  assignments: {
+    apply: {
       method: 'POST' as const,
-      path: '/api/delegations',
-      input: createDelegationSchema.extend({
-        actorId: z.string(), // The manager creating the delegation
-      }),
-      responses: {
-        201: z.any(),
-        400: errorSchemas.validation,
-        403: errorSchemas.forbidden,
-      },
-    },
-    revoke: {
-      method: 'POST' as const,
-      path: '/api/delegations/:id/revoke',
-      input: z.object({
-        actorId: z.string(),
-      }),
+      path: '/api/assignments/apply',
+      input: applyAssignmentsSchema,
       responses: {
         200: z.any(),
-        404: errorSchemas.notFound,
+        400: errorSchemas.validation,
         403: errorSchemas.forbidden,
       },
     },
   },
 
-  // Requests (privilege change requests)
-  requests: {
-    create: {
+  // Upload Catalog
+  catalog: {
+    upload: {
       method: 'POST' as const,
-      path: '/api/requests',
-      input: createRequestSchema.extend({
-        actorId: z.string(),
-      }),
+      path: '/api/uploadCatalog',
+      input: uploadCatalogSchema,
       responses: {
-        201: z.any(),
+        200: z.any(),
         400: errorSchemas.validation,
-      },
-    },
-    list: {
-      method: 'GET' as const,
-      path: '/api/requests',
-      responses: {
-        200: z.any(),
-      },
-    },
-    approve: {
-      method: 'POST' as const,
-      path: '/api/requests/:id/approve',
-      input: approveRejectSchema.extend({
-        actorId: z.string(),
-      }),
-      responses: {
-        200: z.any(),
-        404: errorSchemas.notFound,
-        403: errorSchemas.forbidden,
-      },
-    },
-    reject: {
-      method: 'POST' as const,
-      path: '/api/requests/:id/reject',
-      input: approveRejectSchema.extend({
-        actorId: z.string(),
-      }),
-      responses: {
-        200: z.any(),
-        404: errorSchemas.notFound,
         403: errorSchemas.forbidden,
       },
     },

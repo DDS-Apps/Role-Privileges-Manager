@@ -46,14 +46,6 @@ export interface Privilege {
 }
 
 // ============================================
-// ROLE TEMPLATES
-// ============================================
-export interface RoleTemplate {
-  role: string;
-  privilegeIds: string[];
-}
-
-// ============================================
 // ASSIGNMENTS (employee privileges per company)
 // ============================================
 export interface Assignment {
@@ -63,55 +55,17 @@ export interface Assignment {
 }
 
 // ============================================
-// DELEGATIONS
-// ============================================
-export type DelegationScope = "company-wide" | "employee-specific";
-
-export interface Delegation {
-  id: string;
-  managerId: string;
-  delegateId: string;
-  companyId: string;
-  scope: DelegationScope;
-  targetEmployeeId?: string; // Only for employee-specific
-  startDate?: string;
-  endDate?: string;
-  revokedAt?: string;
-}
-
-// ============================================
-// REQUESTS (Approval Workflow)
-// ============================================
-export type RequestStatus = "Draft" | "Submitted" | "Approved" | "Rejected" | "Applied";
-
-export interface PrivilegeRequest {
-  id: string;
-  companyId: string;
-  targetEmployeeId: string;
-  createdBy: string;
-  status: RequestStatus;
-  beforePrivileges: string[];
-  afterPrivileges: string[];
-  approverComment?: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
-// ============================================
 // AUDIT LOG
 // ============================================
 export type AuditActionType = 
-  | "delegation_created"
-  | "delegation_revoked"
-  | "request_submitted"
-  | "request_approved"
-  | "request_rejected"
-  | "assignments_applied";
+  | "ADD_ROLE"
+  | "REMOVE_ROLE"
+  | "UPLOAD_CATALOG";
 
 export interface AuditEntry {
   id: string;
   timestamp: string;
-  actorUserId: string;
+  managerUserId: string;
   actionType: AuditActionType;
   companyId?: string;
   targetEmployeeId?: string;
@@ -127,10 +81,7 @@ export interface AppData {
   managerAccess: ManagerCompanyAccess[];
   employeeMembership: EmployeeCompanyMembership[];
   privileges: Privilege[];
-  roleTemplates: RoleTemplate[];
   assignments: Assignment[];
-  delegations: Delegation[];
-  requests: PrivilegeRequest[];
 }
 
 // ============================================
@@ -143,25 +94,20 @@ export interface BootstrapResponse extends AppData {
 // ============================================
 // REQUEST/RESPONSE TYPES
 // ============================================
-export const createDelegationSchema = z.object({
-  delegateId: z.string(),
-  companyId: z.string(),
-  scope: z.enum(["company-wide", "employee-specific"]),
-  targetEmployeeId: z.string().optional(),
-  startDate: z.string().optional(),
-  endDate: z.string().optional(),
-});
-export type CreateDelegationRequest = z.infer<typeof createDelegationSchema>;
-
-export const createRequestSchema = z.object({
+export const applyAssignmentsSchema = z.object({
+  actorId: z.string(),
   companyId: z.string(),
   targetEmployeeId: z.string(),
-  afterPrivileges: z.array(z.string()),
-  status: z.enum(["Draft", "Submitted"]),
+  privilegeIds: z.array(z.string()),
 });
-export type CreateRequestBody = z.infer<typeof createRequestSchema>;
+export type ApplyAssignmentsRequest = z.infer<typeof applyAssignmentsSchema>;
 
-export const approveRejectSchema = z.object({
-  comment: z.string().optional(),
+export const uploadCatalogSchema = z.object({
+  actorId: z.string(),
+  catalog: z.array(z.object({
+    module: z.string(),
+    function: z.string(),
+    role: z.string(),
+  })),
 });
-export type ApproveRejectBody = z.infer<typeof approveRejectSchema>;
+export type UploadCatalogRequest = z.infer<typeof uploadCatalogSchema>;

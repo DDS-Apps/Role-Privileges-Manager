@@ -1,10 +1,9 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import type { 
-  BootstrapResponse, 
-  CreateDelegationRequest, 
-  CreateRequestBody,
-  Delegation,
-  PrivilegeRequest 
+  BootstrapResponse,
+  ApplyAssignmentsRequest,
+  Assignment,
+  Privilege
 } from "@shared/schema";
 
 async function apiRequest(method: string, url: string, body?: unknown) {
@@ -27,13 +26,16 @@ export function useBootstrapData() {
   });
 }
 
-export function useCreateDelegation() {
+export function useApplyAssignments() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (data: CreateDelegationRequest & { actorId: string }) => {
-      const res = await apiRequest("POST", "/api/delegations", data);
-      if (!res.ok) throw new Error("Failed to create delegation");
-      return res.json() as Promise<Delegation>;
+    mutationFn: async (data: ApplyAssignmentsRequest) => {
+      const res = await apiRequest("POST", "/api/assignments/apply", data);
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.message || "Failed to apply assignments");
+      }
+      return res.json() as Promise<Assignment>;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/bootstrap"] });
@@ -41,55 +43,16 @@ export function useCreateDelegation() {
   });
 }
 
-export function useRevokeDelegation() {
+export function useUploadCatalog() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, actorId }: { id: string; actorId: string }) => {
-      const res = await apiRequest("POST", `/api/delegations/${id}/revoke`, { actorId });
-      if (!res.ok) throw new Error("Failed to revoke delegation");
-      return res.json() as Promise<Delegation>;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/bootstrap"] });
-    },
-  });
-}
-
-export function useCreateRequest() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: async (data: CreateRequestBody & { actorId: string }) => {
-      const res = await apiRequest("POST", "/api/requests", data);
-      if (!res.ok) throw new Error("Failed to create request");
-      return res.json() as Promise<PrivilegeRequest>;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/bootstrap"] });
-    },
-  });
-}
-
-export function useApproveRequest() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: async ({ id, actorId, comment }: { id: string; actorId: string; comment?: string }) => {
-      const res = await apiRequest("POST", `/api/requests/${id}/approve`, { actorId, comment });
-      if (!res.ok) throw new Error("Failed to approve request");
-      return res.json() as Promise<PrivilegeRequest>;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/bootstrap"] });
-    },
-  });
-}
-
-export function useRejectRequest() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: async ({ id, actorId, comment }: { id: string; actorId: string; comment?: string }) => {
-      const res = await apiRequest("POST", `/api/requests/${id}/reject`, { actorId, comment });
-      if (!res.ok) throw new Error("Failed to reject request");
-      return res.json() as Promise<PrivilegeRequest>;
+    mutationFn: async (data: { actorId: string; catalog: { module: string; function: string; role: string }[] }) => {
+      const res = await apiRequest("POST", "/api/uploadCatalog", data);
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.message || "Failed to upload catalog");
+      }
+      return res.json() as Promise<{ privileges: Privilege[] }>;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/bootstrap"] });

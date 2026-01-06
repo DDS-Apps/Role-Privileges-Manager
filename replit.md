@@ -2,16 +2,16 @@
 
 ## Overview
 
-This is a full-stack web application for managing business user roles, privileges, and delegations across multiple companies. The system allows managers to delegate access to other users, submit privilege change requests, and maintain an audit trail of all actions. It features an "Act as user" dropdown for MVP testing without authentication, supporting simulation of different user roles and permissions.
+This is a full-stack web application for managing business user roles and privileges across multiple companies. Managers can directly add or remove privileges for employees in their accessible companies. The system features an "Act as Manager" dropdown for MVP testing without authentication.
 
 The application manages:
-- Companies and employee membership
+- Companies and employee membership (employees can belong to multiple companies)
 - Privilege assignments with module/function/role structure
-- Manager delegation workflows (company-wide or employee-specific)
-- Privilege change requests with approval/rejection flow
-- Role templates for quick privilege assignment
-- Audit logging for compliance
-- Multi-language support (English/Arabic)
+- Direct privilege management (managers add/remove privileges immediately)
+- CSV upload for privilege catalog
+- Audit logging for compliance (ADD_ROLE, REMOVE_ROLE, UPLOAD_CATALOG)
+- Multi-language support (English/Arabic with RTL)
+- Excel export functionality
 
 ## User Preferences
 
@@ -27,57 +27,67 @@ Preferred communication style: Simple, everyday language.
 - **Styling**: Tailwind CSS with custom design tokens and CSS variables for theming
 - **Build Tool**: Vite with React plugin and path aliases (@/, @shared/, @assets/)
 
-The frontend follows a single-page application pattern with the main dashboard handling all privilege management features. Components are organized in a flat structure under `client/src/components/ui/` for reusable UI primitives.
+The frontend follows a single-page application pattern with the main dashboard handling all privilege management features.
 
 ### Backend Architecture
 - **Runtime**: Node.js with Express
 - **Language**: TypeScript with ES modules
 - **API Design**: RESTful endpoints defined in `shared/routes.ts` with Zod schemas for validation
-- **Data Storage**: JSON file-based storage (`data.json`, `audit.json`) for MVP, with Drizzle ORM configured for future PostgreSQL migration
+- **Data Storage**: JSON file-based storage (`data.json`, `audit.json`) for MVP
 
 Key API endpoints:
 - `GET /api/bootstrap` - Initial data load for frontend
-- `POST /api/delegations` - Create manager delegations
-- `POST /api/delegations/:id/revoke` - Revoke delegations
-- `POST /api/requests` - Submit privilege change requests
-- `POST /api/requests/:id/approve` and `/reject` - Handle request workflow
+- `POST /api/assignments/apply` - Apply privilege changes (add/remove)
+- `POST /api/uploadCatalog` - Upload new privilege catalog from CSV
+- `GET /api/audit` - Get audit log
+- `GET /api/export/employee` - Export employee privileges to Excel
 
 ### Data Model
 The system uses these core entities:
 - **Companies**: Organizations (Dallah Holding, Healthcare, Digital)
-- **Employees**: Users with manager flag for access control
-- **Privileges**: Module/Function/Role catalog
+- **Employees**: 10 employees with manager flag for access control
+- **Privileges**: Module/Function/Role catalog (FIN, HR, IT, GEN modules)
+- **Manager Access**: Which companies each manager can manage
+- **Employee Membership**: Which companies each employee belongs to
 - **Assignments**: Employee-to-privilege mappings per company
-- **Delegations**: Manager-to-user access grants (company-wide or employee-specific)
-- **Requests**: Privilege change workflow items with status tracking
-- **Audit Log**: Timestamped action records
+- **Audit Log**: Timestamped action records (ADD_ROLE, REMOVE_ROLE, UPLOAD_CATALOG)
+
+### Privilege Catalog Structure
+- **FIN (Finance)**: Payments (Treasury Approver/Creator), Reporting (Accounting Viewer/Poster)
+- **HR (Human Resources)**: Employee Data (HR Viewer/Editor)
+- **IT (Information Technology)**: User Admin (User Manager/Password Reset)
+- **GEN (General)**: Dashboard (Dashboard Viewer/Exporter)
 
 ### Shared Code
 The `shared/` directory contains code used by both frontend and backend:
 - `schema.ts` - TypeScript interfaces and Zod validation schemas
 - `routes.ts` - API route definitions with request/response types
 
+## Seeded Test Data
+
+### Managers (shown in Act-as dropdown)
+- E001 Waleed Alahdal (IT Lead) - manages C01, C03
+- E002 Adnan Alqahtani (Operations Manager) - manages C02
+- E005 Souhaib Khairallah (Head of Automation) - manages C03, C01
+
+### Non-Manager Employees
+- E003 Shahad Alharbi (HR Specialist) - C01
+- E004 Jameel Ashraf (GM Assistant) - C01, C02
+- E006 Ishfaq Pathan (Infrastructure) - C03
+- E007 Sara Ahmed (Finance Analyst) - C02, C01
+- E008 Khalid Saleh (Treasury Officer) - C02
+- E009 Noor Hassan (Accounting) - C02, C03
+- E010 Faisal Omar (Business Analyst) - C03, C01
+
 ## External Dependencies
 
-### Database
-- **Drizzle ORM**: Configured for PostgreSQL via `drizzle.config.ts`
-- **PostgreSQL**: Connection via `DATABASE_URL` environment variable (optional for MVP, uses JSON storage as fallback)
-- **connect-pg-simple**: Session storage for future authentication
-
 ### UI Component Libraries
-- **Radix UI**: Full suite of accessible primitives (dialog, dropdown, select, tabs, etc.)
+- **Radix UI**: Full suite of accessible primitives
 - **shadcn/ui**: Pre-built component variants using Radix + Tailwind
 - **Lucide React**: Icon library
-- **cmdk**: Command palette component
-- **embla-carousel-react**: Carousel functionality
-- **vaul**: Drawer component
 
 ### Data & Validation
 - **Zod**: Schema validation for API requests and form data
-- **drizzle-zod**: Integration between Drizzle schemas and Zod
-- **date-fns**: Date formatting utilities
-
-### Export Features
 - **xlsx**: Excel file generation for privilege exports
 
 ### Development Tools
