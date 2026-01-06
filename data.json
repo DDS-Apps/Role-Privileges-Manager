@@ -392,25 +392,151 @@
       "role": "Schedule and manage interview processes"
     },
     {
+      "id": "P_HR_REC_05",
+      "module": "HR",
+      "function": "Recruitment",
+      "role": "Update candidate statuses and move them through the recruitment stages"
+    },
+    {
+      "id": "P_HR_REC_06",
+      "module": "HR",
+      "function": "Recruitment",
+      "role": "Generate recruitment-related reports and analytics for tracking hiring progress"
+    },
+    {
+      "id": "P_HR_REC_07",
+      "module": "HR",
+      "function": "Recruitment",
+      "role": "Follow up offer letter and create pending worker"
+    },
+    {
+      "id": "P_HR_PM_01",
+      "module": "HR",
+      "function": "Performance Management",
+      "role": "Manage approvals, track completion status, and ensure compliance with performance policies"
+    },
+    {
+      "id": "P_HR_PM_02",
+      "module": "HR",
+      "function": "Performance Management",
+      "role": "Access performance feedback and maintain appraisal history for audit and reporting"
+    },
+    {
+      "id": "P_HR_PM_03",
+      "module": "HR",
+      "function": "Performance Management",
+      "role": "Reopen or move employees performance tasks"
+    },
+    {
+      "id": "P_HR_PM_04",
+      "module": "HR",
+      "function": "Performance Management",
+      "role": "Transfer the performance documents from manager to another manager"
+    },
+    {
+      "id": "P_HR_PM_05",
+      "module": "HR",
+      "function": "Performance Management",
+      "role": "Bulk print performance documents"
+    },
+    {
+      "id": "P_HR_LRN_01",
+      "module": "HR",
+      "function": "Learning",
+      "role": "Create, edit, and manage courses, offerings, activities, and related learning content"
+    },
+    {
+      "id": "P_HR_LRN_02",
+      "module": "HR",
+      "function": "Learning",
+      "role": "Assign learning items to individuals or groups and track learner progress"
+    },
+    {
+      "id": "P_HR_LRN_03",
+      "module": "HR",
+      "function": "Learning",
+      "role": "Manage instructors, classrooms, and external providers for learning delivery"
+    },
+    {
+      "id": "P_HR_LRN_04",
+      "module": "HR",
+      "function": "Learning",
+      "role": "Access learning reports and analytics to monitor completions and participation"
+    },
+    {
+      "id": "P_HR_LRN_05",
+      "module": "HR",
+      "function": "Learning",
+      "role": "Maintain learning catalogs, categories, and communities"
+    },
+    {
+      "id": "P_HR_PAY_01",
+      "module": "HR",
+      "function": "Payroll",
+      "role": "Process payroll runs – create, calculate, and validate payrolls for assigned payroll groups"
+    },
+    {
+      "id": "P_HR_PAY_02",
+      "module": "HR",
+      "function": "Payroll",
+      "role": "Manage payroll data – enter and update employee earnings, deductions, and other payroll elements"
+    },
+    {
+      "id": "P_HR_PAY_03",
+      "module": "HR",
+      "function": "Payroll",
+      "role": "Run payroll reports – access and generate pre- and post-payroll reports for verification"
+    },
+    {
+      "id": "P_HR_PAY_04",
+      "module": "HR",
+      "function": "Payroll",
+      "role": "Resolve payroll issues – review and correct errors from payroll validations and calculations"
+    },
+    {
+      "id": "P_HR_PAY_05",
+      "module": "HR",
+      "function": "Payroll",
+      "role": "Submit payroll for payment – finalize payroll and initiate payment processing to employees"
+    },
+    {
       "id": "P_SCM_PROC_01",
       "module": "SCM",
       "function": "Procurement",
-      "role": "Manage sourcing events such as RFQs, RFPs, and auctions"
+      "role": "Create, edit, and manage purchase requisitions"
     },
     {
       "id": "P_SCM_PROC_02",
       "module": "SCM",
       "function": "Procurement",
-      "role": "Review, approve, and amend purchase orders"
+      "role": "Convert approved requisitions into purchase orders"
     },
     {
       "id": "P_SCM_PROC_03",
       "module": "SCM",
       "function": "Procurement",
-      "role": "Track procurement cycle times and supplier performance"
+      "role": "Maintain supplier master data and supplier contacts"
     },
     {
       "id": "P_SCM_PROC_04",
+      "module": "SCM",
+      "function": "Procurement",
+      "role": "Manage sourcing events such as RFQs, RFPs, and auctions"
+    },
+    {
+      "id": "P_SCM_PROC_05",
+      "module": "SCM",
+      "function": "Procurement",
+      "role": "Review, approve, and amend purchase orders"
+    },
+    {
+      "id": "P_SCM_PROC_06",
+      "module": "SCM",
+      "function": "Procurement",
+      "role": "Track procurement cycle times and supplier performance"
+    },
+    {
+      "id": "P_SCM_PROC_07",
       "module": "SCM",
       "function": "Procurement",
       "role": "Run procurement reports and spend analysis"
