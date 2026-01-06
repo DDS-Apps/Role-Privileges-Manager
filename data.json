@@ -324,6 +324,372 @@
       "module": "Finance",
       "function": "Financial Auditing",
       "role": "Identify and highlight risks in business processes and inform relevant owners"
+    },
+    {
+      "id": "P_HR_ER_01",
+      "module": "HR",
+      "function": "Employee Relation",
+      "role": "Access and manage worker personal, employment, and assignment information"
+    },
+    {
+      "id": "P_HR_ER_02",
+      "module": "HR",
+      "function": "Employee Relation",
+      "role": "Perform hiring, termination, promotion, and transfer transactions"
+    },
+    {
+      "id": "P_HR_ER_03",
+      "module": "HR",
+      "function": "Employee Relation",
+      "role": "Update worker documents, addresses, and contact details"
+    },
+    {
+      "id": "P_HR_ER_04",
+      "module": "HR",
+      "function": "Employee Relation",
+      "role": "Manage Employee's Absences, Schedules, Bank, GOSI and Legal Information"
+    },
+    {
+      "id": "P_HR_ER_05",
+      "module": "HR",
+      "function": "Employee Relation",
+      "role": "View and manage workforce structures such as jobs, positions, and departments"
+    },
+    {
+      "id": "P_HR_ER_06",
+      "module": "HR",
+      "function": "Employee Relation",
+      "role": "Run HR reports and queries for workforce analytics and compliance"
+    },
+    {
+      "id": "P_HR_ER_07",
+      "module": "HR",
+      "function": "Employee Relation",
+      "role": "Manage employee benefits e.g., medical insurance, annual ticket, etc."
+    },
+    {
+      "id": "P_HR_REC_01",
+      "module": "HR",
+      "function": "Recruitment",
+      "role": "Manage end-to-end recruitment process"
+    },
+    {
+      "id": "P_HR_REC_02",
+      "module": "HR",
+      "function": "Recruitment",
+      "role": "Create, post, and manage job requisitions"
+    },
+    {
+      "id": "P_HR_REC_03",
+      "module": "HR",
+      "function": "Recruitment",
+      "role": "Review and shortlist candidate applications from the talent pool"
+    },
+    {
+      "id": "P_HR_REC_04",
+      "module": "HR",
+      "function": "Recruitment",
+      "role": "Schedule and manage interview processes"
+    },
+    {
+      "id": "P_SCM_PROC_01",
+      "module": "SCM",
+      "function": "Procurement",
+      "role": "Manage sourcing events such as RFQs, RFPs, and auctions"
+    },
+    {
+      "id": "P_SCM_PROC_02",
+      "module": "SCM",
+      "function": "Procurement",
+      "role": "Review, approve, and amend purchase orders"
+    },
+    {
+      "id": "P_SCM_PROC_03",
+      "module": "SCM",
+      "function": "Procurement",
+      "role": "Track procurement cycle times and supplier performance"
+    },
+    {
+      "id": "P_SCM_PROC_04",
+      "module": "SCM",
+      "function": "Procurement",
+      "role": "Run procurement reports and spend analysis"
+    },
+    {
+      "id": "P_SCM_INV_01",
+      "module": "SCM",
+      "function": "Inventory Management",
+      "role": "Define and manage inventory organizations and sub-inventories"
+    },
+    {
+      "id": "P_SCM_INV_02",
+      "module": "SCM",
+      "function": "Inventory Management",
+      "role": "Perform inventory transactions (receipts, issues, transfers, adjustments)"
+    },
+    {
+      "id": "P_SCM_INV_03",
+      "module": "SCM",
+      "function": "Inventory Management",
+      "role": "Manage item master data, categories, and units of measure"
+    },
+    {
+      "id": "P_SCM_INV_04",
+      "module": "SCM",
+      "function": "Inventory Management",
+      "role": "Conduct physical inventory counts and cycle counts"
+    },
+    {
+      "id": "P_SCM_INV_05",
+      "module": "SCM",
+      "function": "Inventory Management",
+      "role": "Track inventory levels, stock valuation, and aging"
+    },
+    {
+      "id": "P_SCM_INV_06",
+      "module": "SCM",
+      "function": "Inventory Management",
+      "role": "Run inventory accuracy and stock movement reports"
+    },
+    {
+      "id": "P_SCM_RCV_01",
+      "module": "SCM",
+      "function": "Receiving",
+      "role": "Receive goods against purchase orders"
+    },
+    {
+      "id": "P_SCM_RCV_02",
+      "module": "SCM",
+      "function": "Receiving",
+      "role": "Perform quantity and quality inspections"
+    },
+    {
+      "id": "P_SCM_RCV_03",
+      "module": "SCM",
+      "function": "Receiving",
+      "role": "Record delivery discrepancies and returns to suppliers"
+    },
+    {
+      "id": "P_SCM_RCV_04",
+      "module": "SCM",
+      "function": "Receiving",
+      "role": "Manage receiving documentation and approvals"
+    },
+    {
+      "id": "P_SCM_RCV_05",
+      "module": "SCM",
+      "function": "Receiving",
+      "role": "Generate receiving and inspection reports"
+    },
+    {
+      "id": "P_SCM_OM_01",
+      "module": "SCM",
+      "function": "Order Management",
+      "role": "Create, manage, and process customer sales orders"
+    },
+    {
+      "id": "P_SCM_OM_02",
+      "module": "SCM",
+      "function": "Order Management",
+      "role": "Manage order pricing, discounts, and credit checks"
+    },
+    {
+      "id": "P_SCM_OM_03",
+      "module": "SCM",
+      "function": "Order Management",
+      "role": "Track order fulfillment status and backorders"
+    },
+    {
+      "id": "P_SCM_OM_04",
+      "module": "SCM",
+      "function": "Order Management",
+      "role": "Handle order changes, cancellations, and returns"
+    },
+    {
+      "id": "P_SCM_OM_05",
+      "module": "SCM",
+      "function": "Order Management",
+      "role": "Generate order management and fulfillment reports"
+    },
+    {
+      "id": "P_SCM_WH_01",
+      "module": "SCM",
+      "function": "Warehouse Management",
+      "role": "Manage warehouse layouts, locations, and storage rules"
+    },
+    {
+      "id": "P_SCM_WH_02",
+      "module": "SCM",
+      "function": "Warehouse Management",
+      "role": "Perform picking, packing, and shipping transactions"
+    },
+    {
+      "id": "P_SCM_WH_03",
+      "module": "SCM",
+      "function": "Warehouse Management",
+      "role": "Manage material movements within the warehouse"
+    },
+    {
+      "id": "P_SCM_WH_04",
+      "module": "SCM",
+      "function": "Warehouse Management",
+      "role": "Monitor warehouse capacity and space utilization"
+    },
+    {
+      "id": "P_SCM_WH_05",
+      "module": "SCM",
+      "function": "Warehouse Management",
+      "role": "Run warehouse productivity and efficiency reports"
+    },
+    {
+      "id": "P_SCM_LOG_01",
+      "module": "SCM",
+      "function": "Logistics & Shipping",
+      "role": "Plan and execute shipments to customers and internal locations"
+    },
+    {
+      "id": "P_SCM_LOG_02",
+      "module": "SCM",
+      "function": "Logistics & Shipping",
+      "role": "Manage carriers, freight rates, and shipping methods"
+    },
+    {
+      "id": "P_SCM_LOG_03",
+      "module": "SCM",
+      "function": "Logistics & Shipping",
+      "role": "Track shipments and delivery confirmations"
+    },
+    {
+      "id": "P_SCM_LOG_04",
+      "module": "SCM",
+      "function": "Logistics & Shipping",
+      "role": "Handle freight billing and logistics cost analysis"
+    },
+    {
+      "id": "P_SCM_LOG_05",
+      "module": "SCM",
+      "function": "Logistics & Shipping",
+      "role": "Generate logistics and transportation reports"
+    },
+    {
+      "id": "P_SCM_PLN_01",
+      "module": "SCM",
+      "function": "Planning",
+      "role": "Run demand planning and supply planning processes"
+    },
+    {
+      "id": "P_SCM_PLN_02",
+      "module": "SCM",
+      "function": "Planning",
+      "role": "Create and maintain forecasts for products and materials"
+    },
+    {
+      "id": "P_SCM_PLN_03",
+      "module": "SCM",
+      "function": "Planning",
+      "role": "Generate replenishment and supply plans"
+    },
+    {
+      "id": "P_SCM_PLN_04",
+      "module": "SCM",
+      "function": "Planning",
+      "role": "Analyze plan exceptions and shortages"
+    },
+    {
+      "id": "P_SCM_PLN_05",
+      "module": "SCM",
+      "function": "Planning",
+      "role": "Compare forecast vs. actual demand"
+    },
+    {
+      "id": "P_SCM_MFG_01",
+      "module": "SCM",
+      "function": "Manufacturing / Production",
+      "role": "Create and manage work orders and production schedules"
+    },
+    {
+      "id": "P_SCM_MFG_02",
+      "module": "SCM",
+      "function": "Manufacturing / Production",
+      "role": "Define bills of materials (BOM) and routings"
+    },
+    {
+      "id": "P_SCM_MFG_03",
+      "module": "SCM",
+      "function": "Manufacturing / Production",
+      "role": "Issue materials to production and record completions"
+    },
+    {
+      "id": "P_SCM_MFG_04",
+      "module": "SCM",
+      "function": "Manufacturing / Production",
+      "role": "Track production variances and efficiencies"
+    },
+    {
+      "id": "P_SCM_MFG_05",
+      "module": "SCM",
+      "function": "Manufacturing / Production",
+      "role": "Run manufacturing performance and cost reports"
+    },
+    {
+      "id": "P_SCM_QM_01",
+      "module": "SCM",
+      "function": "Quality Management",
+      "role": "Define quality standards and inspection plans"
+    },
+    {
+      "id": "P_SCM_QM_02",
+      "module": "SCM",
+      "function": "Quality Management",
+      "role": "Perform incoming, in-process, and outgoing inspections"
+    },
+    {
+      "id": "P_SCM_QM_03",
+      "module": "SCM",
+      "function": "Quality Management",
+      "role": "Record non-conformances and corrective actions"
+    },
+    {
+      "id": "P_SCM_QM_04",
+      "module": "SCM",
+      "function": "Quality Management",
+      "role": "Track supplier and production quality performance"
+    },
+    {
+      "id": "P_SCM_QM_05",
+      "module": "SCM",
+      "function": "Quality Management",
+      "role": "Generate quality and compliance reports"
+    },
+    {
+      "id": "P_SCM_CST_01",
+      "module": "SCM",
+      "function": "Cost Management",
+      "role": "Maintain item costs and cost structures"
+    },
+    {
+      "id": "P_SCM_CST_02",
+      "module": "SCM",
+      "function": "Cost Management",
+      "role": "Perform cost rollups and updates"
+    },
+    {
+      "id": "P_SCM_CST_03",
+      "module": "SCM",
+      "function": "Cost Management",
+      "role": "Analyze material, labor, and overhead variances"
+    },
+    {
+      "id": "P_SCM_CST_04",
+      "module": "SCM",
+      "function": "Cost Management",
+      "role": "Support inventory and manufacturing valuation"
+    },
+    {
+      "id": "P_SCM_CST_05",
+      "module": "SCM",
+      "function": "Cost Management",
+      "role": "Generate cost and margin analysis reports"
     }
   ],
   "assignments": [
@@ -355,19 +721,6 @@
       "employeeId": "E004",
       "privilegeIds": [
         "P_FIN_AR_01"
-      ]
-    },
-    {
-      "companyId": "C02",
-      "employeeId": "E003",
-      "privilegeIds": [
-        "P_FIN_ACC_04",
-        "P_FIN_ACC_05",
-        "P_FIN_ACC_06",
-        "P_FIN_ACC_07",
-        "P_FIN_ACC_08",
-        "P_FIN_ACC_09",
-        "P_FIN_ACC_10"
       ]
     }
   ]
