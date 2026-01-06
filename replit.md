@@ -52,11 +52,13 @@ The system uses these core entities:
 - **Assignments**: Employee-to-privilege mappings per company
 - **Audit Log**: Timestamped action records (ADD_ROLE, REMOVE_ROLE, UPLOAD_CATALOG)
 
-### Privilege Catalog Structure
-- **FIN (Finance)**: Payments (Treasury Approver/Creator), Reporting (Accounting Viewer/Poster)
-- **HR (Human Resources)**: Employee Data (HR Viewer/Editor)
-- **IT (Information Technology)**: User Admin (User Manager/Password Reset)
-- **GEN (General)**: Dashboard (Dashboard Viewer/Exporter)
+### Privilege Catalog Structure (from testRole.xlsx)
+All privileges are under the **Finance** module with the following functions:
+- **Accountant**: 10 roles (journal entries, bills/invoices, reconciliation, assets, depreciation, reports, system mapping)
+- **Accounting and Reporting**: 9 roles (review/post, chart of accounts, fiscal periods, close books, reports, auditor queries, approvals, IT coordination, corrections)
+- **Treasury Management**: 5 roles (bank accounts, cash flow, forecasting, reconciliations, investments)
+- **Financial Planning and Analysis**: 7 roles (performance analysis, budgets, dashboards, KPIs, reports, budget comparison, forecasts)
+- **Financial Auditing**: 6 roles (data collection, transaction review, system changes, compliance, role review, risk identification)
 
 ### Shared Code
 The `shared/` directory contains code used by both frontend and backend:

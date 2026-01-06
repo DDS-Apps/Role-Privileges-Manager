@@ -90,31 +90,57 @@ export class JsonStorage implements IStorage {
       { employeeId: "E010", companyIds: ["C03", "C01"] },
     ];
 
-    // Updated privileges catalog per new requirements
+    // Privileges catalog from Excel file (testRole.xlsx)
     const privileges: Privilege[] = [
-      // FIN - Payments
-      { id: "P_FIN_PAY_TAPPR", module: "FIN", function: "Payments", role: "Treasury Approver" },
-      { id: "P_FIN_PAY_TCREA", module: "FIN", function: "Payments", role: "Treasury Creator" },
-      // FIN - Reporting
-      { id: "P_FIN_REP_AVIEW", module: "FIN", function: "Reporting", role: "Accounting Viewer" },
-      { id: "P_FIN_REP_APOST", module: "FIN", function: "Reporting", role: "Accounting Poster" },
-      // HR - Employee Data
-      { id: "P_HR_EMP_VIEW", module: "HR", function: "Employee Data", role: "HR Viewer" },
-      { id: "P_HR_EMP_EDIT", module: "HR", function: "Employee Data", role: "HR Editor" },
-      // IT - User Admin
-      { id: "P_IT_USR_MNGR", module: "IT", function: "User Admin", role: "User Manager" },
-      { id: "P_IT_USR_PWRST", module: "IT", function: "User Admin", role: "Password Reset" },
-      // GEN - Dashboard
-      { id: "P_GEN_DASH_VIEW", module: "GEN", function: "Dashboard", role: "Dashboard Viewer" },
-      { id: "P_GEN_DASH_EXP", module: "GEN", function: "Dashboard", role: "Exporter" },
+      // Finance - Accountant
+      { id: "P_FIN_ACC_01", module: "Finance", function: "Accountant", role: "Create financial journal entries" },
+      { id: "P_FIN_ACC_02", module: "Finance", function: "Accountant", role: "Record bills/invoices, credit notes, advances and make payments" },
+      { id: "P_FIN_ACC_03", module: "Finance", function: "Accountant", role: "Reconcile supplier accounts" },
+      { id: "P_FIN_ACC_04", module: "Finance", function: "Accountant", role: "Create customer invoices, credit notes, advances and make receipts" },
+      { id: "P_FIN_ACC_05", module: "Finance", function: "Accountant", role: "Reconcile customer accounts" },
+      { id: "P_FIN_ACC_06", module: "Finance", function: "Accountant", role: "Record, transfer, disposal and manage asset register" },
+      { id: "P_FIN_ACC_07", module: "Finance", function: "Accountant", role: "Run system depreciation and impairment entries" },
+      { id: "P_FIN_ACC_08", module: "Finance", function: "Accountant", role: "Analyze accounts for accuracy" },
+      { id: "P_FIN_ACC_09", module: "Finance", function: "Accountant", role: "Generate financial reports" },
+      { id: "P_FIN_ACC_10", module: "Finance", function: "Accountant", role: "Ensure system mapping is correct (sub-ledgers to GL)" },
+      // Finance - Accounting and Reporting
+      { id: "P_FIN_AR_01", module: "Finance", function: "Accounting and Reporting", role: "Review and post the entire accounting process" },
+      { id: "P_FIN_AR_02", module: "Finance", function: "Accounting and Reporting", role: "Manage and configure the company chart of accounts" },
+      { id: "P_FIN_AR_03", module: "Finance", function: "Accounting and Reporting", role: "Configure fiscal periods and tax codes" },
+      { id: "P_FIN_AR_04", module: "Finance", function: "Accounting and Reporting", role: "Close the books (monthly, quarterly, annually)" },
+      { id: "P_FIN_AR_05", module: "Finance", function: "Accounting and Reporting", role: "Prepare financial reports monthly, quarterly and annually" },
+      { id: "P_FIN_AR_06", module: "Finance", function: "Accounting and Reporting", role: "Handle auditor queries" },
+      { id: "P_FIN_AR_07", module: "Finance", function: "Accounting and Reporting", role: "Approve journal entries and payable invoices" },
+      { id: "P_FIN_AR_08", module: "Finance", function: "Accounting and Reporting", role: "Coordinate with IT for system upgrades, integrations and troubleshooting" },
+      { id: "P_FIN_AR_09", module: "Finance", function: "Accounting and Reporting", role: "Correct errors and suggest financial adjustments" },
+      // Finance - Treasury Management
+      { id: "P_FIN_TM_01", module: "Finance", function: "Treasury Management", role: "Maintain bank accounts and contacts" },
+      { id: "P_FIN_TM_02", module: "Finance", function: "Treasury Management", role: "Optimize cash flow" },
+      { id: "P_FIN_TM_03", module: "Finance", function: "Treasury Management", role: "Run cash position and forecasting reports" },
+      { id: "P_FIN_TM_04", module: "Finance", function: "Treasury Management", role: "Perform bank reconciliations" },
+      { id: "P_FIN_TM_05", module: "Finance", function: "Treasury Management", role: "Manage and record investments in banks" },
+      // Finance - Financial Planning and Analysis
+      { id: "P_FIN_FPA_01", module: "Finance", function: "Financial Planning and Analysis", role: "Analyze financial performance" },
+      { id: "P_FIN_FPA_02", module: "Finance", function: "Financial Planning and Analysis", role: "Upload and monitor budgets in the system" },
+      { id: "P_FIN_FPA_03", module: "Finance", function: "Financial Planning and Analysis", role: "Support management dashboards" },
+      { id: "P_FIN_FPA_04", module: "Finance", function: "Financial Planning and Analysis", role: "Align system data for performance KPIs" },
+      { id: "P_FIN_FPA_05", module: "Finance", function: "Financial Planning and Analysis", role: "Run reports for detailed analysis" },
+      { id: "P_FIN_FPA_06", module: "Finance", function: "Financial Planning and Analysis", role: "Compare actual results with the budget" },
+      { id: "P_FIN_FPA_07", module: "Finance", function: "Financial Planning and Analysis", role: "Create forecasts for expenses and spending" },
+      // Finance - Financial Auditing
+      { id: "P_FIN_FA_01", module: "Finance", function: "Financial Auditing", role: "Collect sample data from the finance department" },
+      { id: "P_FIN_FA_02", module: "Finance", function: "Financial Auditing", role: "Review transactions to ensure approval according to policy" },
+      { id: "P_FIN_FA_03", module: "Finance", function: "Financial Auditing", role: "Check that changes to financial systems are properly deployed and approved" },
+      { id: "P_FIN_FA_04", module: "Finance", function: "Financial Auditing", role: "Ensure regulatory compliance setup" },
+      { id: "P_FIN_FA_05", module: "Finance", function: "Financial Auditing", role: "Review roles and duties quarterly with department managers" },
+      { id: "P_FIN_FA_06", module: "Finance", function: "Financial Auditing", role: "Identify and highlight risks in business processes and inform relevant owners" },
     ];
 
-    // Seeded current assignments per requirements
+    // Seeded current assignments - using new privilege IDs from Excel
     const assignments: Assignment[] = [
-      { companyId: "C01", employeeId: "E004", privilegeIds: ["P_GEN_DASH_VIEW"] },
-      { companyId: "C02", employeeId: "E004", privilegeIds: ["P_FIN_REP_AVIEW"] },
-      { companyId: "C02", employeeId: "E007", privilegeIds: ["P_FIN_PAY_TCREA"] },
-      { companyId: "C03", employeeId: "E006", privilegeIds: ["P_IT_USR_MNGR", "P_IT_USR_PWRST"] },
+      { companyId: "C01", employeeId: "E004", privilegeIds: ["P_FIN_ACC_09"] },
+      { companyId: "C02", employeeId: "E007", privilegeIds: ["P_FIN_TM_01", "P_FIN_TM_02"] },
+      { companyId: "C03", employeeId: "E006", privilegeIds: ["P_FIN_FA_01", "P_FIN_FA_02"] },
     ];
 
     return {
