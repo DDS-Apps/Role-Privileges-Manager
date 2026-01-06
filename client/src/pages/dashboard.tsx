@@ -185,10 +185,11 @@ export default function Dashboard() {
     return membership?.companyIds || [];
   }, [data, selectedEmployeeId]);
 
-  // Overlapping companies: both manager has access AND employee belongs to
+  // All companies the employee belongs to (for display in context dropdown)
   const contextCompanies = useMemo(() => {
-    return accessibleCompanies.filter(c => employeeCompanyMembership.includes(c.id));
-  }, [accessibleCompanies, employeeCompanyMembership]);
+    if (!data) return [];
+    return data.companies.filter(c => employeeCompanyMembership.includes(c.id));
+  }, [data, employeeCompanyMembership]);
 
   const currentAssignment = useMemo(() => {
     if (!data || !selectedCompanyId || !selectedEmployeeId) return undefined;
