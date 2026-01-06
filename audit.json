@@ -69,5 +69,50 @@
     "companyId": "C03",
     "targetEmployeeId": "E001",
     "details": "Privileges updated for Waleed Alahdal in Dallah Digital"
+  },
+  {
+    "id": "d67867bc-4ef3-4f6c-834e-b95da037768d",
+    "timestamp": "2026-01-05T11:27:01.621Z",
+    "actorUserId": "E001",
+    "actionType": "request_submitted",
+    "companyId": "C01",
+    "targetEmployeeId": "E001",
+    "details": "Waleed Alahdal submitted privilege change request for Waleed Alahdal in Dallah Holding"
+  },
+  {
+    "id": "29974e13-61bb-437c-b110-0b91f8a26bfc",
+    "timestamp": "2026-01-05T11:27:10.893Z",
+    "actorUserId": "E001",
+    "actionType": "request_approved",
+    "companyId": "C01",
+    "targetEmployeeId": "E001",
+    "details": "Waleed Alahdal approved privilege change for Waleed Alahdal in Dallah Holding"
+  },
+  {
+    "id": "b36fba7c-d99f-405d-baeb-9f652072fa23",
+    "timestamp": "2026-01-05T11:27:10.894Z",
+    "actorUserId": "E001",
+    "actionType": "assignments_applied",
+    "companyId": "C01",
+    "targetEmployeeId": "E001",
+    "details": "Privileges updated for Waleed Alahdal in Dallah Holding"
+  },
+  {
+    "id": "960b86bf-ba37-4d3a-a347-8d65f95631aa",
+    "timestamp": "2026-01-05T11:47:46.102Z",
+    "actorUserId": "E001",
+    "actionType": "request_submitted",
+    "companyId": "C01",
+    "targetEmployeeId": "E007",
+    "details": "Waleed Alahdal submitted privilege change request for Sara Ahmed in Dallah Holding"
+  },
+  {
+    "id": "8921873d-f075-4d2f-a3d5-ca4703417a7a",
+    "timestamp": "2026-01-05T11:52:37.943Z",
+    "actorUserId": "E001",
+    "actionType": "request_rejected",
+    "companyId": "C01",
+    "targetEmployeeId": "E007",
+    "details": "Waleed Alahdal rejected privilege change for Sara Ahmed in Dallah Holding"
   }
 ]

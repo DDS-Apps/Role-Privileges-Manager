@@ -359,6 +359,14 @@
         "P_FIN_VIEW_REP",
         "P_FIN_POST_JRNL"
       ]
+    },
+    {
+      "companyId": "C01",
+      "employeeId": "E001",
+      "privilegeIds": [
+        "P_SCM_VIEW_SUP",
+        "P_SCM_CREATE_PO"
+      ]
     }
   ],
   "delegations": [
@@ -420,6 +428,33 @@
       ],
       "createdAt": "2026-01-05T11:22:01.184Z",
       "updatedAt": "2026-01-05T11:22:07.978Z"
+    },
+    {
+      "id": "eb880e20-d214-486a-bedc-715b0033c2f9",
+      "companyId": "C01",
+      "targetEmployeeId": "E001",
+      "createdBy": "E001",
+      "status": "Applied",
+      "beforePrivileges": [],
+      "afterPrivileges": [
+        "P_SCM_VIEW_SUP",
+        "P_SCM_CREATE_PO"
+      ],
+      "createdAt": "2026-01-05T11:27:01.617Z",
+      "updatedAt": "2026-01-05T11:27:10.891Z"
+    },
+    {
+      "id": "f4f03254-8c18-4c07-bcb7-9d94ed0db8f8",
+      "companyId": "C01",
+      "targetEmployeeId": "E007",
+      "createdBy": "E001",
+      "status": "Rejected",
+      "beforePrivileges": [],
+      "afterPrivileges": [
+        "P_FIN_APPR_PAY"
+      ],
+      "createdAt": "2026-01-05T11:47:46.099Z",
+      "updatedAt": "2026-01-05T11:52:37.942Z"
     }
   ]
 }

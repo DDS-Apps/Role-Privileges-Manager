@@ -1,0 +1,360 @@
+Replit Build Prompt (Updated Requirements — No Delegation)
+
+Build a full-stack Node.js app in Replit for a one-page website called:
+
+“Business Users Roles and Privileges”
+
+Tech/Structure
+
+Backend: Node.js + Express
+
+Frontend: Single page (no routing) using vanilla HTML/CSS/JS (preferred).
+
+Storage (MVP): Minimal JSON-based storage (1–2 JSON files total) persisted on disk.
+
+Input data: I will test with raw data Excel/CSV for Module / Function / Roles. Support upload for this file.
+
+Export: Generate Excel (.xlsx) exports.
+
+Language: EN/AR toggle with RTL support for Arabic.
+
+Default behavior: view-only until manager chooses Add/Remove.
+
+IMPORTANT CHANGE: Remove Delegation Completely
+
+No delegation logic
+
+No delegation UI
+
+No delegation tables/JSON
+
+Only Managers can access/act in the MVP.
+
+MVP Testing “No Login” + Act-as Managers Only
+
+Implement an “Act as” dropdown at the top.
+
+Only show managers in the dropdown (NOT all users).
+
+Add a visible background color to the top “Act as” section so it pops (e.g., light tinted panel), and similarly style main sections (cards/panels).
+
+Seeded Test Data (Must be included)
+
+On first run, if data.json does not exist, auto-create it with:
+
+Companies (3)
+
+C01 — Dallah Holding
+
+C02 — Dallah Healthcare
+
+C03 — Dallah Digital
+
+Managers (Act-as dropdown should show ONLY these)
+
+E001 Waleed Alahdal — IT Lead — Manager=true
+
+E002 Adnan Alqahtani — Operations Manager — Manager=true
+
+E005 Souhaib Khairallah — Head of Automation — Manager=true
+
+All Employees (10 total)
+
+E001 Waleed Alahdal — IT Lead — waleed@example.com
+ — Manager
+
+E002 Adnan Alqahtani — Operations Manager — adnan@example.com
+ — Manager
+
+E003 Shahad Alharbi — HR Specialist — shahad@example.com
+
+E004 Jameel Ashraf — GM Assistant — jameel@example.com
+
+E005 Souhaib Khairallah — Head of Automation — souhaib@example.com
+ — Manager
+
+E006 Ishfaq Pathan — Infrastructure — ishfaq@example.com
+
+E007 Sara Ahmed — Finance Analyst — sara@example.com
+
+E008 Khalid Saleh — Treasury Officer — khalid@example.com
+
+E009 Noor Hassan — Accounting — noor@example.com
+
+E010 Faisal Omar — Business Analyst — faisal@example.com
+
+Manager-to-Company Access (multi-company)
+
+E001 manages: C01, C03
+
+E002 manages: C02
+
+E005 manages: C03, C01
+
+Employee-to-Company Membership (employees in multiple companies)
+
+E003: C01
+
+E004: C01, C02
+
+E006: C03
+
+E007: C02, C01
+
+E008: C02
+
+E009: C02, C03
+
+E010: C03, C01
+
+Managers also belong:
+
+E001: C01, C03
+
+E002: C02
+
+E005: C03, C01
+
+Seeded Privileges Data (temporary until upload)
+
+Seed a small sample “Module / Function / Role” catalog (same across all companies) so the app works without upload:
+Example structure (no role filter needed later, but roles exist under function):
+
+Module: FIN
+
+Function: Payments
+
+Roles: Treasury Approver, Treasury Creator
+
+Function: Reporting
+
+Roles: Accounting Viewer, Accounting Poster
+
+Module: HR
+
+Function: Employee Data
+
+Roles: HR Viewer, HR Editor
+
+Module: IT
+
+Function: User Admin
+
+Roles: User Manager, Password Reset
+
+Module: GEN
+
+Function: Dashboard
+
+Roles: Dashboard Viewer, Exporter
+
+Seeded Current Assignments (employee current roles per company)
+
+Store current assignments as:
+(employeeId + companyId) → list of (module, function, role)
+Seed examples:
+
+E004 in C01: GEN/Dashboard/Dashboard Viewer
+
+E004 in C02: FIN/Reporting/Accounting Viewer
+
+E007 in C02: FIN/Payments/Treasury Creator
+
+E006 in C03: IT/User Admin/User Manager + IT/User Admin/Password Reset
+
+Page Layout (Single Page)
+Section A — Act as (Managers only) (Visually highlighted)
+
+“Act as Manager” dropdown (only managers)
+
+Language toggle EN/AR
+
+Section B — Manager Details (Visually highlighted card/panel)
+
+Manager Details must show exactly:
+
+Company (dropdown or multi-chip showing manager accessible companies)
+
+Manager Name
+
+Position
+
+Under Manager Details: Employee Selector
+
+A dropdown that lists all employees belonging to the manager’s accessible company(s).
+
+Include a search box that searches by Employee ID or Name.
+
+The employee dropdown should be grouped by company or show company badge next to each employee.
+
+Section C — Employee Details (card/panel)
+
+Shows the selected employee:
+
+Employee Company (if employee has multiple companies, show the company currently selected for privilege management OR list all and let manager pick which company context)
+
+Employee Name
+
+Position
+
+✅ Important: Because employees can belong to multiple companies, add a Company Context dropdown (only among companies that BOTH:
+
+the manager has access to, and
+
+the employee belongs to)
+This dropdown determines which company privileges we’re viewing/editing.
+
+Section D — Privileges (current assignments) (card/panel)
+
+Title: “Privileges”
+
+Show a table/list of the current selected employee privileges for the chosen company context:
+
+Module | Function | Role
+
+At the top-right of this list: one button:
+
+Add/Remove
+
+Add/Remove Behavior (Your new flow)
+
+When the manager clicks Add/Remove:
+
+Open a modal (or expandable panel) with:
+
+Module dropdown (filter)
+
+Function dropdown (filtered by selected module)
+
+After module + function selection:
+
+Show all roles under that function as a checkbox list.
+
+All checkboxes are checked by default (meaning “add the function with its default roles”).
+
+Manager may uncheck roles not needed.
+
+Buttons in modal:
+
+Apply Changes
+
+Cancel
+
+Apply logic:
+
+If a role checkbox is checked and the employee doesn’t have it → add it.
+
+If unchecked and employee currently has it → remove it.
+
+Result should update the “Privileges” list immediately.
+
+No “Role dropdown filter” anywhere in the UI (remove it completely).
+
+Upload Raw Data (Module / Function / Roles)
+
+Add an “Upload Data” area (can be collapsed) where manager can upload an Excel/CSV file containing the raw privilege catalog.
+
+For MVP, accept CSV (Excel can be saved as CSV by user). If you want true .xlsx parsing, use a library, but CSV is fine for now.
+
+Expected columns (for now):
+
+module,function,role
+
+On upload:
+
+Replace the existing privilege catalog in the JSON store with uploaded data.
+
+Rebuild the module/function/roles structure.
+
+Audit Logging (Required)
+
+Keep audit logging (even without delegation).
+Audit log should capture:
+
+timestamp
+
+managerUserId (acting manager)
+
+companyId (context)
+
+targetEmployeeId
+
+actionType: ADD_ROLE / REMOVE_ROLE / UPLOAD_CATALOG
+
+details: before/after roles list or changed items
+
+Persist audit logs in audit.json.
+
+Storage (Minimal JSON)
+
+Persist into:
+
+data.json containing:
+
+companies
+
+employees/users
+
+managerCompanies mapping
+
+employeeCompanies mapping
+
+privilegeCatalog (module/function/roles)
+
+assignments
+
+audit.json audit logs
+
+Use safe file writes.
+
+Excel Export (.xlsx)
+
+Two export buttons in the Privileges section (or Export section):
+
+Export selected employee for selected company
+
+Export selected employee for all companies
+
+Export columns:
+
+EmployeeId, EmployeeName, Position
+
+Company
+
+Module, Function, Role
+
+Export timestamp
+
+Use exceljs.
+
+Backend API Endpoints
+
+GET /api/bootstrap (all data needed)
+
+POST /api/uploadCatalog (CSV upload: module,function,role)
+
+POST /api/assignments/apply (apply add/remove result)
+
+GET /api/audit
+
+GET /api/export/employee?employeeId=...&scope=company|all&companyId=...
+
+UI Styling Requirement
+
+Use clear “card/panel” sections with a light background tint so each section pops.
+
+Make the “Act as” section most noticeable.
+
+Support RTL for Arabic when AR selected.
+
+Deliverables
+
+server.js
+
+public/index.html, styles.css, app.js
+
+data.json and audit.json auto-created on first run with test data
+
+README.md with steps: run, select manager, select employee, add/remove, upload CSV, export
+
+Make sure the app runs in Replit with one click.
