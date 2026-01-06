@@ -19,160 +19,87 @@
       "name": "Waleed Alahdal",
       "title": "IT Lead",
       "email": "waleed@example.com",
-      "isManager": true
+      "isManager": true,
+      "legalCompanyId": "C01"
     },
     {
       "id": "E002",
       "name": "Adnan Alqahtani",
       "title": "Operations Manager",
       "email": "adnan@example.com",
-      "isManager": true
+      "isManager": true,
+      "legalCompanyId": "C02"
     },
     {
       "id": "E003",
       "name": "Shahad Alharbi",
       "title": "HR Specialist",
       "email": "shahad@example.com",
-      "isManager": false
+      "isManager": false,
+      "legalCompanyId": "C01",
+      "managerId": "E001"
     },
     {
       "id": "E004",
       "name": "Jameel Ashraf",
       "title": "GM Assistant",
       "email": "jameel@example.com",
-      "isManager": false
+      "isManager": false,
+      "legalCompanyId": "C01",
+      "managerId": "E001"
     },
     {
       "id": "E005",
       "name": "Souhaib Khairallah",
       "title": "Head of Automation",
       "email": "souhaib@example.com",
-      "isManager": true
+      "isManager": true,
+      "legalCompanyId": "C03"
     },
     {
       "id": "E006",
       "name": "Ishfaq Pathan",
       "title": "Infrastructure",
       "email": "ishfaq@example.com",
-      "isManager": false
+      "isManager": false,
+      "legalCompanyId": "C03",
+      "managerId": "E005"
     },
     {
       "id": "E007",
       "name": "Sara Ahmed",
       "title": "Finance Analyst",
       "email": "sara@example.com",
-      "isManager": false
+      "isManager": false,
+      "legalCompanyId": "C02",
+      "managerId": "E002"
     },
     {
       "id": "E008",
       "name": "Khalid Saleh",
       "title": "Treasury Officer",
       "email": "khalid@example.com",
-      "isManager": false
+      "isManager": false,
+      "legalCompanyId": "C02",
+      "managerId": "E002"
     },
     {
       "id": "E009",
       "name": "Noor Hassan",
       "title": "Accounting",
       "email": "noor@example.com",
-      "isManager": false
+      "isManager": false,
+      "legalCompanyId": "C02",
+      "managerId": "E002"
     },
     {
       "id": "E010",
       "name": "Faisal Omar",
       "title": "Business Analyst",
       "email": "faisal@example.com",
-      "isManager": false
-    }
-  ],
-  "managerAccess": [
-    {
-      "managerId": "E001",
-      "companyIds": [
-        "C01",
-        "C03"
-      ]
-    },
-    {
-      "managerId": "E002",
-      "companyIds": [
-        "C02"
-      ]
-    },
-    {
-      "managerId": "E005",
-      "companyIds": [
-        "C03",
-        "C01"
-      ]
-    }
-  ],
-  "employeeMembership": [
-    {
-      "employeeId": "E001",
-      "companyIds": [
-        "C01",
-        "C03"
-      ]
-    },
-    {
-      "employeeId": "E002",
-      "companyIds": [
-        "C02"
-      ]
-    },
-    {
-      "employeeId": "E003",
-      "companyIds": [
-        "C01"
-      ]
-    },
-    {
-      "employeeId": "E004",
-      "companyIds": [
-        "C01",
-        "C02"
-      ]
-    },
-    {
-      "employeeId": "E005",
-      "companyIds": [
-        "C03",
-        "C01"
-      ]
-    },
-    {
-      "employeeId": "E006",
-      "companyIds": [
-        "C03"
-      ]
-    },
-    {
-      "employeeId": "E007",
-      "companyIds": [
-        "C02",
-        "C01"
-      ]
-    },
-    {
-      "employeeId": "E008",
-      "companyIds": [
-        "C02"
-      ]
-    },
-    {
-      "employeeId": "E009",
-      "companyIds": [
-        "C02",
-        "C03"
-      ]
-    },
-    {
-      "employeeId": "E010",
-      "companyIds": [
-        "C03",
-        "C01"
-      ]
+      "isManager": false,
+      "legalCompanyId": "C03",
+      "managerId": "E005"
     }
   ],
   "privileges": [
@@ -402,7 +329,7 @@
   "assignments": [
     {
       "companyId": "C01",
-      "employeeId": "E004",
+      "employeeId": "E003",
       "privilegeIds": [
         "P_FIN_ACC_09"
       ]
@@ -412,16 +339,7 @@
       "employeeId": "E007",
       "privilegeIds": [
         "P_FIN_TM_01",
-        "P_FIN_TM_02",
-        "P_FIN_ACC_02",
-        "P_FIN_ACC_03",
-        "P_FIN_ACC_04",
-        "P_FIN_ACC_05",
-        "P_FIN_ACC_06",
-        "P_FIN_ACC_07",
-        "P_FIN_ACC_08",
-        "P_FIN_ACC_09",
-        "P_FIN_ACC_10"
+        "P_FIN_TM_02"
       ]
     },
     {
@@ -433,22 +351,10 @@
       ]
     },
     {
-      "companyId": "C01",
-      "employeeId": "E001",
+      "companyId": "C02",
+      "employeeId": "E004",
       "privilegeIds": [
-        "P_FIN_ACC_01",
-        "P_FIN_ACC_02",
-        "P_FIN_ACC_03",
-        "P_FIN_ACC_04",
-        "P_FIN_ACC_06",
-        "P_FIN_ACC_07",
-        "P_FIN_ACC_08",
-        "P_FIN_ACC_09",
-        "P_FIN_ACC_10",
-        "P_FIN_TM_01",
-        "P_FIN_TM_02",
-        "P_FIN_TM_03",
-        "P_FIN_TM_04"
+        "P_FIN_AR_01"
       ]
     }
   ]

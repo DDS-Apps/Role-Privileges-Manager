@@ -17,22 +17,8 @@ export interface Employee {
   title: string;
   email: string;
   isManager: boolean;
-}
-
-// ============================================
-// MANAGER-TO-COMPANY ACCESS
-// ============================================
-export interface ManagerCompanyAccess {
-  managerId: string;
-  companyIds: string[];
-}
-
-// ============================================
-// EMPLOYEE-TO-COMPANY MEMBERSHIP
-// ============================================
-export interface EmployeeCompanyMembership {
-  employeeId: string;
-  companyIds: string[];
+  legalCompanyId: string;  // The ONE company the employee legally belongs to
+  managerId?: string;      // Which manager manages this employee (for non-managers)
 }
 
 // ============================================
@@ -46,10 +32,11 @@ export interface Privilege {
 }
 
 // ============================================
-// ASSIGNMENTS (employee privileges per company)
+// ASSIGNMENTS (employee privileges per company context)
+// Employees can have privileges in ANY company, not just their legal company
 // ============================================
 export interface Assignment {
-  companyId: string;
+  companyId: string;       // Company Context - where the privileges apply
   employeeId: string;
   privilegeIds: string[];
 }
@@ -78,8 +65,6 @@ export interface AuditEntry {
 export interface AppData {
   companies: Company[];
   employees: Employee[];
-  managerAccess: ManagerCompanyAccess[];
-  employeeMembership: EmployeeCompanyMembership[];
   privileges: Privilege[];
   assignments: Assignment[];
 }
@@ -96,7 +81,7 @@ export interface BootstrapResponse extends AppData {
 // ============================================
 export const applyAssignmentsSchema = z.object({
   actorId: z.string(),
-  companyId: z.string(),
+  companyId: z.string(),           // Company Context for privileges
   targetEmployeeId: z.string(),
   privilegeIds: z.array(z.string()),
 });

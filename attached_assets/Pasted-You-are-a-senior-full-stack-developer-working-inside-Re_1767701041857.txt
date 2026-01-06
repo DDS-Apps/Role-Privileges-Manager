@@ -1,0 +1,116 @@
+You are a senior full-stack developer working inside Replit on our existing app.
+
+IMPORTANT: Ignore the previous “accessible companies” concept. Implement the NEW concept below and remove/replace any UI or logic related to “Accessible Companies”.
+
+STACK (must keep)
+Frontend: React + TypeScript (Vite), TailwindCSS, shadcn/ui, React Router
+Backend: Express.js
+DB: PostgreSQL + Drizzle ORM
+Data fetching: TanStack Query (React Query)
+Auth: Manager login already exists (or use the existing auth mechanism)
+
+NEW BUSINESS CONCEPT
+1) Legal Ownership
+- Every manager has ONE legal company.
+- Every employee is legally employed by ONE legal company.
+- A manager can ONLY modify privileges for employees who belong to the manager’s legal company (i.e., “his legal employees”).
+
+2) Cross-company privileges
+- Even though a manager can only manage his legal employees, he can grant them privileges in ANY company by selecting a “Company Context” dropdown.
+- This means the employee remains legally under the manager’s company, but can be assigned privileges for other companies.
+
+UI REQUIREMENTS (Manager Portal)
+A) Top “Manager Details” panel should show:
+- Legal Company Name
+- Manager Name
+- Manager Title
+NO “Accessible Companies” chips/labels.
+
+B) Employee dropdown
+- A dropdown showing ALL legal employees under this manager.
+- Populate from backend filtered by manager’s legal company and manager relationship.
+- Searchable dropdown preferred (shadcn/ui Combobox).
+
+C) When selecting an employee, show “Employee Details”:
+- Legal Company Name (employee’s legal company)
+- Employee Name
+- Employee Title
+
+D) Company Context dropdown
+- A dropdown of ALL companies in the group (Dallah companies).
+- This is NOT a permission list, it’s a context selector for where privileges apply.
+
+E) Privileges grid (for the selected employee + selected Company Context)
+- Show current privileges for that employee in that selected company.
+- Allow manager to Add/Remove privileges (based on allowed roles).
+- Changes must write to DB and reflect immediately.
+
+AUTHORIZATION RULE (CRITICAL)
+- The manager can ONLY modify privileges if:
+  employee.legalCompanyId == manager.legalCompanyId
+  AND employee is in manager’s “legal employees” list (direct reporting or defined mapping)
+- If employee is not allowed, do not show them or show as disabled read-only.
+
+DATABASE MODEL (Drizzle)
+Implement/confirm these entities:
+
+1) companies
+- id, name, code (existing or create)
+
+2) managers
+- id, userId, legalCompanyId, title
+
+3) employees
+- id, userId, legalCompanyId, title, managerId (or a manager_employee mapping table)
+
+4) privileges (cross-company assignments)
+- id
+- employeeId
+- companyId (Company Context)
+- role (enum: Viewer | Editor | Approver | Admin OR your existing role set)
+- status (Active/Removed)
+- grantedByManagerId
+- createdAt, updatedAt
+
+BACKEND API (Express)
+Provide endpoints:
+
+Manager context:
+- GET /api/manager/me
+  returns { managerName, managerTitle, legalCompany {id,name} }
+
+Legal employees list:
+- GET /api/manager/employees
+  returns employees legally under manager
+
+Companies list:
+- GET /api/companies
+  returns all companies for Company Context dropdown
+
+Privileges by employee + company:
+- GET /api/manager/employees/:employeeId/privileges?companyId=XXX
+  returns privilege list for that employee within that company
+
+Mutations:
+- POST /api/manager/employees/:employeeId/privileges
+  body: { companyId, role }
+  -> add privilege
+- DELETE /api/manager/employees/:employeeId/privileges/:privilegeId
+  -> remove privilege
+
+Server-side checks must enforce that the employee belongs to manager’s legal company and is under the manager.
+
+FRONTEND (React Query)
+- Create hooks:
+  useManagerMe()
+  useManagerEmployees()
+  useCompanies()
+  useEmployeePrivileges(employeeId, companyId)
+- Add loading/empty/error states.
+- Use shadcn/ui for cards, dropdowns, table, badges.
+
+DELIVERABLES
+- Remove “Accessible Companies” UI from Manager Details.
+- Add employee dropdown + employee details panel.
+- Add company context dropdown.
+- Add privileges grid + add/re

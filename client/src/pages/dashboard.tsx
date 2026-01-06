@@ -25,7 +25,7 @@ const DICT = {
     applyChanges: "Apply Changes",
     cancel: "Cancel",
     managerDetails: "Manager Details",
-    accessibleCompanies: "Accessible Companies",
+    legalCompany: "Legal Company",
     noAccess: "No companies accessible",
     selectModule: "Select Module",
     selectFunction: "Select Function",
@@ -38,6 +38,9 @@ const DICT = {
     selectModuleFirst: "Select a module to see functions",
     selectFunctionFirst: "Select a function to see roles",
     applying: "Applying...",
+    legalEmployees: "Legal Employees",
+    selectEmployee: "Select Employee",
+    noLegalEmployees: "No employees under this manager",
   },
   ar: {
     title: "أدوار وامتيازات مستخدمي الأعمال",
@@ -54,7 +57,7 @@ const DICT = {
     applyChanges: "تطبيق التغييرات",
     cancel: "إلغاء",
     managerDetails: "تفاصيل المدير",
-    accessibleCompanies: "الشركات المتاحة",
+    legalCompany: "الشركة القانونية",
     noAccess: "لا توجد شركات متاحة",
     selectModule: "اختر الوحدة",
     selectFunction: "اختر الوظيفة",
@@ -67,14 +70,17 @@ const DICT = {
     selectModuleFirst: "اختر وحدة لرؤية الوظائف",
     selectFunctionFirst: "اختر وظيفة لرؤية الأدوار",
     applying: "جاري التطبيق...",
+    legalEmployees: "الموظفين القانونيين",
+    selectEmployee: "اختر موظف",
+    noLegalEmployees: "لا يوجد موظفين تحت هذا المدير",
   }
 };
 
 export default function Dashboard() {
   const [language, setLanguage] = useState<Language>("en");
   const [actingUserId, setActingUserId] = useState<string>("");
-  const [selectedCompanyId, setSelectedCompanyId] = useState<string>("");
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>("");
+  const [selectedCompanyId, setSelectedCompanyId] = useState<string>(""); // Company Context
   const [searchQuery, setSearchQuery] = useState("");
   
   // Inline editor state
@@ -113,84 +119,68 @@ export default function Dashboard() {
     [data, actingUserId]
   );
 
-  const managerCompanies = useMemo(() => {
+  // Get manager's legal company
+  const managerLegalCompany = useMemo(() => {
+    if (!data || !actingUser) return undefined;
+    return data.companies.find(c => c.id === actingUser.legalCompanyId);
+  }, [data, actingUser]);
+
+  // Get legal employees (employees managed by this manager with same legal company)
+  const legalEmployees = useMemo(() => {
     if (!data || !actingUser) return [];
-    const access = data.managerAccess.find(m => m.managerId === actingUserId);
-    return access?.companyIds || [];
+    return data.employees.filter(e => 
+      e.managerId === actingUserId && 
+      e.legalCompanyId === actingUser.legalCompanyId
+    );
   }, [data, actingUser, actingUserId]);
 
-  const accessibleCompanies = useMemo(() => 
-    data?.companies.filter(c => managerCompanies.includes(c.id)) || [],
-    [data, managerCompanies]
-  );
-
-  // Auto-select first company
-  useEffect(() => {
-    if (data && !selectedCompanyId && accessibleCompanies.length > 0) {
-      setSelectedCompanyId(accessibleCompanies[0].id);
-    }
-  }, [data, selectedCompanyId, accessibleCompanies]);
-
-  // Reset company selection when manager changes
-  useEffect(() => {
-    if (actingUserId && accessibleCompanies.length > 0) {
-      if (!accessibleCompanies.find(c => c.id === selectedCompanyId)) {
-        setSelectedCompanyId(accessibleCompanies[0].id);
-        setSelectedEmployeeId("");
-      }
-    }
-  }, [actingUserId, accessibleCompanies, selectedCompanyId]);
-
-  const employeesInSelectedCompany = useMemo(() => {
-    if (!data || !selectedCompanyId) return [];
-    return data.employees.filter(emp => {
-      const membership = data.employeeMembership.find(m => m.employeeId === emp.id);
-      return membership?.companyIds.includes(selectedCompanyId);
-    });
-  }, [data, selectedCompanyId]);
-
+  // Filter employees by search
   const filteredEmployees = useMemo(() => {
-    if (!searchQuery) return employeesInSelectedCompany;
+    if (!searchQuery) return legalEmployees;
     const q = searchQuery.toLowerCase();
-    return employeesInSelectedCompany.filter(emp => 
+    return legalEmployees.filter(emp => 
       emp.id.toLowerCase().includes(q) || emp.name.toLowerCase().includes(q)
     );
-  }, [employeesInSelectedCompany, searchQuery]);
+  }, [legalEmployees, searchQuery]);
 
-  // Auto-select first employee
+  // Auto-select first employee when manager changes
   useEffect(() => {
-    if (data && selectedCompanyId && !selectedEmployeeId && filteredEmployees.length > 0) {
-      setSelectedEmployeeId(filteredEmployees[0].id);
-    }
-  }, [data, selectedCompanyId, selectedEmployeeId, filteredEmployees]);
-
-  // Reset employee when not in filtered list
-  useEffect(() => {
-    if (selectedEmployeeId && filteredEmployees.length > 0) {
-      if (!filteredEmployees.find(e => e.id === selectedEmployeeId)) {
-        setSelectedEmployeeId(filteredEmployees[0].id);
+    if (data && actingUserId && legalEmployees.length > 0) {
+      if (!selectedEmployeeId || !legalEmployees.find(e => e.id === selectedEmployeeId)) {
+        setSelectedEmployeeId(legalEmployees[0].id);
       }
+    } else if (legalEmployees.length === 0) {
+      setSelectedEmployeeId("");
     }
-  }, [selectedEmployeeId, filteredEmployees]);
+  }, [data, actingUserId, legalEmployees, selectedEmployeeId]);
+
+  // All companies for Company Context dropdown
+  const allCompanies = useMemo(() => data?.companies || [], [data]);
+
+  // Auto-select first company as context
+  useEffect(() => {
+    if (data && allCompanies.length > 0 && !selectedCompanyId) {
+      setSelectedCompanyId(allCompanies[0].id);
+    }
+  }, [data, allCompanies, selectedCompanyId]);
 
   const selectedEmployee = useMemo(() => 
     data?.employees.find(e => e.id === selectedEmployeeId),
     [data, selectedEmployeeId]
   );
 
-  // Get employee's company membership for context dropdown
-  const employeeCompanyMembership = useMemo(() => {
-    if (!data || !selectedEmployeeId) return [];
-    const membership = data.employeeMembership.find(m => m.employeeId === selectedEmployeeId);
-    return membership?.companyIds || [];
-  }, [data, selectedEmployeeId]);
+  const selectedCompany = useMemo(() =>
+    data?.companies.find(c => c.id === selectedCompanyId),
+    [data, selectedCompanyId]
+  );
 
-  // All companies the employee belongs to (for display in context dropdown)
-  const contextCompanies = useMemo(() => {
-    if (!data) return [];
-    return data.companies.filter(c => employeeCompanyMembership.includes(c.id));
-  }, [data, employeeCompanyMembership]);
+  // Get employee's legal company
+  const employeeLegalCompany = useMemo(() => {
+    if (!data || !selectedEmployee) return undefined;
+    return data.companies.find(c => c.id === selectedEmployee.legalCompanyId);
+  }, [data, selectedEmployee]);
 
+  // Get current assignment for selected employee + company context
   const currentAssignment = useMemo(() => {
     if (!data || !selectedCompanyId || !selectedEmployeeId) return undefined;
     return data.assignments.find(
@@ -328,8 +318,8 @@ export default function Dashboard() {
                 value={actingUserId}
                 onChange={(e) => {
                   setActingUserId(e.target.value);
-                  setSelectedCompanyId("");
                   setSelectedEmployeeId("");
+                  setSelectedCompanyId("");
                 }}
                 className="rounded-lg border border-white/30 bg-white/20 text-white px-3 py-1.5 text-sm font-medium backdrop-blur-sm"
                 data-testid="select-act-as"
@@ -356,7 +346,7 @@ export default function Dashboard() {
       </header>
 
       <main className="mx-auto max-w-7xl p-4 md:p-6 space-y-6">
-        {/* Manager Details Card */}
+        {/* Manager Details Card - Shows Legal Company, Name, Title */}
         {actingUser && (
           <div className="rounded-xl border-2 border-indigo-200 dark:border-indigo-800 bg-gradient-to-r from-indigo-50 to-blue-50 dark:from-indigo-950/50 dark:to-blue-950/50 p-4 shadow-sm">
             <h2 className="text-sm font-semibold text-indigo-600 dark:text-indigo-400 mb-3">{t.managerDetails}</h2>
@@ -374,63 +364,56 @@ export default function Dashboard() {
               <div>
                 <div className="flex items-center gap-2 mb-1">
                   <Building2 className="h-4 w-4 text-indigo-500" />
-                  <span className="text-sm font-medium text-indigo-600 dark:text-indigo-400">{t.accessibleCompanies}</span>
+                  <span className="text-sm font-medium text-indigo-600 dark:text-indigo-400">{t.legalCompany}</span>
                 </div>
-                <div className="flex gap-1 flex-wrap mt-1">
-                  {accessibleCompanies.length > 0 ? accessibleCompanies.map(c => (
-                    <span key={c.id} className="inline-flex items-center rounded-md bg-indigo-100 dark:bg-indigo-900/50 px-2 py-0.5 text-xs font-medium text-indigo-700 dark:text-indigo-300">
-                      {c.name}
-                    </span>
-                  )) : <span className="text-xs text-muted-foreground">{t.noAccess}</span>}
-                </div>
+                <span className="inline-flex items-center rounded-md bg-indigo-100 dark:bg-indigo-900/50 px-2 py-0.5 text-xs font-medium text-indigo-700 dark:text-indigo-300">
+                  {managerLegalCompany?.name || "N/A"}
+                </span>
               </div>
             </div>
 
             {/* Employee Selector */}
             <div className="mt-4 pt-4 border-t border-indigo-200 dark:border-indigo-700">
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                {/* Company Dropdown */}
-                <div>
-                  <label className="text-sm font-medium text-muted-foreground flex items-center gap-1">
-                    <Building2 className="h-3 w-3" />
-                    {t.company}
-                  </label>
-                  <select
-                    value={selectedCompanyId}
-                    onChange={(e) => {
-                      setSelectedCompanyId(e.target.value);
-                      setSelectedEmployeeId("");
-                    }}
-                    className="mt-1 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm"
-                    data-testid="select-company"
-                  >
-                    {accessibleCompanies.map(c => (
-                      <option key={c.id} value={c.id}>{c.name}</option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Employee Dropdown */}
+                {/* Employee Dropdown (Legal Employees only) */}
                 <div>
                   <label className="text-sm font-medium text-muted-foreground flex items-center gap-1">
                     <Users className="h-3 w-3" />
-                    {t.employee}
+                    {t.legalEmployees}
+                  </label>
+                  {legalEmployees.length > 0 ? (
+                    <select
+                      value={selectedEmployeeId}
+                      onChange={(e) => setSelectedEmployeeId(e.target.value)}
+                      className="mt-1 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm"
+                      data-testid="select-employee"
+                    >
+                      {filteredEmployees.map(emp => (
+                        <option key={emp.id} value={emp.id}>
+                          {emp.id} - {emp.name}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <p className="mt-1 text-sm text-muted-foreground">{t.noLegalEmployees}</p>
+                  )}
+                </div>
+
+                {/* Company Context Dropdown (ALL companies) */}
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground flex items-center gap-1">
+                    <Building2 className="h-3 w-3" />
+                    {t.companyContext}
                   </label>
                   <select
-                    value={selectedEmployeeId}
-                    onChange={(e) => setSelectedEmployeeId(e.target.value)}
+                    value={selectedCompanyId}
+                    onChange={(e) => setSelectedCompanyId(e.target.value)}
                     className="mt-1 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm"
-                    data-testid="select-employee"
+                    data-testid="select-company-context"
                   >
-                    {filteredEmployees.map(emp => {
-                      const membership = data.employeeMembership.find(m => m.employeeId === emp.id);
-                      const companyCount = membership?.companyIds.length || 0;
-                      return (
-                        <option key={emp.id} value={emp.id}>
-                          {emp.id} - {emp.name} {companyCount > 1 ? `(${companyCount} companies)` : ""}
-                        </option>
-                      );
-                    })}
+                    {allCompanies.map(c => (
+                      <option key={c.id} value={c.id}>{c.name}</option>
+                    ))}
                   </select>
                 </div>
 
@@ -458,7 +441,7 @@ export default function Dashboard() {
         {selectedEmployee && (
           <div className="rounded-xl border bg-card p-4 shadow-sm">
             <h3 className="text-sm font-semibold text-muted-foreground mb-3">{t.employeeDetails}</h3>
-            <div className="flex flex-wrap gap-4 items-center justify-between">
+            <div className="flex flex-wrap gap-4 items-center">
               <div className="flex items-center gap-3">
                 <div className="h-10 w-10 rounded-full bg-gradient-to-br from-slate-400 to-slate-600 flex items-center justify-center text-white font-bold">
                   {selectedEmployee.name.charAt(0)}
@@ -468,210 +451,210 @@ export default function Dashboard() {
                   <p className="text-sm text-muted-foreground">{selectedEmployee.title} - {selectedEmployee.email}</p>
                 </div>
               </div>
-              
-              {/* Company Context Dropdown (if employee in multiple companies) */}
-              {contextCompanies.length > 1 && (
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-muted-foreground">{t.companyContext}:</span>
-                  <select
-                    value={selectedCompanyId}
-                    onChange={(e) => setSelectedCompanyId(e.target.value)}
-                    className="rounded-lg border border-input bg-background px-3 py-1.5 text-sm"
-                    data-testid="select-company-context"
-                  >
-                    {contextCompanies.map(c => (
-                      <option key={c.id} value={c.id}>{c.name}</option>
-                    ))}
-                  </select>
+              <div className="h-8 w-px bg-border hidden sm:block" />
+              <div>
+                <div className="flex items-center gap-2 mb-1">
+                  <Building2 className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-sm text-muted-foreground">{t.legalCompany}</span>
                 </div>
-              )}
+                <span className="inline-flex items-center rounded-md bg-slate-100 dark:bg-slate-800 px-2 py-0.5 text-xs font-medium">
+                  {employeeLegalCompany?.name || "N/A"}
+                </span>
+              </div>
             </div>
           </div>
         )}
 
         {/* Privileges Card with Inline Editor */}
-        <div className="rounded-xl border bg-card p-4 shadow-sm">
-          <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
-            <h3 className="text-lg font-semibold flex items-center gap-2">
-              <ShieldCheck className="h-5 w-5 text-indigo-500" />
-              {t.privileges}
-            </h3>
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Left: Current Assignments */}
-            <div>
-              <h4 className="text-sm font-medium text-muted-foreground mb-3">{t.currentAssignments}</h4>
-              {assignedPrivilegeDetails.length > 0 ? (
-                <div className="space-y-3">
-                  {Object.entries(groupedAssignments).map(([module, functions]) => (
-                    <div key={module} className="border rounded-lg p-3 bg-muted/30">
-                      <div className="font-medium text-sm mb-2 flex items-center gap-1">
-                        <span className="inline-flex items-center rounded-md bg-slate-100 dark:bg-slate-800 px-2 py-0.5 text-xs font-medium">
-                          {module}
-                        </span>
-                      </div>
-                      {Object.entries(functions).map(([func, roles]) => (
-                        <div key={func} className="ml-4 mb-2">
-                          <div className="text-sm text-muted-foreground mb-1">{func}</div>
-                          <div className="flex flex-wrap gap-1 ml-2">
-                            {roles.map(role => (
-                              <span 
-                                key={role.id} 
-                                className="inline-flex items-center rounded-md bg-indigo-50 dark:bg-indigo-900/50 px-2 py-0.5 text-xs font-medium text-indigo-700 dark:text-indigo-300"
-                              >
-                                {role.role}
-                              </span>
-                            ))}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-8 text-muted-foreground border rounded-lg bg-muted/20">
-                  <ShieldCheck className="h-10 w-10 mx-auto mb-2 opacity-30" />
-                  <p className="text-sm">{t.noPrivileges}</p>
-                </div>
-              )}
+        {selectedEmployee && (
+          <div className="rounded-xl border bg-card p-4 shadow-sm">
+            <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+              <h3 className="text-lg font-semibold flex items-center gap-2">
+                <ShieldCheck className="h-5 w-5 text-indigo-500" />
+                {t.privileges}
+                {selectedCompany && (
+                  <span className="text-sm font-normal text-muted-foreground">
+                    in {selectedCompany.name}
+                  </span>
+                )}
+              </h3>
             </div>
 
-            {/* Right: Inline Editor */}
-            <div className="border-l-0 lg:border-l lg:pl-6">
-              <div 
-                className="flex items-center justify-between cursor-pointer mb-3"
-                onClick={() => setShowEditor(!showEditor)}
-                data-testid="toggle-editor"
-              >
-                <h4 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                  <Plus className="h-4 w-4" />
-                  <Minus className="h-4 w-4" />
-                  {t.addRemove}
-                </h4>
-                {showEditor ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Left: Current Assignments */}
+              <div>
+                <h4 className="text-sm font-medium text-muted-foreground mb-3">{t.currentAssignments}</h4>
+                {assignedPrivilegeDetails.length > 0 ? (
+                  <div className="space-y-3">
+                    {Object.entries(groupedAssignments).map(([module, functions]) => (
+                      <div key={module} className="border rounded-lg p-3 bg-muted/30">
+                        <div className="font-medium text-sm mb-2 flex items-center gap-1">
+                          <span className="inline-flex items-center rounded-md bg-slate-100 dark:bg-slate-800 px-2 py-0.5 text-xs font-medium">
+                            {module}
+                          </span>
+                        </div>
+                        {Object.entries(functions).map(([func, roles]) => (
+                          <div key={func} className="ml-4 mb-2">
+                            <div className="text-sm text-muted-foreground mb-1">{func}</div>
+                            <div className="flex flex-wrap gap-1 ml-2">
+                              {roles.map(role => (
+                                <span 
+                                  key={role.id} 
+                                  className="inline-flex items-center rounded-md bg-indigo-50 dark:bg-indigo-900/50 px-2 py-0.5 text-xs font-medium text-indigo-700 dark:text-indigo-300"
+                                >
+                                  {role.role}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-muted-foreground border rounded-lg bg-muted/20">
+                    <ShieldCheck className="h-10 w-10 mx-auto mb-2 opacity-30" />
+                    <p className="text-sm">{t.noPrivileges}</p>
+                  </div>
+                )}
               </div>
 
-              {showEditor && selectedEmployeeId && selectedCompanyId && (
-                <div className="space-y-4 border rounded-lg p-4 bg-muted/20">
-                  {/* Module Dropdown */}
-                  <div>
-                    <label className="text-sm font-medium">{t.module}</label>
-                    <select
-                      value={editorModule}
-                      onChange={(e) => {
-                        setEditorModule(e.target.value);
-                        setEditorFunction("");
-                        setRoleSelections({});
-                      }}
-                      className="mt-1 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm"
-                      data-testid="select-editor-module"
-                    >
-                      <option value="">{t.selectModule}</option>
-                      {uniqueModules.map(m => (
-                        <option key={m} value={m}>{m}</option>
-                      ))}
-                    </select>
-                  </div>
+              {/* Right: Inline Editor */}
+              <div className="border-l-0 lg:border-l lg:pl-6">
+                <div 
+                  className="flex items-center justify-between cursor-pointer mb-3"
+                  onClick={() => setShowEditor(!showEditor)}
+                  data-testid="toggle-editor"
+                >
+                  <h4 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                    <Plus className="h-4 w-4" />
+                    <Minus className="h-4 w-4" />
+                    {t.addRemove}
+                  </h4>
+                  {showEditor ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                </div>
 
-                  {/* Function Dropdown */}
-                  {editorModule && (
+                {showEditor && (
+                  <div className="space-y-4 border rounded-lg p-4 bg-muted/20">
+                    {/* Module Dropdown */}
                     <div>
-                      <label className="text-sm font-medium">{t.function}</label>
+                      <label className="text-sm font-medium">{t.module}</label>
                       <select
-                        value={editorFunction}
-                        onChange={(e) => setEditorFunction(e.target.value)}
+                        value={editorModule}
+                        onChange={(e) => {
+                          setEditorModule(e.target.value);
+                          setEditorFunction("");
+                          setRoleSelections({});
+                        }}
                         className="mt-1 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm"
-                        data-testid="select-editor-function"
+                        data-testid="select-editor-module"
                       >
-                        <option value="">{t.selectFunction}</option>
-                        {functionsForModule.map(f => (
-                          <option key={f} value={f}>{f}</option>
+                        <option value="">{t.selectModule}</option>
+                        {uniqueModules.map(m => (
+                          <option key={m} value={m}>{m}</option>
                         ))}
                       </select>
                     </div>
-                  )}
 
-                  {/* Role Checkboxes */}
-                  {editorFunction && rolesForFunction.length > 0 && (
-                    <div>
-                      <label className="text-sm font-medium block mb-1">{t.role}</label>
-                      <p className="text-xs text-muted-foreground mb-2">{t.allRolesSelected}</p>
-                      <div className="space-y-2 max-h-64 overflow-y-auto border rounded-lg p-3 bg-background">
-                        {rolesForFunction.map(priv => {
-                          const isCurrentlyAssigned = currentPrivileges.includes(priv.id);
-                          const isChecked = roleSelections[priv.id] ?? false;
-                          
-                          return (
-                            <label 
-                              key={priv.id} 
-                              className="flex items-start gap-2 cursor-pointer hover:bg-muted/50 p-2 rounded"
-                            >
-                              <input
-                                type="checkbox"
-                                checked={isChecked}
-                                onChange={(e) => {
-                                  setRoleSelections(prev => ({
-                                    ...prev,
-                                    [priv.id]: e.target.checked
-                                  }));
-                                }}
-                                className="rounded border-gray-300 mt-0.5"
-                                data-testid={`checkbox-role-${priv.id}`}
-                              />
-                              <div className="flex-1">
-                                <span className="text-sm">{priv.role}</span>
-                                {isCurrentlyAssigned && (
-                                  <span className="ml-2 text-xs text-green-600 dark:text-green-400">(assigned)</span>
-                                )}
-                              </div>
-                            </label>
-                          );
-                        })}
+                    {/* Function Dropdown */}
+                    {editorModule && (
+                      <div>
+                        <label className="text-sm font-medium">{t.function}</label>
+                        <select
+                          value={editorFunction}
+                          onChange={(e) => setEditorFunction(e.target.value)}
+                          className="mt-1 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm"
+                          data-testid="select-editor-function"
+                        >
+                          <option value="">{t.selectFunction}</option>
+                          {functionsForModule.map(f => (
+                            <option key={f} value={f}>{f}</option>
+                          ))}
+                        </select>
                       </div>
-                    </div>
-                  )}
+                    )}
 
-                  {/* Guidance Text */}
-                  {!editorModule && (
-                    <p className="text-sm text-muted-foreground text-center py-4">{t.selectModuleFirst}</p>
-                  )}
-                  {editorModule && !editorFunction && (
-                    <p className="text-sm text-muted-foreground text-center py-4">{t.selectFunctionFirst}</p>
-                  )}
+                    {/* Role Checkboxes */}
+                    {editorFunction && rolesForFunction.length > 0 && (
+                      <div>
+                        <label className="text-sm font-medium block mb-1">{t.role}</label>
+                        <p className="text-xs text-muted-foreground mb-2">{t.allRolesSelected}</p>
+                        <div className="space-y-2 max-h-64 overflow-y-auto border rounded-lg p-3 bg-background">
+                          {rolesForFunction.map(priv => {
+                            const isCurrentlyAssigned = currentPrivileges.includes(priv.id);
+                            const isChecked = roleSelections[priv.id] ?? false;
+                            
+                            return (
+                              <label 
+                                key={priv.id} 
+                                className="flex items-start gap-2 cursor-pointer hover:bg-muted/50 p-2 rounded"
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={isChecked}
+                                  onChange={(e) => {
+                                    setRoleSelections(prev => ({
+                                      ...prev,
+                                      [priv.id]: e.target.checked
+                                    }));
+                                  }}
+                                  className="rounded border-gray-300 mt-0.5"
+                                  data-testid={`checkbox-role-${priv.id}`}
+                                />
+                                <div className="flex-1">
+                                  <span className="text-sm">{priv.role}</span>
+                                  {isCurrentlyAssigned && (
+                                    <span className="ml-2 text-xs text-green-600 dark:text-green-400">(assigned)</span>
+                                  )}
+                                </div>
+                              </label>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
 
-                  {/* Apply Button */}
-                  {editorFunction && (
-                    <button
-                      onClick={handleApplyChanges}
-                      disabled={applyAssignments.isPending}
-                      className="w-full flex items-center justify-center gap-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 text-sm font-medium disabled:opacity-50"
-                      data-testid="button-apply-changes"
-                    >
-                      {applyAssignments.isPending ? (
-                        <>
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                          {t.applying}
-                        </>
-                      ) : (
-                        <>
-                          <Check className="h-4 w-4" />
-                          {t.applyChanges}
-                        </>
-                      )}
-                    </button>
-                  )}
-                </div>
-              )}
+                    {/* Guidance Text */}
+                    {!editorModule && (
+                      <p className="text-sm text-muted-foreground text-center py-4">{t.selectModuleFirst}</p>
+                    )}
+                    {editorModule && !editorFunction && (
+                      <p className="text-sm text-muted-foreground text-center py-4">{t.selectFunctionFirst}</p>
+                    )}
 
-              {!showEditor && (
-                <p className="text-sm text-muted-foreground text-center py-4 border rounded-lg bg-muted/10">
-                  Click above to expand the privilege editor
-                </p>
-              )}
+                    {/* Apply Button */}
+                    {editorFunction && (
+                      <button
+                        onClick={handleApplyChanges}
+                        disabled={applyAssignments.isPending}
+                        className="w-full flex items-center justify-center gap-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 text-sm font-medium disabled:opacity-50"
+                        data-testid="button-apply-changes"
+                      >
+                        {applyAssignments.isPending ? (
+                          <>
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                            {t.applying}
+                          </>
+                        ) : (
+                          <>
+                            <Check className="h-4 w-4" />
+                            {t.applyChanges}
+                          </>
+                        )}
+                      </button>
+                    )}
+                  </div>
+                )}
+
+                {!showEditor && (
+                  <p className="text-sm text-muted-foreground text-center py-4 border rounded-lg bg-muted/10">
+                    Click above to expand the privilege editor
+                  </p>
+                )}
+              </div>
             </div>
           </div>
-        </div>
+        )}
       </main>
     </div>
   );

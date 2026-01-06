@@ -3,8 +3,6 @@ import {
   AuditEntry,
   Company,
   Employee,
-  ManagerCompanyAccess,
-  EmployeeCompanyMembership,
   Privilege,
   Assignment,
   BootstrapResponse,
@@ -33,7 +31,7 @@ export interface IStorage {
   
   // Helpers
   getAssignment(companyId: string, employeeId: string): Promise<Assignment | undefined>;
-  getManagerCompanies(managerId: string): Promise<string[]>;
+  getLegalEmployees(managerId: string): Promise<Employee[]>;
 }
 
 export class JsonStorage implements IStorage {
@@ -58,39 +56,22 @@ export class JsonStorage implements IStorage {
       { id: "C03", name: "Dallah Digital" },
     ];
 
+    // Updated employees with legalCompanyId and managerId
+    // Managers: E001 (Waleed - C01), E002 (Adnan - C02), E005 (Souhaib - C03)
     const employees: Employee[] = [
-      { id: "E001", name: "Waleed Alahdal", title: "IT Lead", email: "waleed@example.com", isManager: true },
-      { id: "E002", name: "Adnan Alqahtani", title: "Operations Manager", email: "adnan@example.com", isManager: true },
-      { id: "E003", name: "Shahad Alharbi", title: "HR Specialist", email: "shahad@example.com", isManager: false },
-      { id: "E004", name: "Jameel Ashraf", title: "GM Assistant", email: "jameel@example.com", isManager: false },
-      { id: "E005", name: "Souhaib Khairallah", title: "Head of Automation", email: "souhaib@example.com", isManager: true },
-      { id: "E006", name: "Ishfaq Pathan", title: "Infrastructure", email: "ishfaq@example.com", isManager: false },
-      { id: "E007", name: "Sara Ahmed", title: "Finance Analyst", email: "sara@example.com", isManager: false },
-      { id: "E008", name: "Khalid Saleh", title: "Treasury Officer", email: "khalid@example.com", isManager: false },
-      { id: "E009", name: "Noor Hassan", title: "Accounting", email: "noor@example.com", isManager: false },
-      { id: "E010", name: "Faisal Omar", title: "Business Analyst", email: "faisal@example.com", isManager: false },
+      { id: "E001", name: "Waleed Alahdal", title: "IT Lead", email: "waleed@example.com", isManager: true, legalCompanyId: "C01" },
+      { id: "E002", name: "Adnan Alqahtani", title: "Operations Manager", email: "adnan@example.com", isManager: true, legalCompanyId: "C02" },
+      { id: "E003", name: "Shahad Alharbi", title: "HR Specialist", email: "shahad@example.com", isManager: false, legalCompanyId: "C01", managerId: "E001" },
+      { id: "E004", name: "Jameel Ashraf", title: "GM Assistant", email: "jameel@example.com", isManager: false, legalCompanyId: "C01", managerId: "E001" },
+      { id: "E005", name: "Souhaib Khairallah", title: "Head of Automation", email: "souhaib@example.com", isManager: true, legalCompanyId: "C03" },
+      { id: "E006", name: "Ishfaq Pathan", title: "Infrastructure", email: "ishfaq@example.com", isManager: false, legalCompanyId: "C03", managerId: "E005" },
+      { id: "E007", name: "Sara Ahmed", title: "Finance Analyst", email: "sara@example.com", isManager: false, legalCompanyId: "C02", managerId: "E002" },
+      { id: "E008", name: "Khalid Saleh", title: "Treasury Officer", email: "khalid@example.com", isManager: false, legalCompanyId: "C02", managerId: "E002" },
+      { id: "E009", name: "Noor Hassan", title: "Accounting", email: "noor@example.com", isManager: false, legalCompanyId: "C02", managerId: "E002" },
+      { id: "E010", name: "Faisal Omar", title: "Business Analyst", email: "faisal@example.com", isManager: false, legalCompanyId: "C03", managerId: "E005" },
     ];
 
-    const managerAccess: ManagerCompanyAccess[] = [
-      { managerId: "E001", companyIds: ["C01", "C03"] },
-      { managerId: "E002", companyIds: ["C02"] },
-      { managerId: "E005", companyIds: ["C03", "C01"] },
-    ];
-
-    const employeeMembership: EmployeeCompanyMembership[] = [
-      { employeeId: "E001", companyIds: ["C01", "C03"] },
-      { employeeId: "E002", companyIds: ["C02"] },
-      { employeeId: "E003", companyIds: ["C01"] },
-      { employeeId: "E004", companyIds: ["C01", "C02"] },
-      { employeeId: "E005", companyIds: ["C03", "C01"] },
-      { employeeId: "E006", companyIds: ["C03"] },
-      { employeeId: "E007", companyIds: ["C02", "C01"] },
-      { employeeId: "E008", companyIds: ["C02"] },
-      { employeeId: "E009", companyIds: ["C02", "C03"] },
-      { employeeId: "E010", companyIds: ["C03", "C01"] },
-    ];
-
-    // Privileges catalog from Excel file (testRole.xlsx)
+    // Privileges catalog from Excel file
     const privileges: Privilege[] = [
       // Finance - Accountant
       { id: "P_FIN_ACC_01", module: "Finance", function: "Accountant", role: "Create financial journal entries" },
@@ -136,18 +117,21 @@ export class JsonStorage implements IStorage {
       { id: "P_FIN_FA_06", module: "Finance", function: "Financial Auditing", role: "Identify and highlight risks in business processes and inform relevant owners" },
     ];
 
-    // Seeded current assignments - using new privilege IDs from Excel
+    // Seeded assignments - employees can have privileges in ANY company (cross-company)
     const assignments: Assignment[] = [
-      { companyId: "C01", employeeId: "E004", privilegeIds: ["P_FIN_ACC_09"] },
+      // E003 has privileges in C01 (their legal company)
+      { companyId: "C01", employeeId: "E003", privilegeIds: ["P_FIN_ACC_09"] },
+      // E007 has privileges in C02 (their legal company) 
       { companyId: "C02", employeeId: "E007", privilegeIds: ["P_FIN_TM_01", "P_FIN_TM_02"] },
+      // E006 has privileges in C03 (their legal company)
       { companyId: "C03", employeeId: "E006", privilegeIds: ["P_FIN_FA_01", "P_FIN_FA_02"] },
+      // Cross-company example: E004 (legal C01) has privileges in C02
+      { companyId: "C02", employeeId: "E004", privilegeIds: ["P_FIN_AR_01"] },
     ];
 
     return {
       companies,
       employees,
-      managerAccess,
-      employeeMembership,
       privileges,
       assignments,
     };
@@ -220,10 +204,16 @@ export class JsonStorage implements IStorage {
     };
   }
 
-  async getManagerCompanies(managerId: string): Promise<string[]> {
+  async getLegalEmployees(managerId: string): Promise<Employee[]> {
     await this.initialized;
-    const access = this.data.managerAccess.find(m => m.managerId === managerId);
-    return access?.companyIds || [];
+    const manager = this.data.employees.find(e => e.id === managerId && e.isManager);
+    if (!manager) return [];
+    
+    // Return employees who have the same legalCompanyId as the manager and are managed by this manager
+    return this.data.employees.filter(e => 
+      e.legalCompanyId === manager.legalCompanyId && 
+      e.managerId === managerId
+    );
   }
 
   async getAssignment(companyId: string, employeeId: string): Promise<Assignment | undefined> {
@@ -241,16 +231,33 @@ export class JsonStorage implements IStorage {
   ): Promise<Assignment> {
     await this.initialized;
 
-    // Validate manager has access to the company
-    const managerAccess = this.data.managerAccess.find(m => m.managerId === managerId);
-    if (!managerAccess || !managerAccess.companyIds.includes(companyId)) {
-      throw new Error("Manager does not have access to this company");
+    // Get manager
+    const manager = this.data.employees.find(e => e.id === managerId && e.isManager);
+    if (!manager) {
+      throw new Error("Manager not found");
     }
 
-    // Validate employee belongs to the company
-    const membership = this.data.employeeMembership.find(m => m.employeeId === employeeId);
-    if (!membership || !membership.companyIds.includes(companyId)) {
-      throw new Error("Employee does not belong to this company");
+    // Get target employee
+    const employee = this.data.employees.find(e => e.id === employeeId);
+    if (!employee) {
+      throw new Error("Employee not found");
+    }
+
+    // LEGAL COMPANY AUTHORIZATION CHECK
+    // Manager can only modify privileges for employees in their legal company
+    if (employee.legalCompanyId !== manager.legalCompanyId) {
+      throw new Error("Manager can only modify privileges for employees in their legal company");
+    }
+
+    // Employee must be managed by this manager
+    if (employee.managerId !== managerId) {
+      throw new Error("Employee is not managed by this manager");
+    }
+
+    // Validate company exists (manager can grant privileges in ANY company)
+    const company = this.data.companies.find(c => c.id === companyId);
+    if (!company) {
+      throw new Error("Company not found");
     }
 
     // Validate all privilege IDs exist in the catalog
@@ -288,16 +295,14 @@ export class JsonStorage implements IStorage {
     await this.saveData();
 
     // Log audit entries
-    const manager = this.data.employees.find(e => e.id === managerId);
     const target = this.data.employees.find(e => e.id === employeeId);
-    const company = this.data.companies.find(c => c.id === companyId);
 
     for (const privId of added) {
       const priv = this.data.privileges.find(p => p.id === privId);
       await this.addAuditEntry(
         managerId,
         "ADD_ROLE",
-        `${manager?.name} added ${priv?.module}/${priv?.function}/${priv?.role} to ${target?.name} in ${company?.name}`,
+        `${manager.name} added ${priv?.module}/${priv?.function}/${priv?.role} to ${target?.name} in ${company.name}`,
         companyId,
         employeeId
       );
@@ -308,7 +313,7 @@ export class JsonStorage implements IStorage {
       await this.addAuditEntry(
         managerId,
         "REMOVE_ROLE",
-        `${manager?.name} removed ${priv?.module}/${priv?.function}/${priv?.role} from ${target?.name} in ${company?.name}`,
+        `${manager.name} removed ${priv?.module}/${priv?.function}/${priv?.role} from ${target?.name} in ${company.name}`,
         companyId,
         employeeId
       );

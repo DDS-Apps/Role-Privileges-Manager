@@ -42,15 +42,20 @@ Key API endpoints:
 - `GET /api/audit` - Get audit log
 - `GET /api/export/employee` - Export employee privileges to Excel
 
-### Data Model
+### Data Model (Legal Company Concept)
 The system uses these core entities:
 - **Companies**: Organizations (Dallah Holding, Healthcare, Digital)
-- **Employees**: 10 employees with manager flag for access control
-- **Privileges**: Module/Function/Role catalog (FIN, HR, IT, GEN modules)
-- **Manager Access**: Which companies each manager can manage
-- **Employee Membership**: Which companies each employee belongs to
-- **Assignments**: Employee-to-privilege mappings per company
+- **Employees**: 10 employees with `legalCompanyId` (ONE legal company per employee) and `managerId` (which manager they report to)
+- **Managers**: Employees with `isManager: true` who can only manage employees in their same legal company
+- **Privileges**: Module/Function/Role catalog (Finance module with multiple functions)
+- **Assignments**: Employee-to-privilege mappings per company context (employees can have privileges in ANY company)
 - **Audit Log**: Timestamped action records (ADD_ROLE, REMOVE_ROLE, UPLOAD_CATALOG)
+
+**Authorization Rule**: Manager can only modify privileges for employees where:
+- `employee.legalCompanyId === manager.legalCompanyId`
+- `employee.managerId === managerId`
+
+Employees can be granted privileges in ANY company (cross-company privileges) even though they legally belong to one company.
 
 ### Privilege Catalog Structure (from testRole.xlsx)
 All privileges are under the **Finance** module with the following functions:

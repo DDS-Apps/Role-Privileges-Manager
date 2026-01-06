@@ -27,17 +27,19 @@ export async function registerRoutes(
     try {
       const { actorId, companyId, targetEmployeeId, privilegeIds } = applyAssignmentsSchema.parse(req.body);
       
-      // Verify actor is a manager with access to this company
-      const managerCompanies = await storage.getManagerCompanies(actorId);
-      if (!managerCompanies.includes(companyId)) {
-        return res.status(403).json({ message: "Not authorized to manage privileges for this company" });
-      }
+      // Authorization is handled in storage.applyAssignments which checks:
+      // 1. Manager and employee have same legalCompanyId
+      // 2. Employee.managerId matches the actorId
+      // Manager can grant privileges in ANY company (cross-company)
 
       const assignment = await storage.applyAssignments(actorId, companyId, targetEmployeeId, privilegeIds);
       res.json(assignment);
     } catch (err) {
       if (err instanceof z.ZodError) {
         return res.status(400).json({ message: err.errors[0].message, field: err.errors[0].path.join('.') });
+      }
+      if (err instanceof Error) {
+        return res.status(403).json({ message: err.message });
       }
       console.error("Apply assignments error:", err);
       res.status(500).json({ message: "Failed to apply assignments" });
@@ -93,11 +95,18 @@ export async function registerRoutes(
         return res.status(404).json({ message: "Employee not found" });
       }
 
-      const membership = data.employeeMembership.find(m => m.employeeId === employeeId);
-      let companyIds = membership?.companyIds || [];
+      // Get all companies that have assignments for this employee
+      let companyIds = data.assignments
+        .filter(a => a.employeeId === employeeId)
+        .map(a => a.companyId);
+      
+      // Add employee's legal company if not already included
+      if (!companyIds.includes(employee.legalCompanyId)) {
+        companyIds.push(employee.legalCompanyId);
+      }
 
       if (scope === "company" && companyId) {
-        companyIds = companyIds.filter(c => c === companyId);
+        companyIds = companyIds.filter((c: string) => c === companyId);
       }
 
       const wb = XLSX.utils.book_new();
