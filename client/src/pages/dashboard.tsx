@@ -33,7 +33,7 @@ const DICT = {
     allRolesSelected: "All roles selected by default. Uncheck to remove.",
     employeeDetails: "Employee Details",
     companyContext: "Company Context",
-    currentAssignments: "Current Assignments",
+    currentPrivilege: "Current Privilege",
     editPrivileges: "Edit Privileges",
     selectModuleFirst: "Select a module to see functions",
     selectFunctionFirst: "Select a function to see roles",
@@ -65,7 +65,7 @@ const DICT = {
     allRolesSelected: "جميع الأدوار محددة افتراضياً. ألغِ التحديد للإزالة.",
     employeeDetails: "تفاصيل الموظف",
     companyContext: "سياق الشركة",
-    currentAssignments: "التخصيصات الحالية",
+    currentPrivilege: "الامتيازات الحالية",
     editPrivileges: "تعديل الامتيازات",
     selectModuleFirst: "اختر وحدة لرؤية الوظائف",
     selectFunctionFirst: "اختر وظيفة لرؤية الأدوار",
@@ -87,7 +87,10 @@ export default function Dashboard() {
   const [editorModule, setEditorModule] = useState<string>("");
   const [editorFunction, setEditorFunction] = useState<string>("");
   const [roleSelections, setRoleSelections] = useState<Record<string, boolean>>({});
-  const [showEditor, setShowEditor] = useState(false);
+  
+  // Current privilege view state (same structure as editor)
+  const [viewModule, setViewModule] = useState<string>("");
+  const [viewFunction, setViewFunction] = useState<string>("");
 
   const { data, isLoading, error } = useBootstrapData();
   const applyAssignments = useApplyAssignments();
@@ -196,22 +199,25 @@ export default function Dashboard() {
     return data.privileges.filter(p => currentPrivileges.includes(p.id));
   }, [data, currentPrivileges]);
 
-  // Group assigned privileges by module/function
-  const groupedAssignments = useMemo(() => {
-    const groups: Record<string, Record<string, Privilege[]>> = {};
-    for (const priv of assignedPrivilegeDetails) {
-      if (!groups[priv.module]) groups[priv.module] = {};
-      if (!groups[priv.module][priv.function]) groups[priv.module][priv.function] = [];
-      groups[priv.module][priv.function].push(priv);
-    }
-    return groups;
-  }, [assignedPrivilegeDetails]);
-
-  // Editor: unique modules
+  // Unique modules from all privileges
   const uniqueModules = useMemo(() => {
     if (!data) return [];
     return Array.from(new Set(data.privileges.map(p => p.module))).sort();
   }, [data]);
+
+  // Functions for view (Current Privilege)
+  const viewFunctionsForModule = useMemo(() => {
+    if (!data || !viewModule) return [];
+    return Array.from(new Set(
+      data.privileges.filter(p => p.module === viewModule).map(p => p.function)
+    )).sort();
+  }, [data, viewModule]);
+
+  // Roles for view (Current Privilege)
+  const viewRolesForFunction = useMemo(() => {
+    if (!data || !viewModule || !viewFunction) return [];
+    return data.privileges.filter(p => p.module === viewModule && p.function === viewFunction);
+  }, [data, viewModule, viewFunction]);
 
   // Editor: functions filtered by selected module
   const functionsForModule = useMemo(() => {
@@ -243,6 +249,8 @@ export default function Dashboard() {
     setEditorModule("");
     setEditorFunction("");
     setRoleSelections({});
+    setViewModule("");
+    setViewFunction("");
   }, [selectedEmployeeId, selectedCompanyId]);
 
   const handleApplyChanges = async () => {
@@ -372,9 +380,9 @@ export default function Dashboard() {
               </div>
             </div>
 
-            {/* Employee Selector */}
+            {/* Employee Selector - Only Legal Employees and Search */}
             <div className="mt-4 pt-4 border-t border-indigo-200 dark:border-indigo-700">
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {/* Employee Dropdown (Legal Employees only) */}
                 <div>
                   <label className="text-sm font-medium text-muted-foreground flex items-center gap-1">
@@ -397,24 +405,6 @@ export default function Dashboard() {
                   ) : (
                     <p className="mt-1 text-sm text-muted-foreground">{t.noLegalEmployees}</p>
                   )}
-                </div>
-
-                {/* Company Context Dropdown (ALL companies) */}
-                <div>
-                  <label className="text-sm font-medium text-muted-foreground flex items-center gap-1">
-                    <Building2 className="h-3 w-3" />
-                    {t.companyContext}
-                  </label>
-                  <select
-                    value={selectedCompanyId}
-                    onChange={(e) => setSelectedCompanyId(e.target.value)}
-                    className="mt-1 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm"
-                    data-testid="select-company-context"
-                  >
-                    {allCompanies.map(c => (
-                      <option key={c.id} value={c.id}>{c.name}</option>
-                    ))}
-                  </select>
                 </div>
 
                 {/* Search */}
@@ -465,191 +455,248 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* Privileges Card with Inline Editor */}
+        {/* Company Context Card - After Employee Details */}
         {selectedEmployee && (
           <div className="rounded-xl border bg-card p-4 shadow-sm">
-            <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
-              <h3 className="text-lg font-semibold flex items-center gap-2">
-                <ShieldCheck className="h-5 w-5 text-indigo-500" />
-                {t.privileges}
-                {selectedCompany && (
-                  <span className="text-sm font-normal text-muted-foreground">
-                    in {selectedCompany.name}
-                  </span>
-                )}
-              </h3>
+            <div className="flex items-center gap-2 mb-3">
+              <Building2 className="h-4 w-4 text-indigo-500" />
+              <h3 className="text-sm font-semibold text-muted-foreground">{t.companyContext}</h3>
+            </div>
+            <select
+              value={selectedCompanyId}
+              onChange={(e) => setSelectedCompanyId(e.target.value)}
+              className="w-full max-w-md rounded-lg border border-input bg-background px-3 py-2 text-sm"
+              data-testid="select-company-context"
+            >
+              {allCompanies.map(c => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </select>
+            {selectedCompany && (
+              <p className="mt-2 text-sm text-muted-foreground">
+                Managing privileges for <span className="font-medium">{selectedEmployee.name}</span> in <span className="font-medium">{selectedCompany.name}</span>
+              </p>
+            )}
+          </div>
+        )}
+
+        {/* Privileges Section with Current Privilege and Add/Remove side by side */}
+        {selectedEmployee && selectedCompanyId && (
+          <div className="rounded-xl border bg-card p-4 shadow-sm">
+            <div className="flex items-center gap-2 mb-4">
+              <ShieldCheck className="h-5 w-5 text-indigo-500" />
+              <h3 className="text-lg font-semibold">{t.privileges}</h3>
+              {selectedCompany && (
+                <span className="text-sm font-normal text-muted-foreground">
+                  in {selectedCompany.name}
+                </span>
+              )}
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Left: Current Assignments */}
-              <div>
-                <h4 className="text-sm font-medium text-muted-foreground mb-3">{t.currentAssignments}</h4>
-                {assignedPrivilegeDetails.length > 0 ? (
-                  <div className="space-y-3">
-                    {Object.entries(groupedAssignments).map(([module, functions]) => (
-                      <div key={module} className="border rounded-lg p-3 bg-muted/30">
-                        <div className="font-medium text-sm mb-2 flex items-center gap-1">
-                          <span className="inline-flex items-center rounded-md bg-slate-100 dark:bg-slate-800 px-2 py-0.5 text-xs font-medium">
-                            {module}
-                          </span>
-                        </div>
-                        {Object.entries(functions).map(([func, roles]) => (
-                          <div key={func} className="ml-4 mb-2">
-                            <div className="text-sm text-muted-foreground mb-1">{func}</div>
-                            <div className="flex flex-wrap gap-1 ml-2">
-                              {roles.map(role => (
-                                <span 
-                                  key={role.id} 
-                                  className="inline-flex items-center rounded-md bg-indigo-50 dark:bg-indigo-900/50 px-2 py-0.5 text-xs font-medium text-indigo-700 dark:text-indigo-300"
-                                >
-                                  {role.role}
-                                </span>
-                              ))}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
+              {/* Left: Current Privilege - Same format as Add/Remove */}
+              <div className="space-y-4 border rounded-lg p-4 bg-muted/20">
+                <h4 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                  <ShieldCheck className="h-4 w-4" />
+                  {t.currentPrivilege}
+                </h4>
+
+                {/* Module Dropdown */}
+                <div>
+                  <label className="text-sm font-medium">{t.module}</label>
+                  <select
+                    value={viewModule}
+                    onChange={(e) => {
+                      setViewModule(e.target.value);
+                      setViewFunction("");
+                    }}
+                    className="mt-1 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm"
+                    data-testid="select-view-module"
+                  >
+                    <option value="">{t.selectModule}</option>
+                    {uniqueModules.map(m => (
+                      <option key={m} value={m}>{m}</option>
                     ))}
+                  </select>
+                </div>
+
+                {/* Function Dropdown */}
+                {viewModule && (
+                  <div>
+                    <label className="text-sm font-medium">{t.function}</label>
+                    <select
+                      value={viewFunction}
+                      onChange={(e) => setViewFunction(e.target.value)}
+                      className="mt-1 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm"
+                      data-testid="select-view-function"
+                    >
+                      <option value="">{t.selectFunction}</option>
+                      {viewFunctionsForModule.map(f => (
+                        <option key={f} value={f}>{f}</option>
+                      ))}
+                    </select>
                   </div>
-                ) : (
-                  <div className="text-center py-8 text-muted-foreground border rounded-lg bg-muted/20">
-                    <ShieldCheck className="h-10 w-10 mx-auto mb-2 opacity-30" />
-                    <p className="text-sm">{t.noPrivileges}</p>
+                )}
+
+                {/* Role Checkboxes - Read Only */}
+                {viewFunction && viewRolesForFunction.length > 0 && (
+                  <div>
+                    <label className="text-sm font-medium block mb-1">{t.role}</label>
+                    <div className="space-y-2 max-h-64 overflow-y-auto border rounded-lg p-3 bg-background">
+                      {viewRolesForFunction.map(priv => {
+                        const isAssigned = currentPrivileges.includes(priv.id);
+                        return (
+                          <label 
+                            key={priv.id} 
+                            className="flex items-start gap-2 p-2 rounded"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={isAssigned}
+                              disabled
+                              className="rounded border-gray-300 mt-0.5"
+                              data-testid={`checkbox-view-role-${priv.id}`}
+                            />
+                            <div className="flex-1">
+                              <span className={`text-sm ${isAssigned ? '' : 'text-muted-foreground'}`}>{priv.role}</span>
+                            </div>
+                          </label>
+                        );
+                      })}
+                    </div>
                   </div>
+                )}
+
+                {/* Guidance Text */}
+                {!viewModule && (
+                  <p className="text-sm text-muted-foreground text-center py-4">{t.selectModuleFirst}</p>
+                )}
+                {viewModule && !viewFunction && (
+                  <p className="text-sm text-muted-foreground text-center py-4">{t.selectFunctionFirst}</p>
+                )}
+
+                {/* Summary of assigned count */}
+                {viewFunction && viewRolesForFunction.length > 0 && (
+                  <p className="text-xs text-muted-foreground">
+                    {viewRolesForFunction.filter(p => currentPrivileges.includes(p.id)).length} of {viewRolesForFunction.length} roles assigned
+                  </p>
                 )}
               </div>
 
-              {/* Right: Inline Editor */}
-              <div className="border-l-0 lg:border-l lg:pl-6">
-                <div 
-                  className="flex items-center justify-between cursor-pointer mb-3"
-                  onClick={() => setShowEditor(!showEditor)}
-                  data-testid="toggle-editor"
-                >
-                  <h4 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                    <Plus className="h-4 w-4" />
-                    <Minus className="h-4 w-4" />
-                    {t.addRemove}
-                  </h4>
-                  {showEditor ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+              {/* Right: Add / Remove Privileges */}
+              <div className="space-y-4 border rounded-lg p-4 bg-muted/20">
+                <h4 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                  <Plus className="h-4 w-4" />
+                  <Minus className="h-4 w-4" />
+                  {t.addRemove}
+                </h4>
+
+                {/* Module Dropdown */}
+                <div>
+                  <label className="text-sm font-medium">{t.module}</label>
+                  <select
+                    value={editorModule}
+                    onChange={(e) => {
+                      setEditorModule(e.target.value);
+                      setEditorFunction("");
+                      setRoleSelections({});
+                    }}
+                    className="mt-1 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm"
+                    data-testid="select-editor-module"
+                  >
+                    <option value="">{t.selectModule}</option>
+                    {uniqueModules.map(m => (
+                      <option key={m} value={m}>{m}</option>
+                    ))}
+                  </select>
                 </div>
 
-                {showEditor && (
-                  <div className="space-y-4 border rounded-lg p-4 bg-muted/20">
-                    {/* Module Dropdown */}
-                    <div>
-                      <label className="text-sm font-medium">{t.module}</label>
-                      <select
-                        value={editorModule}
-                        onChange={(e) => {
-                          setEditorModule(e.target.value);
-                          setEditorFunction("");
-                          setRoleSelections({});
-                        }}
-                        className="mt-1 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm"
-                        data-testid="select-editor-module"
-                      >
-                        <option value="">{t.selectModule}</option>
-                        {uniqueModules.map(m => (
-                          <option key={m} value={m}>{m}</option>
-                        ))}
-                      </select>
-                    </div>
-
-                    {/* Function Dropdown */}
-                    {editorModule && (
-                      <div>
-                        <label className="text-sm font-medium">{t.function}</label>
-                        <select
-                          value={editorFunction}
-                          onChange={(e) => setEditorFunction(e.target.value)}
-                          className="mt-1 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm"
-                          data-testid="select-editor-function"
-                        >
-                          <option value="">{t.selectFunction}</option>
-                          {functionsForModule.map(f => (
-                            <option key={f} value={f}>{f}</option>
-                          ))}
-                        </select>
-                      </div>
-                    )}
-
-                    {/* Role Checkboxes */}
-                    {editorFunction && rolesForFunction.length > 0 && (
-                      <div>
-                        <label className="text-sm font-medium block mb-1">{t.role}</label>
-                        <p className="text-xs text-muted-foreground mb-2">{t.allRolesSelected}</p>
-                        <div className="space-y-2 max-h-64 overflow-y-auto border rounded-lg p-3 bg-background">
-                          {rolesForFunction.map(priv => {
-                            const isCurrentlyAssigned = currentPrivileges.includes(priv.id);
-                            const isChecked = roleSelections[priv.id] ?? false;
-                            
-                            return (
-                              <label 
-                                key={priv.id} 
-                                className="flex items-start gap-2 cursor-pointer hover:bg-muted/50 p-2 rounded"
-                              >
-                                <input
-                                  type="checkbox"
-                                  checked={isChecked}
-                                  onChange={(e) => {
-                                    setRoleSelections(prev => ({
-                                      ...prev,
-                                      [priv.id]: e.target.checked
-                                    }));
-                                  }}
-                                  className="rounded border-gray-300 mt-0.5"
-                                  data-testid={`checkbox-role-${priv.id}`}
-                                />
-                                <div className="flex-1">
-                                  <span className="text-sm">{priv.role}</span>
-                                  {isCurrentlyAssigned && (
-                                    <span className="ml-2 text-xs text-green-600 dark:text-green-400">(assigned)</span>
-                                  )}
-                                </div>
-                              </label>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Guidance Text */}
-                    {!editorModule && (
-                      <p className="text-sm text-muted-foreground text-center py-4">{t.selectModuleFirst}</p>
-                    )}
-                    {editorModule && !editorFunction && (
-                      <p className="text-sm text-muted-foreground text-center py-4">{t.selectFunctionFirst}</p>
-                    )}
-
-                    {/* Apply Button */}
-                    {editorFunction && (
-                      <button
-                        onClick={handleApplyChanges}
-                        disabled={applyAssignments.isPending}
-                        className="w-full flex items-center justify-center gap-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 text-sm font-medium disabled:opacity-50"
-                        data-testid="button-apply-changes"
-                      >
-                        {applyAssignments.isPending ? (
-                          <>
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                            {t.applying}
-                          </>
-                        ) : (
-                          <>
-                            <Check className="h-4 w-4" />
-                            {t.applyChanges}
-                          </>
-                        )}
-                      </button>
-                    )}
+                {/* Function Dropdown */}
+                {editorModule && (
+                  <div>
+                    <label className="text-sm font-medium">{t.function}</label>
+                    <select
+                      value={editorFunction}
+                      onChange={(e) => setEditorFunction(e.target.value)}
+                      className="mt-1 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm"
+                      data-testid="select-editor-function"
+                    >
+                      <option value="">{t.selectFunction}</option>
+                      {functionsForModule.map(f => (
+                        <option key={f} value={f}>{f}</option>
+                      ))}
+                    </select>
                   </div>
                 )}
 
-                {!showEditor && (
-                  <p className="text-sm text-muted-foreground text-center py-4 border rounded-lg bg-muted/10">
-                    Click above to expand the privilege editor
-                  </p>
+                {/* Role Checkboxes */}
+                {editorFunction && rolesForFunction.length > 0 && (
+                  <div>
+                    <label className="text-sm font-medium block mb-1">{t.role}</label>
+                    <p className="text-xs text-muted-foreground mb-2">{t.allRolesSelected}</p>
+                    <div className="space-y-2 max-h-64 overflow-y-auto border rounded-lg p-3 bg-background">
+                      {rolesForFunction.map(priv => {
+                        const isCurrentlyAssigned = currentPrivileges.includes(priv.id);
+                        const isChecked = roleSelections[priv.id] ?? false;
+                        
+                        return (
+                          <label 
+                            key={priv.id} 
+                            className="flex items-start gap-2 cursor-pointer hover:bg-muted/50 p-2 rounded"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={isChecked}
+                              onChange={(e) => {
+                                setRoleSelections(prev => ({
+                                  ...prev,
+                                  [priv.id]: e.target.checked
+                                }));
+                              }}
+                              className="rounded border-gray-300 mt-0.5"
+                              data-testid={`checkbox-role-${priv.id}`}
+                            />
+                            <div className="flex-1">
+                              <span className="text-sm">{priv.role}</span>
+                              {isCurrentlyAssigned && (
+                                <span className="ml-2 text-xs text-green-600 dark:text-green-400">(assigned)</span>
+                              )}
+                            </div>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Guidance Text */}
+                {!editorModule && (
+                  <p className="text-sm text-muted-foreground text-center py-4">{t.selectModuleFirst}</p>
+                )}
+                {editorModule && !editorFunction && (
+                  <p className="text-sm text-muted-foreground text-center py-4">{t.selectFunctionFirst}</p>
+                )}
+
+                {/* Apply Button */}
+                {editorFunction && (
+                  <button
+                    onClick={handleApplyChanges}
+                    disabled={applyAssignments.isPending}
+                    className="w-full flex items-center justify-center gap-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 text-sm font-medium disabled:opacity-50"
+                    data-testid="button-apply-changes"
+                  >
+                    {applyAssignments.isPending ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        {t.applying}
+                      </>
+                    ) : (
+                      <>
+                        <Check className="h-4 w-4" />
+                        {t.applyChanges}
+                      </>
+                    )}
+                  </button>
                 )}
               </div>
             </div>
