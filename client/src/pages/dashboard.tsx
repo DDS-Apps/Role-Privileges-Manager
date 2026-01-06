@@ -82,12 +82,10 @@ const DICT = {
 function ExpandableHierarchy({ 
   allPrivileges, 
   companyAssignments,
-  allCompanies,
   t 
 }: { 
   allPrivileges: Privilege[];
   companyAssignments: { company: Company; privilegeIds: string[] }[];
-  allCompanies: Company[];
   t: typeof DICT.en;
 }) {
   const [expandedCompanies, setExpandedCompanies] = useState<Set<string>>(new Set());
@@ -138,42 +136,43 @@ function ExpandableHierarchy({
     moduleGroups[priv.module][priv.function].push(priv);
   }
 
-  // Show all companies (those with assignments and those without)
-  const companiesToShow = allCompanies.map(company => {
-    const assignment = companyAssignments.find(a => a.company.id === company.id);
-    return {
-      company,
-      privilegeIds: assignment?.privilegeIds || []
-    };
-  });
+  // Only show companies that have assigned roles
+  if (companyAssignments.length === 0) {
+    return (
+      <div className="text-center py-8 text-muted-foreground border rounded-lg bg-violet-100/50 dark:bg-violet-900/20">
+        <ShieldCheck className="h-10 w-10 mx-auto mb-2 opacity-30" />
+        <p className="text-sm">{t.noPrivileges}</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-3">
-      {companiesToShow.map(({ company, privilegeIds }) => {
+      {companyAssignments.map(({ company, privilegeIds }) => {
         const isCompanyExpanded = expandedCompanies.has(company.id);
         const assignedCount = privilegeIds.length;
 
         return (
-          <div key={company.id} className="border rounded-lg bg-muted/20 overflow-hidden">
+          <div key={company.id} className="border border-violet-200 dark:border-violet-700 rounded-lg bg-white/50 dark:bg-violet-950/30 overflow-hidden">
             {/* Company Header */}
             <button
               onClick={() => toggleCompany(company.id)}
-              className="w-full flex items-center justify-between p-3 hover:bg-muted/40 transition-colors"
+              className="w-full flex items-center justify-between p-3 hover:bg-violet-100/50 dark:hover:bg-violet-900/30 transition-colors"
               data-testid={`toggle-company-${company.id}`}
             >
               <div className="flex items-center gap-2">
-                {isCompanyExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-                <Building2 className="h-4 w-4 text-indigo-500" />
+                {isCompanyExpanded ? <ChevronDown className="h-4 w-4 text-violet-600" /> : <ChevronRight className="h-4 w-4 text-violet-600" />}
+                <Building2 className="h-4 w-4 text-violet-500" />
                 <span className="font-medium">{company.name}</span>
               </div>
-              <span className="text-xs text-muted-foreground">
+              <span className="text-xs text-violet-600 dark:text-violet-400">
                 {assignedCount} {t.rolesAssigned}
               </span>
             </button>
 
-            {/* Modules - show ALL modules */}
+            {/* Modules - show modules with assigned roles */}
             {isCompanyExpanded && (
-              <div className="border-t">
+              <div className="border-t border-violet-200 dark:border-violet-700">
                 {Object.entries(moduleGroups).sort(([a], [b]) => a.localeCompare(b)).map(([moduleName, functionGroups]) => {
                   const moduleKey = `${company.id}-${moduleName}`;
                   const isModuleExpanded = expandedModules.has(moduleKey);
@@ -182,79 +181,77 @@ function ExpandableHierarchy({
                   const moduleAssignedCount = Object.values(functionGroups)
                     .flat()
                     .filter(p => privilegeIds.includes(p.id)).length;
+                  
+                  // Skip modules with 0 assigned roles
+                  if (moduleAssignedCount === 0) return null;
+
                   const moduleTotalCount = Object.values(functionGroups).flat().length;
 
                   return (
-                    <div key={moduleKey} className="border-t first:border-t-0">
+                    <div key={moduleKey} className="border-t border-violet-200 dark:border-violet-700 first:border-t-0">
                       {/* Module Header */}
                       <button
                         onClick={() => toggleModule(moduleKey)}
-                        className="w-full flex items-center gap-2 p-2 pl-6 hover:bg-muted/40 transition-colors text-left"
+                        className="w-full flex items-center gap-2 p-2 pl-6 hover:bg-violet-100/50 dark:hover:bg-violet-900/30 transition-colors text-left"
                         data-testid={`toggle-module-${moduleKey}`}
                       >
-                        {isModuleExpanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
-                        <span className="inline-flex items-center rounded-md bg-slate-100 dark:bg-slate-800 px-2 py-0.5 text-xs font-medium">
+                        {isModuleExpanded ? <ChevronDown className="h-3 w-3 text-violet-600" /> : <ChevronRight className="h-3 w-3 text-violet-600" />}
+                        <span className="inline-flex items-center rounded-md bg-violet-100 dark:bg-violet-900/50 px-2 py-0.5 text-xs font-medium text-violet-700 dark:text-violet-300">
                           {moduleName}
                         </span>
-                        <span className="text-xs text-muted-foreground">({moduleAssignedCount}/{moduleTotalCount})</span>
+                        <span className="text-xs text-violet-600/70 dark:text-violet-400/70">({moduleAssignedCount}/{moduleTotalCount})</span>
                       </button>
 
-                      {/* Functions - show ALL functions */}
+                      {/* Functions - only show functions with assigned roles */}
                       {isModuleExpanded && (
                         <div>
                           {Object.entries(functionGroups).sort(([a], [b]) => a.localeCompare(b)).map(([funcName, funcPrivs]) => {
-                            const funcKey = `${moduleKey}-${funcName}`;
-                            const isFuncExpanded = expandedFunctions.has(funcKey);
-                            
                             // Count assigned roles in this function
                             const funcAssignedCount = funcPrivs.filter(p => privilegeIds.includes(p.id)).length;
+                            
+                            // Skip functions with 0 assigned roles
+                            if (funcAssignedCount === 0) return null;
 
-                            // Sort roles: assigned first, then unassigned, then alphabetically within each group
-                            const sortedRoles = [...funcPrivs].sort((a, b) => {
-                              const aAssigned = privilegeIds.includes(a.id);
-                              const bAssigned = privilegeIds.includes(b.id);
-                              if (aAssigned && !bAssigned) return -1;
-                              if (!aAssigned && bAssigned) return 1;
-                              return a.role.localeCompare(b.role);
-                            });
+                            const funcKey = `${moduleKey}-${funcName}`;
+                            const isFuncExpanded = expandedFunctions.has(funcKey);
+
+                            // Only show assigned roles, sorted alphabetically
+                            const assignedRoles = funcPrivs
+                              .filter(p => privilegeIds.includes(p.id))
+                              .sort((a, b) => a.role.localeCompare(b.role));
 
                             return (
                               <div key={funcKey}>
                                 {/* Function Header */}
                                 <button
                                   onClick={() => toggleFunction(funcKey)}
-                                  className="w-full flex items-center gap-2 p-2 pl-10 hover:bg-muted/40 transition-colors text-left"
+                                  className="w-full flex items-center gap-2 p-2 pl-10 hover:bg-violet-100/50 dark:hover:bg-violet-900/30 transition-colors text-left"
                                   data-testid={`toggle-function-${funcKey}`}
                                 >
-                                  {isFuncExpanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+                                  {isFuncExpanded ? <ChevronDown className="h-3 w-3 text-violet-600" /> : <ChevronRight className="h-3 w-3 text-violet-600" />}
                                   <span className="text-sm text-muted-foreground">{funcName}</span>
-                                  <span className="text-xs text-muted-foreground">({funcAssignedCount}/{funcPrivs.length})</span>
+                                  <span className="text-xs text-violet-600/70 dark:text-violet-400/70">({funcAssignedCount}/{funcPrivs.length})</span>
                                 </button>
 
-                                {/* Roles - show ALL roles with checked/unchecked state */}
+                                {/* Roles - only show assigned roles */}
                                 {isFuncExpanded && (
                                   <div className="pl-14 pr-3 pb-2 space-y-1">
-                                    {sortedRoles.map(priv => {
-                                      const isAssigned = privilegeIds.includes(priv.id);
-                                      return (
-                                        <label 
-                                          key={priv.id} 
-                                          className="flex items-start gap-2 p-1.5 rounded"
-                                        >
-                                          <input
-                                            type="checkbox"
-                                            checked={isAssigned}
-                                            disabled
-                                            className="rounded border-gray-300 mt-0.5"
-                                            data-testid={`checkbox-current-${company.id}-${priv.id}`}
-                                          />
-                                          <span className={`text-sm ${isAssigned ? '' : 'text-muted-foreground'}`}>{priv.role}</span>
-                                          {isAssigned && (
-                                            <span className="text-xs text-green-600 dark:text-green-400">({t.assigned})</span>
-                                          )}
-                                        </label>
-                                      );
-                                    })}
+                                    {assignedRoles.map(priv => (
+                                      <label 
+                                        key={priv.id} 
+                                        className="flex items-start gap-2 p-1.5 rounded"
+                                      >
+                                        <input
+                                          type="checkbox"
+                                          checked={true}
+                                          disabled
+                                          className="rounded border-gray-300 mt-0.5"
+                                          data-testid={`checkbox-current-${company.id}-${priv.id}`}
+                                        />
+                                        <span className="text-sm">{priv.role}</span>
+                                        <span className="text-xs text-green-600 dark:text-green-400">({t.assigned})</span>
+                                      </label>
+                                    ))}
                                   </div>
                                 )}
                               </div>
@@ -285,6 +282,7 @@ export default function Dashboard() {
   const [editorModule, setEditorModule] = useState<string>("");
   const [editorFunction, setEditorFunction] = useState<string>("");
   const [roleSelections, setRoleSelections] = useState<Record<string, boolean>>({});
+  const [isAddRemoveExpanded, setIsAddRemoveExpanded] = useState(true);
 
   const { data, isLoading, error } = useBootstrapData();
   const applyAssignments = useApplyAssignments();
@@ -629,11 +627,11 @@ export default function Dashboard() {
 
         {/* Employee Details Card */}
         {selectedEmployee && (
-          <div className="rounded-xl border bg-card p-4 shadow-sm">
-            <h3 className="text-sm font-semibold text-muted-foreground mb-3">{t.employeeDetails}</h3>
+          <div className="rounded-xl border-2 border-emerald-200 dark:border-emerald-800 bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-950/50 dark:to-teal-950/50 p-4 shadow-sm">
+            <h3 className="text-sm font-semibold text-emerald-600 dark:text-emerald-400 mb-3">{t.employeeDetails}</h3>
             <div className="flex flex-wrap gap-4 items-center">
               <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-full bg-gradient-to-br from-slate-400 to-slate-600 flex items-center justify-center text-white font-bold">
+                <div className="h-10 w-10 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white font-bold">
                   {selectedEmployee.name.charAt(0)}
                 </div>
                 <div>
@@ -641,13 +639,13 @@ export default function Dashboard() {
                   <p className="text-sm text-muted-foreground">{selectedEmployee.title} - {selectedEmployee.email}</p>
                 </div>
               </div>
-              <div className="h-8 w-px bg-border hidden sm:block" />
+              <div className="h-8 w-px bg-emerald-200 dark:bg-emerald-700 hidden sm:block" />
               <div>
                 <div className="flex items-center gap-2 mb-1">
-                  <Building2 className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm text-muted-foreground">{t.legalCompany}</span>
+                  <Building2 className="h-4 w-4 text-emerald-500" />
+                  <span className="text-sm font-medium text-emerald-600 dark:text-emerald-400">{t.legalCompany}</span>
                 </div>
-                <span className="inline-flex items-center rounded-md bg-slate-100 dark:bg-slate-800 px-2 py-0.5 text-xs font-medium">
+                <span className="inline-flex items-center rounded-md bg-emerald-100 dark:bg-emerald-900/50 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:text-emerald-300">
                   {employeeLegalCompany?.name || "N/A"}
                 </span>
               </div>
@@ -657,14 +655,21 @@ export default function Dashboard() {
 
         {/* Add / Remove Privileges (Full Width) - with Company Context inside */}
         {selectedEmployee && (
-          <div className="rounded-xl border bg-card p-4 shadow-sm">
-            <div className="flex items-center gap-2 mb-4">
-              <Plus className="h-5 w-5 text-indigo-500" />
-              <Minus className="h-5 w-5 text-indigo-500" />
-              <h3 className="text-lg font-semibold">{t.addRemove}</h3>
-            </div>
+          <div className="rounded-xl border-2 border-amber-200 dark:border-amber-800 bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-950/50 dark:to-orange-950/50 p-4 shadow-sm">
+            <button
+              onClick={() => setIsAddRemoveExpanded(!isAddRemoveExpanded)}
+              className="w-full flex items-center justify-between mb-2"
+              data-testid="toggle-add-remove"
+            >
+              <div className="flex items-center gap-2">
+                <ShieldCheck className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+                <h3 className="text-lg font-semibold text-amber-700 dark:text-amber-300">{t.addRemove}</h3>
+              </div>
+              {isAddRemoveExpanded ? <ChevronDown className="h-5 w-5 text-amber-600" /> : <ChevronRight className="h-5 w-5 text-amber-600" />}
+            </button>
 
-            <div className="space-y-4">
+            {isAddRemoveExpanded && (
+              <div className="space-y-4 pt-2">
               {/* Company Context - Inside Add/Remove */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
@@ -792,16 +797,17 @@ export default function Dashboard() {
                 </button>
               )}
             </div>
+            )}
           </div>
         )}
 
         {/* Current Privilege - Multi-company hierarchical view */}
         {selectedEmployee && (
-          <div className="rounded-xl border bg-card p-4 shadow-sm">
+          <div className="rounded-xl border-2 border-violet-200 dark:border-violet-800 bg-gradient-to-r from-violet-50 to-purple-50 dark:from-violet-950/50 dark:to-purple-950/50 p-4 shadow-sm">
             <div className="flex items-center gap-2 mb-4">
-              <ShieldCheck className="h-5 w-5 text-indigo-500" />
-              <h3 className="text-lg font-semibold">{t.currentPrivilege}</h3>
-              <span className="text-sm text-muted-foreground">
+              <ShieldCheck className="h-5 w-5 text-violet-600 dark:text-violet-400" />
+              <h3 className="text-lg font-semibold text-violet-700 dark:text-violet-300">{t.currentPrivilege}</h3>
+              <span className="text-sm text-violet-600/70 dark:text-violet-400/70">
                 ({employeeAssignmentsWithCompanies.length} {employeeAssignmentsWithCompanies.length === 1 ? 'company' : 'companies'})
               </span>
             </div>
@@ -809,7 +815,6 @@ export default function Dashboard() {
             <ExpandableHierarchy
               allPrivileges={data.privileges}
               companyAssignments={employeeAssignmentsWithCompanies}
-              allCompanies={allCompanies}
               t={t}
             />
           </div>
