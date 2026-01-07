@@ -127,6 +127,22 @@
     {
       "id": "276",
       "name": "شركة الرواق للمحاماة و الاستشارات القانونية"
+    },
+    {
+      "id": "300",
+      "name": "شركة الثنايا الاقليمية للتنمية العقارية"
+    },
+    {
+      "id": "301",
+      "name": "شركة القدرة المتحدة للإنشاء والتعمير المحدودة"
+    },
+    {
+      "id": "302",
+      "name": "شركة دلة المتطورة لإدارة وتدوير النفايات المحدودة"
+    },
+    {
+      "id": "303",
+      "name": "شركة دلة للنقليات"
     }
   ],
   "employees": [
@@ -1022,6 +1038,40 @@
     },
     {
       "companyId": "276",
+      "employeeId": "9280",
+      "privilegeIds": [
+        "P_FIN_ACC_01",
+        "P_FIN_AR_01"
+      ]
+    },
+    {
+      "companyId": "300",
+      "employeeId": "9280",
+      "privilegeIds": [
+        "P_FIN_ACC_01",
+        "P_FIN_AR_01",
+        "P_SCM_REQ_01",
+        "P_SCM_BPA_01"
+      ]
+    },
+    {
+      "companyId": "301",
+      "employeeId": "9280",
+      "privilegeIds": [
+        "P_FIN_ACC_01",
+        "P_FIN_AR_01"
+      ]
+    },
+    {
+      "companyId": "302",
+      "employeeId": "9280",
+      "privilegeIds": [
+        "P_FIN_ACC_01",
+        "P_FIN_AR_01"
+      ]
+    },
+    {
+      "companyId": "303",
       "employeeId": "9280",
       "privilegeIds": [
         "P_FIN_ACC_01",

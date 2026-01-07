@@ -83,6 +83,10 @@ export class JsonStorage implements IStorage {
       { id: "260", name: "شركة البوادر المتميزة القابضة" },
       { id: "261", name: "شركة فواصل المتطورة لتنظيم الفعاليات والمهرجانات السياحية" },
       { id: "276", name: "شركة الرواق للمحاماة و الاستشارات القانونية" },
+      { id: "300", name: "شركة الثنايا الاقليمية للتنمية العقارية" },
+      { id: "301", name: "شركة القدرة المتحدة للإنشاء والتعمير المحدودة" },
+      { id: "302", name: "شركة دلة المتطورة لإدارة وتدوير النفايات المحدودة" },
+      { id: "303", name: "شركة دلة للنقليات" },
     ];
 
     // Employees with legalCompanyId and managerId
@@ -265,6 +269,14 @@ export class JsonStorage implements IStorage {
       { companyId: "028", employeeId: "9280", privilegeIds: ["P_FIN_ACC_01", "P_FIN_AR_01"] },
       // In company 276 (شركة الرواق للمحاماة و الاستشارات القانونية)
       { companyId: "276", employeeId: "9280", privilegeIds: ["P_FIN_ACC_01", "P_FIN_AR_01"] },
+      // In company 300 (شركة الثنايا الاقليمية للتنمية العقارية)
+      { companyId: "300", employeeId: "9280", privilegeIds: ["P_FIN_ACC_01", "P_FIN_AR_01", "P_SCM_REQ_01", "P_SCM_BPA_01"] },
+      // In company 301 (شركة القدرة المتحدة للإنشاء والتعمير المحدودة)
+      { companyId: "301", employeeId: "9280", privilegeIds: ["P_FIN_ACC_01", "P_FIN_AR_01"] },
+      // In company 302 (شركة دلة المتطورة لإدارة وتدوير النفايات المحدودة)
+      { companyId: "302", employeeId: "9280", privilegeIds: ["P_FIN_ACC_01", "P_FIN_AR_01"] },
+      // In company 303 (شركة دلة للنقليات)
+      { companyId: "303", employeeId: "9280", privilegeIds: ["P_FIN_ACC_01", "P_FIN_AR_01"] },
     ];
 
     return {
