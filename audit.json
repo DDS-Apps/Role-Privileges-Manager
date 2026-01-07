@@ -169,5 +169,14 @@
     "companyId": "001",
     "targetEmployeeId": "E003",
     "details": "Mohammed Nawar added Finance/Accounting and Reporting/Correct errors and suggest financial adjustments to Shahad Alharbi in شركة دله البركة القابضة"
+  },
+  {
+    "id": "d8bf3291-1300-49fd-bb1b-81b368409045",
+    "timestamp": "2026-01-07T14:48:48.307Z",
+    "managerUserId": "E001",
+    "actionType": "REQUEST_CREATED",
+    "companyId": "054",
+    "targetEmployeeId": "E003",
+    "details": "Mohammed Nawar requested HR/Performance Management privileges for Shahad Alharbi in شركة دله للتنمية العقارية والسياحية (5 roles)"
   }
 ]

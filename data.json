@@ -1102,5 +1102,28 @@
       ]
     }
   ],
-  "requests": []
+  "requests": [
+    {
+      "id": "dce1f795-f50b-4edc-9c7c-004c6e3fdbf4",
+      "managerId": "E001",
+      "managerLegalCompanyId": "001",
+      "employeeId": "E003",
+      "companyId": "054",
+      "module": "HR",
+      "function": "Performance Management",
+      "rolesSelected": [
+        "P_HR_PM_01",
+        "P_HR_PM_02",
+        "P_HR_PM_03",
+        "P_HR_PM_04",
+        "P_HR_PM_05"
+      ],
+      "startDate": "2026-01-07",
+      "endDate": "2026-01-30",
+      "status": "pending",
+      "adminComments": null,
+      "createdAt": "2026-01-07T14:48:48.303Z",
+      "updatedAt": "2026-01-07T14:48:48.303Z"
+    }
+  ]
 }
