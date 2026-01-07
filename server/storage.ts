@@ -86,9 +86,9 @@ export class JsonStorage implements IStorage {
     ];
 
     // Employees with legalCompanyId and managerId
-    // Managers: E001 (Waleed - 001), E002 (Adnan - 002), E005 (Souhaib - 008)
+    // Managers: E001 (Mohammed Nawar - 001), E002 (Adnan - 002), E005 (Souhaib - 008)
     const employees: Employee[] = [
-      { id: "E001", name: "Waleed Alahdal", title: "IT Lead", email: "waleed@example.com", isManager: true, legalCompanyId: "001" },
+      { id: "E001", name: "Mohammed Nawar", title: "Manager", email: "mohammed.nawar@example.com", isManager: true, legalCompanyId: "001" },
       { id: "E002", name: "Adnan Alqahtani", title: "Operations Manager", email: "adnan@example.com", isManager: true, legalCompanyId: "002" },
       { id: "E003", name: "Shahad Alharbi", title: "HR Specialist", email: "shahad@example.com", isManager: false, legalCompanyId: "001", managerId: "E001" },
       { id: "E004", name: "Jameel Ashraf", title: "GM Assistant", email: "jameel@example.com", isManager: false, legalCompanyId: "001", managerId: "E001" },
@@ -98,6 +98,7 @@ export class JsonStorage implements IStorage {
       { id: "E008", name: "Khalid Saleh", title: "Treasury Officer", email: "khalid@example.com", isManager: false, legalCompanyId: "002", managerId: "E002" },
       { id: "E009", name: "Noor Hassan", title: "Accounting", email: "noor@example.com", isManager: false, legalCompanyId: "002", managerId: "E002" },
       { id: "E010", name: "Faisal Omar", title: "Business Analyst", email: "faisal@example.com", isManager: false, legalCompanyId: "008", managerId: "E005" },
+      { id: "9280", name: "Ibrahim Mohammed Shaker", title: "Accountant", email: "ibrahim.shaker@example.com", isManager: false, legalCompanyId: "001", managerId: "E001" },
     ];
 
     // Privileges catalog from Excel file - Finance, HR, SCM modules
@@ -253,6 +254,17 @@ export class JsonStorage implements IStorage {
       { companyId: "008", employeeId: "E006", privilegeIds: ["P_FIN_FA_01", "P_FIN_FA_02"] },
       // Cross-company example: E004 (legal 001) has privileges in 002
       { companyId: "002", employeeId: "E004", privilegeIds: ["P_FIN_AR_01"] },
+      // Ibrahim Mohammed Shaker (9280) - Accountant, Accounting and Reporting, Treasury, Requisitioner, Buyer functions
+      // In company 001 (دلة البركة القابضة)
+      { companyId: "001", employeeId: "9280", privilegeIds: ["P_FIN_ACC_01", "P_FIN_ACC_02", "P_FIN_ACC_03", "P_FIN_ACC_04", "P_FIN_ACC_05", "P_FIN_AR_01", "P_FIN_AR_02", "P_FIN_TM_01", "P_SCM_REQ_01", "P_SCM_BPA_01"] },
+      // In company 002 (شركة دله الرقمية)
+      { companyId: "002", employeeId: "9280", privilegeIds: ["P_FIN_ACC_01", "P_FIN_ACC_02", "P_FIN_AR_01", "P_FIN_AR_02", "P_FIN_TM_01", "P_SCM_REQ_01", "P_SCM_BPA_01"] },
+      // In company 008 (شركة دله جسر الشرق للإستثمار)
+      { companyId: "008", employeeId: "9280", privilegeIds: ["P_FIN_ACC_01", "P_FIN_AR_01", "P_FIN_TM_01"] },
+      // In company 028 (شركة دله عبر البلاد العربية)
+      { companyId: "028", employeeId: "9280", privilegeIds: ["P_FIN_ACC_01", "P_FIN_AR_01"] },
+      // In company 276 (شركة الرواق للمحاماة و الاستشارات القانونية)
+      { companyId: "276", employeeId: "9280", privilegeIds: ["P_FIN_ACC_01", "P_FIN_AR_01"] },
     ];
 
     return {
