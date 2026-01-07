@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { applyAssignmentsSchema, uploadCatalogSchema } from './schema';
+import { applyAssignmentsSchema, uploadCatalogSchema, createRequestSchema, updateRequestSchema, terminateEmployeeSchema } from './schema';
 
 export const errorSchemas = {
   validation: z.object({
@@ -75,6 +75,52 @@ export const api = {
       path: '/api/export/employee',
       responses: {
         200: z.any(), // Binary Excel file
+      },
+    },
+  },
+
+  // Privilege Requests
+  requests: {
+    create: {
+      method: 'POST' as const,
+      path: '/api/requests',
+      input: createRequestSchema,
+      responses: {
+        200: z.any(),
+        400: errorSchemas.validation,
+        403: errorSchemas.forbidden,
+      },
+    },
+    list: {
+      method: 'GET' as const,
+      path: '/api/requests',
+      responses: {
+        200: z.any(),
+      },
+    },
+    update: {
+      method: 'PATCH' as const,
+      path: '/api/requests/:requestId',
+      input: updateRequestSchema,
+      responses: {
+        200: z.any(),
+        400: errorSchemas.validation,
+        403: errorSchemas.forbidden,
+        404: errorSchemas.notFound,
+      },
+    },
+  },
+
+  // Employee Termination
+  employees: {
+    terminate: {
+      method: 'POST' as const,
+      path: '/api/employees/:employeeId/terminate',
+      input: terminateEmployeeSchema,
+      responses: {
+        200: z.any(),
+        403: errorSchemas.forbidden,
+        404: errorSchemas.notFound,
       },
     },
   },

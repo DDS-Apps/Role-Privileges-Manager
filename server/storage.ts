@@ -5,8 +5,11 @@ import {
   Employee,
   Privilege,
   Assignment,
+  PrivilegeRequest,
   BootstrapResponse,
   AuditActionType,
+  CreateRequestInput,
+  RequestStatus,
 } from "@shared/schema";
 import fs from "fs/promises";
 import path from "path";
@@ -15,7 +18,7 @@ import { randomUUID } from "crypto";
 export interface IStorage {
   getBootstrapData(): Promise<BootstrapResponse>;
   
-  // Assignments
+  // Assignments (kept for internal use during approval)
   applyAssignments(
     managerId: string, 
     companyId: string, 
@@ -32,6 +35,15 @@ export interface IStorage {
   // Helpers
   getAssignment(companyId: string, employeeId: string): Promise<Assignment | undefined>;
   getLegalEmployees(managerId: string): Promise<Employee[]>;
+  getAllEmployees(): Promise<Employee[]>;
+  
+  // Request CRUD
+  createRequest(input: CreateRequestInput): Promise<PrivilegeRequest>;
+  getRequests(filters?: { managerId?: string; employeeId?: string; status?: RequestStatus }): Promise<PrivilegeRequest[]>;
+  updateRequestStatus(requestId: string, status: RequestStatus, adminComments: string | null, adminId: string): Promise<PrivilegeRequest>;
+  
+  // Employee Termination
+  terminateEmployee(employeeId: string, adminId: string): Promise<void>;
 }
 
 export class JsonStorage implements IStorage {
@@ -91,8 +103,9 @@ export class JsonStorage implements IStorage {
 
     // Employees with legalCompanyId and managerId
     // Managers: E001 (Mohammed Nawar - 001), E002 (Adnan - 002), E005 (Souhaib - 008)
+    // Admin: E001 is also admin for MVP testing
     const employees: Employee[] = [
-      { id: "E001", name: "Mohammed Nawar", title: "Manager", email: "mohammed.nawar@example.com", isManager: true, legalCompanyId: "001" },
+      { id: "E001", name: "Mohammed Nawar", title: "Manager", email: "mohammed.nawar@example.com", isManager: true, isAdmin: true, legalCompanyId: "001" },
       { id: "E002", name: "Adnan Alqahtani", title: "Operations Manager", email: "adnan@example.com", isManager: true, legalCompanyId: "002" },
       { id: "E003", name: "Shahad Alharbi", title: "HR Specialist", email: "shahad@example.com", isManager: false, legalCompanyId: "001", managerId: "E001" },
       { id: "E004", name: "Jameel Ashraf", title: "GM Assistant", email: "jameel@example.com", isManager: false, legalCompanyId: "001", managerId: "E001" },
@@ -279,11 +292,15 @@ export class JsonStorage implements IStorage {
       { companyId: "303", employeeId: "9280", privilegeIds: ["P_FIN_ACC_01", "P_FIN_AR_01"] },
     ];
 
+    // Empty requests array - managers will create requests
+    const requests: PrivilegeRequest[] = [];
+
     return {
       companies,
       employees,
       privileges,
       assignments,
+      requests,
     };
   }
 
@@ -295,6 +312,11 @@ export class JsonStorage implements IStorage {
     try {
       const content = await fs.readFile(this.dataPath, "utf-8");
       this.data = JSON.parse(content);
+      // Ensure requests array exists (for backwards compatibility)
+      if (!this.data.requests) {
+        this.data.requests = [];
+        await this.saveData();
+      }
     } catch {
       this.data = this.getDefaultData();
       await this.saveData();
@@ -533,6 +555,217 @@ export class JsonStorage implements IStorage {
     await this.initialized;
     return this.auditLog.sort((a, b) => 
       new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+    );
+  }
+
+  async getAllEmployees(): Promise<Employee[]> {
+    await this.initialized;
+    return this.data.employees;
+  }
+
+  async createRequest(input: CreateRequestInput): Promise<PrivilegeRequest> {
+    await this.initialized;
+
+    // Get manager
+    const manager = this.data.employees.find(e => e.id === input.managerId && e.isManager);
+    if (!manager) {
+      throw new Error("Manager not found");
+    }
+
+    // Get target employee
+    const employee = this.data.employees.find(e => e.id === input.employeeId);
+    if (!employee) {
+      throw new Error("Employee not found");
+    }
+
+    // Validate company exists
+    const company = this.data.companies.find(c => c.id === input.companyId);
+    if (!company) {
+      throw new Error("Company not found");
+    }
+
+    // Validate privilege IDs exist and belong to the specified module/function
+    for (const privId of input.rolesSelected) {
+      const priv = this.data.privileges.find(p => p.id === privId);
+      if (!priv) {
+        throw new Error(`Invalid privilege ID: ${privId}`);
+      }
+      if (priv.module !== input.module || priv.function !== input.function) {
+        throw new Error(`Privilege ${privId} does not belong to ${input.module}/${input.function}`);
+      }
+    }
+
+    const now = new Date().toISOString();
+    const request: PrivilegeRequest = {
+      id: randomUUID(),
+      managerId: input.managerId,
+      managerLegalCompanyId: manager.legalCompanyId,
+      employeeId: input.employeeId,
+      companyId: input.companyId,
+      module: input.module,
+      function: input.function,
+      rolesSelected: input.rolesSelected,
+      startDate: input.startDate,
+      endDate: input.endDate,
+      status: "pending",
+      adminComments: null,
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    this.data.requests.push(request);
+    await this.saveData();
+
+    // Log audit entry
+    await this.addAuditEntry(
+      input.managerId,
+      "REQUEST_CREATED",
+      `${manager.name} requested ${input.module}/${input.function} privileges for ${employee.name} in ${company.name} (${input.rolesSelected.length} roles)`,
+      input.companyId,
+      input.employeeId
+    );
+
+    return request;
+  }
+
+  async getRequests(filters?: { managerId?: string; employeeId?: string; status?: RequestStatus }): Promise<PrivilegeRequest[]> {
+    await this.initialized;
+    
+    let requests = [...this.data.requests];
+    
+    if (filters?.managerId) {
+      requests = requests.filter(r => r.managerId === filters.managerId);
+    }
+    if (filters?.employeeId) {
+      requests = requests.filter(r => r.employeeId === filters.employeeId);
+    }
+    if (filters?.status) {
+      requests = requests.filter(r => r.status === filters.status);
+    }
+    
+    return requests.sort((a, b) => 
+      new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    );
+  }
+
+  async updateRequestStatus(
+    requestId: string,
+    status: RequestStatus,
+    adminComments: string | null,
+    adminId: string
+  ): Promise<PrivilegeRequest> {
+    await this.initialized;
+
+    // Verify admin
+    const admin = this.data.employees.find(e => e.id === adminId && e.isAdmin);
+    if (!admin) {
+      throw new Error("Only admins can approve/reject requests");
+    }
+
+    // Find request
+    const requestIdx = this.data.requests.findIndex(r => r.id === requestId);
+    if (requestIdx < 0) {
+      throw new Error("Request not found");
+    }
+
+    const request = this.data.requests[requestIdx];
+    if (request.status !== "pending") {
+      throw new Error("Only pending requests can be updated");
+    }
+
+    // Update request
+    request.status = status;
+    request.adminComments = adminComments;
+    request.updatedAt = new Date().toISOString();
+
+    this.data.requests[requestIdx] = request;
+
+    // If approved, apply the roles to assignments
+    if (status === "active") {
+      // Get current assignment for this employee/company
+      let assignment = this.data.assignments.find(
+        a => a.companyId === request.companyId && a.employeeId === request.employeeId
+      );
+
+      // Get all current privileges for this employee in this company for this function
+      const functionPrivileges = this.data.privileges
+        .filter(p => p.module === request.module && p.function === request.function)
+        .map(p => p.id);
+
+      if (assignment) {
+        // Remove all existing privileges for this function
+        const withoutFunction = assignment.privilegeIds.filter(id => !functionPrivileges.includes(id));
+        // Add the newly selected roles
+        assignment.privilegeIds = [...withoutFunction, ...request.rolesSelected];
+      } else {
+        // Create new assignment
+        assignment = {
+          companyId: request.companyId,
+          employeeId: request.employeeId,
+          privilegeIds: request.rolesSelected,
+        };
+        this.data.assignments.push(assignment);
+      }
+
+      // Clean up empty assignments
+      this.data.assignments = this.data.assignments.filter(a => a.privilegeIds.length > 0);
+    }
+
+    await this.saveData();
+
+    // Log audit entry
+    const employee = this.data.employees.find(e => e.id === request.employeeId);
+    const company = this.data.companies.find(c => c.id === request.companyId);
+    
+    await this.addAuditEntry(
+      adminId,
+      status === "active" ? "REQUEST_APPROVED" : "REQUEST_REJECTED",
+      `${admin.name} ${status === "active" ? "approved" : "rejected"} ${request.module}/${request.function} request for ${employee?.name} in ${company?.name}${adminComments ? ` - Comment: ${adminComments}` : ""}`,
+      request.companyId,
+      request.employeeId
+    );
+
+    return request;
+  }
+
+  async terminateEmployee(employeeId: string, adminId: string): Promise<void> {
+    await this.initialized;
+
+    // Verify admin
+    const admin = this.data.employees.find(e => e.id === adminId && e.isAdmin);
+    if (!admin) {
+      throw new Error("Only admins can terminate employees");
+    }
+
+    // Find employee
+    const employee = this.data.employees.find(e => e.id === employeeId);
+    if (!employee) {
+      throw new Error("Employee not found");
+    }
+
+    // Remove all assignments for this employee
+    const removedAssignments = this.data.assignments.filter(a => a.employeeId === employeeId);
+    this.data.assignments = this.data.assignments.filter(a => a.employeeId !== employeeId);
+
+    // Cancel all pending requests for this employee
+    for (const request of this.data.requests) {
+      if (request.employeeId === employeeId && request.status === "pending") {
+        request.status = "rejected";
+        request.adminComments = "Employee terminated";
+        request.updatedAt = new Date().toISOString();
+      }
+    }
+
+    await this.saveData();
+
+    // Log audit entry
+    const totalPrivileges = removedAssignments.reduce((sum, a) => sum + a.privilegeIds.length, 0);
+    await this.addAuditEntry(
+      adminId,
+      "EMPLOYEE_TERMINATED",
+      `${admin.name} terminated ${employee.name} - removed ${totalPrivileges} privileges across ${removedAssignments.length} companies`,
+      undefined,
+      employeeId
     );
   }
 }

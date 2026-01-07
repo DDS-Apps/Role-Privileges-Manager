@@ -2,7 +2,7 @@ import type { Express } from "express";
 import type { Server } from "http";
 import { storage } from "./storage";
 import { api } from "@shared/routes";
-import { applyAssignmentsSchema, uploadCatalogSchema } from "@shared/schema";
+import { applyAssignmentsSchema, uploadCatalogSchema, createRequestSchema, updateRequestSchema, RequestStatus } from "@shared/schema";
 import { z } from "zod";
 import * as XLSX from "xlsx";
 
@@ -142,6 +142,104 @@ export async function registerRoutes(
     } catch (err) {
       console.error("Export error:", err);
       res.status(500).json({ message: "Failed to generate export" });
+    }
+  });
+
+  // ============================================
+  // PRIVILEGE REQUESTS
+  // ============================================
+
+  // Create Request
+  app.post(api.requests.create.path, async (req, res) => {
+    try {
+      const input = createRequestSchema.parse(req.body);
+      const request = await storage.createRequest(input);
+      res.json(request);
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({ message: err.errors[0].message, field: err.errors[0].path.join('.') });
+      }
+      if (err instanceof Error) {
+        return res.status(403).json({ message: err.message });
+      }
+      console.error("Create request error:", err);
+      res.status(500).json({ message: "Failed to create request" });
+    }
+  });
+
+  // List Requests
+  app.get(api.requests.list.path, async (req, res) => {
+    try {
+      const { managerId, employeeId, status } = req.query;
+      const requests = await storage.getRequests({
+        managerId: managerId as string | undefined,
+        employeeId: employeeId as string | undefined,
+        status: status as RequestStatus | undefined,
+      });
+      res.json(requests);
+    } catch (err) {
+      console.error("Get requests error:", err);
+      res.status(500).json({ message: "Failed to get requests" });
+    }
+  });
+
+  // Update Request (Approve/Reject)
+  app.patch("/api/requests/:requestId", async (req, res) => {
+    try {
+      const { requestId } = req.params;
+      const { adminId } = req.query;
+      const input = updateRequestSchema.parse(req.body);
+      
+      if (!adminId) {
+        return res.status(400).json({ message: "adminId query parameter is required" });
+      }
+
+      const request = await storage.updateRequestStatus(
+        requestId,
+        input.status,
+        input.adminComments,
+        adminId as string
+      );
+      res.json(request);
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({ message: err.errors[0].message, field: err.errors[0].path.join('.') });
+      }
+      if (err instanceof Error) {
+        if (err.message.includes("not found")) {
+          return res.status(404).json({ message: err.message });
+        }
+        return res.status(403).json({ message: err.message });
+      }
+      console.error("Update request error:", err);
+      res.status(500).json({ message: "Failed to update request" });
+    }
+  });
+
+  // ============================================
+  // EMPLOYEE TERMINATION
+  // ============================================
+
+  app.post("/api/employees/:employeeId/terminate", async (req, res) => {
+    try {
+      const { employeeId } = req.params;
+      const { adminId } = req.query;
+      
+      if (!adminId) {
+        return res.status(400).json({ message: "adminId query parameter is required" });
+      }
+
+      await storage.terminateEmployee(employeeId, adminId as string);
+      res.json({ success: true });
+    } catch (err) {
+      if (err instanceof Error) {
+        if (err.message.includes("not found")) {
+          return res.status(404).json({ message: err.message });
+        }
+        return res.status(403).json({ message: err.message });
+      }
+      console.error("Terminate employee error:", err);
+      res.status(500).json({ message: "Failed to terminate employee" });
     }
   });
 

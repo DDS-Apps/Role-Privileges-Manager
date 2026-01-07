@@ -1,11 +1,13 @@
 import { useState, useMemo, useEffect } from "react";
-import { useBootstrapData, useApplyAssignments } from "@/hooks/use-app-data";
+import { useBootstrapData, useCreateRequest, useRequests } from "@/hooks/use-app-data";
 import { 
   Loader2, Search, Globe, Building2, Users, ShieldCheck,
-  Plus, Minus, Check, ChevronDown, ChevronRight
+  Plus, Check, ChevronDown, ChevronRight, Calendar, Clock, FileText, Settings
 } from "lucide-react";
-import type { Employee, Company, Privilege, Assignment } from "@shared/schema";
+import { Link } from "wouter";
+import type { Employee, Company, Privilege, PrivilegeRequest, RequestStatus } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 type Language = "en" | "ar";
 
@@ -45,6 +47,19 @@ const DICT = {
     all: "All",
     selectAll: "Select All",
     unselectAll: "Unselect All",
+    companyEmployees: "Company Employees",
+    allEmployees: "All Employees",
+    submitRequest: "Submit Request",
+    submitting: "Submitting...",
+    startDate: "Start Date",
+    endDate: "End Date (Optional)",
+    myRequests: "My Requests",
+    pending: "Pending",
+    active: "Active",
+    rejected: "Rejected",
+    noRequests: "No requests found",
+    requestCreated: "Request submitted successfully",
+    adminPanel: "Admin Panel",
   },
   ar: {
     title: "أدوار وامتيازات مستخدمي الأعمال",
@@ -81,6 +96,19 @@ const DICT = {
     all: "الكل",
     selectAll: "تحديد الكل",
     unselectAll: "إلغاء تحديد الكل",
+    companyEmployees: "موظفي الشركة",
+    allEmployees: "جميع الموظفين",
+    submitRequest: "تقديم الطلب",
+    submitting: "جاري التقديم...",
+    startDate: "تاريخ البدء",
+    endDate: "تاريخ الانتهاء (اختياري)",
+    myRequests: "طلباتي",
+    pending: "قيد الانتظار",
+    active: "نشط",
+    rejected: "مرفوض",
+    noRequests: "لم يتم العثور على طلبات",
+    requestCreated: "تم تقديم الطلب بنجاح",
+    adminPanel: "لوحة الإدارة",
   }
 };
 
@@ -300,15 +328,22 @@ export default function Dashboard() {
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>("");
   const [selectedCompanyId, setSelectedCompanyId] = useState<string>(""); // Company Context for editing
   const [searchQuery, setSearchQuery] = useState("");
+  const [companyEmployeesOnly, setCompanyEmployeesOnly] = useState(true); // "Company Employees" checkbox
   
   // Inline editor state
   const [editorModule, setEditorModule] = useState<string>("");
   const [editorFunction, setEditorFunction] = useState<string>("");
   const [roleSelections, setRoleSelections] = useState<Record<string, boolean>>({});
   const [isAddRemoveExpanded, setIsAddRemoveExpanded] = useState(false);
+  
+  // Request form state
+  const [startDate, setStartDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [endDate, setEndDate] = useState<string>("");
+  const [requestTab, setRequestTab] = useState<"pending" | "active" | "rejected">("pending");
 
   const { data, isLoading, error } = useBootstrapData();
-  const applyAssignments = useApplyAssignments();
+  const createRequest = useCreateRequest();
+  const { data: requests = [] } = useRequests({ managerId: actingUserId });
   const { toast } = useToast();
 
   const t = DICT[language];
@@ -343,34 +378,42 @@ export default function Dashboard() {
     return data.companies.find(c => c.id === actingUser.legalCompanyId);
   }, [data, actingUser]);
 
-  // Get legal employees (employees managed by this manager with same legal company)
-  const legalEmployees = useMemo(() => {
+  // Get employees based on "Company Employees" checkbox
+  // If checked: show only employees from manager's legal company
+  // If unchecked: show ALL organization employees
+  const availableEmployees = useMemo(() => {
     if (!data || !actingUser) return [];
-    return data.employees.filter(e => 
-      e.managerId === actingUserId && 
-      e.legalCompanyId === actingUser.legalCompanyId
-    );
-  }, [data, actingUser, actingUserId]);
+    
+    if (companyEmployeesOnly) {
+      // Only employees from manager's legal company
+      return data.employees.filter(e => 
+        !e.isManager && e.legalCompanyId === actingUser.legalCompanyId
+      );
+    } else {
+      // All non-manager employees
+      return data.employees.filter(e => !e.isManager);
+    }
+  }, [data, actingUser, companyEmployeesOnly]);
 
   // Filter employees by search
   const filteredEmployees = useMemo(() => {
-    if (!searchQuery) return legalEmployees;
+    if (!searchQuery) return availableEmployees;
     const q = searchQuery.toLowerCase();
-    return legalEmployees.filter(emp => 
+    return availableEmployees.filter(emp => 
       emp.id.toLowerCase().includes(q) || emp.name.toLowerCase().includes(q)
     );
-  }, [legalEmployees, searchQuery]);
+  }, [availableEmployees, searchQuery]);
 
   // Auto-select first employee when manager changes
   useEffect(() => {
-    if (data && actingUserId && legalEmployees.length > 0) {
-      if (!selectedEmployeeId || !legalEmployees.find(e => e.id === selectedEmployeeId)) {
-        setSelectedEmployeeId(legalEmployees[0].id);
+    if (data && actingUserId && availableEmployees.length > 0) {
+      if (!selectedEmployeeId || !availableEmployees.find(e => e.id === selectedEmployeeId)) {
+        setSelectedEmployeeId(availableEmployees[0].id);
       }
-    } else if (legalEmployees.length === 0) {
+    } else if (availableEmployees.length === 0) {
       setSelectedEmployeeId("");
     }
-  }, [data, actingUserId, legalEmployees, selectedEmployeeId]);
+  }, [data, actingUserId, availableEmployees, selectedEmployeeId]);
 
   // All companies for Company Context dropdown
   const allCompanies = useMemo(() => data?.companies || [], [data]);
@@ -485,40 +528,64 @@ export default function Dashboard() {
     setRoleSelections({});
   }, [selectedEmployeeId, selectedCompanyId]);
 
-  const handleApplyChanges = async () => {
-    if (!selectedCompanyId || !selectedEmployeeId) return;
+  // Submit request instead of directly applying
+  const handleSubmitRequest = async () => {
+    if (!selectedCompanyId || !selectedEmployeeId || !editorModule || !editorFunction) return;
 
-    // Calculate new privileges
-    const newPrivileges = new Set(currentPrivileges);
-    
-    for (const [privId, isChecked] of Object.entries(roleSelections)) {
-      if (isChecked) {
-        newPrivileges.add(privId);
-      } else {
-        newPrivileges.delete(privId);
-      }
+    // Get selected role IDs
+    const selectedRoles = Object.entries(roleSelections)
+      .filter(([_, isSelected]) => isSelected)
+      .map(([privId]) => privId);
+
+    if (selectedRoles.length === 0) {
+      toast({ 
+        title: "No roles selected", 
+        description: "Please select at least one role",
+        variant: "destructive" 
+      });
+      return;
     }
 
+    // Determine function name (handle "All" case)
+    const functionName = editorFunction === "__all__" 
+      ? data?.privileges.find(p => selectedRoles.includes(p.id))?.function || ""
+      : editorFunction;
+
     try {
-      await applyAssignments.mutateAsync({
-        actorId: actingUserId,
+      await createRequest.mutateAsync({
+        managerId: actingUserId,
+        employeeId: selectedEmployeeId,
         companyId: selectedCompanyId,
-        targetEmployeeId: selectedEmployeeId,
-        privilegeIds: Array.from(newPrivileges),
+        module: editorModule,
+        function: functionName,
+        rolesSelected: selectedRoles,
+        startDate: startDate,
+        endDate: endDate || null,
       });
-      toast({ title: "Changes applied successfully" });
-      // Reset editor after successful apply
+      toast({ title: t.requestCreated });
+      // Reset editor after successful submit
       setEditorModule("");
       setEditorFunction("");
       setRoleSelections({});
+      setStartDate(new Date().toISOString().split('T')[0]);
+      setEndDate("");
     } catch (err) {
       toast({ 
-        title: "Failed to apply changes", 
+        title: "Failed to submit request", 
         description: err instanceof Error ? err.message : "Unknown error",
         variant: "destructive" 
       });
     }
   };
+
+  // Filter requests for selected employee
+  const employeeRequests = useMemo(() => {
+    return requests.filter(r => r.employeeId === selectedEmployeeId);
+  }, [requests, selectedEmployeeId]);
+
+  const pendingRequests = employeeRequests.filter(r => r.status === "pending");
+  const activeRequests = employeeRequests.filter(r => r.status === "active");
+  const rejectedRequests = employeeRequests.filter(r => r.status === "rejected");
 
   if (isLoading) {
     return (
@@ -587,6 +654,21 @@ export default function Dashboard() {
               <Globe className="h-3.5 w-3.5" />
               {language.toUpperCase()}
             </button>
+
+            {/* Admin Panel Link (only for admin users) */}
+            {actingUser?.isAdmin && (
+              <>
+                <div className="h-5 w-px bg-white/30" />
+                <Link
+                  href="/admin"
+                  className="flex items-center gap-1.5 rounded-full px-3 py-1 text-sm font-medium text-white/90 hover:bg-white/20 transition-colors"
+                  data-testid="link-admin-panel"
+                >
+                  <Settings className="h-3.5 w-3.5" />
+                  {t.adminPanel}
+                </Link>
+              </>
+            )}
           </div>
         </div>
       </header>
@@ -627,24 +709,45 @@ export default function Dashboard() {
         {/* Employee Selection Card */}
         {actingUser && (
           <div className="rounded-lg border border-border bg-slate-100 dark:bg-slate-700 border-slate-400 dark:border-slate-500 p-4">
+            {/* Company Employees Checkbox */}
+            <div className="flex items-center gap-2 mb-4">
+              <input
+                type="checkbox"
+                id="company-employees-checkbox"
+                checked={companyEmployeesOnly}
+                onChange={(e) => setCompanyEmployeesOnly(e.target.checked)}
+                className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                data-testid="checkbox-company-employees"
+              />
+              <label htmlFor="company-employees-checkbox" className="text-sm font-medium cursor-pointer">
+                {t.companyEmployees}
+              </label>
+              <span className="text-xs text-muted-foreground">
+                ({companyEmployeesOnly ? managerLegalCompany?.name : t.allEmployees})
+              </span>
+            </div>
+
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="text-sm font-medium text-muted-foreground flex items-center gap-1">
                     <Users className="h-3 w-3" />
-                    {t.legalEmployees}
+                    {companyEmployeesOnly ? t.legalEmployees : t.allEmployees}
                   </label>
-                  {legalEmployees.length > 0 ? (
+                  {availableEmployees.length > 0 ? (
                     <select
                       value={selectedEmployeeId}
                       onChange={(e) => setSelectedEmployeeId(e.target.value)}
                       className="mt-1 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm"
                       data-testid="select-employee"
                     >
-                      {filteredEmployees.map(emp => (
-                        <option key={emp.id} value={emp.id}>
-                          {emp.id} - {emp.name}
-                        </option>
-                      ))}
+                      {filteredEmployees.map(emp => {
+                        const empLegalCompany = data?.companies.find(c => c.id === emp.legalCompanyId);
+                        return (
+                          <option key={emp.id} value={emp.id}>
+                            {emp.id} - {emp.name}{!companyEmployeesOnly && empLegalCompany ? ` - ${empLegalCompany.name}` : ""}
+                          </option>
+                        );
+                      })}
                     </select>
                   ) : (
                     <p className="mt-1 text-sm text-muted-foreground">{t.noLegalEmployees}</p>
@@ -837,26 +940,57 @@ export default function Dashboard() {
                 <p className="text-sm text-muted-foreground text-center py-4 border rounded-lg bg-muted/10">{t.selectFunctionFirst}</p>
               )}
 
-              {/* Apply Button */}
+              {/* Date Pickers and Submit Request Button */}
               {editorFunction && (
-                <button
-                  onClick={handleApplyChanges}
-                  disabled={applyAssignments.isPending}
-                  className="flex items-center justify-center gap-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 text-sm font-medium disabled:opacity-50"
-                  data-testid="button-apply-changes"
-                >
-                  {applyAssignments.isPending ? (
-                    <>
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      {t.applying}
-                    </>
-                  ) : (
-                    <>
-                      <Check className="h-4 w-4" />
-                      {t.applyChanges}
-                    </>
-                  )}
-                </button>
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-sm font-medium flex items-center gap-1">
+                        <Calendar className="h-3 w-3" />
+                        {t.startDate}
+                      </label>
+                      <input
+                        type="date"
+                        value={startDate}
+                        onChange={(e) => setStartDate(e.target.value)}
+                        className="mt-1 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm"
+                        data-testid="input-start-date"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium flex items-center gap-1">
+                        <Clock className="h-3 w-3" />
+                        {t.endDate}
+                      </label>
+                      <input
+                        type="date"
+                        value={endDate}
+                        onChange={(e) => setEndDate(e.target.value)}
+                        className="mt-1 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm"
+                        data-testid="input-end-date"
+                      />
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={handleSubmitRequest}
+                    disabled={createRequest.isPending}
+                    className="flex items-center justify-center gap-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 text-sm font-medium disabled:opacity-50"
+                    data-testid="button-submit-request"
+                  >
+                    {createRequest.isPending ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        {t.submitting}
+                      </>
+                    ) : (
+                      <>
+                        <Plus className="h-4 w-4" />
+                        {t.submitRequest}
+                      </>
+                    )}
+                  </button>
+                </div>
               )}
             </div>
             )}
@@ -881,7 +1015,105 @@ export default function Dashboard() {
             />
           </div>
         )}
+
+        {/* My Requests - Tabbed view */}
+        {selectedEmployee && (
+          <div className="rounded-lg border border-border bg-slate-100 dark:bg-slate-700 border-slate-400 dark:border-slate-500 p-4">
+            <div className="flex items-center gap-2 mb-4">
+              <FileText className="h-5 w-5 text-muted-foreground" />
+              <h3 className="text-lg font-semibold">{t.myRequests}</h3>
+              <span className="text-sm text-muted-foreground">({employeeRequests.length})</span>
+            </div>
+
+            <Tabs value={requestTab} onValueChange={(v) => setRequestTab(v as "pending" | "active" | "rejected")}>
+              <TabsList className="grid w-full grid-cols-3 mb-4">
+                <TabsTrigger value="pending" data-testid="tab-pending">
+                  {t.pending} ({pendingRequests.length})
+                </TabsTrigger>
+                <TabsTrigger value="active" data-testid="tab-active">
+                  {t.active} ({activeRequests.length})
+                </TabsTrigger>
+                <TabsTrigger value="rejected" data-testid="tab-rejected">
+                  {t.rejected} ({rejectedRequests.length})
+                </TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="pending">
+                <RequestList requests={pendingRequests} privileges={data.privileges} companies={data.companies} t={t} />
+              </TabsContent>
+              <TabsContent value="active">
+                <RequestList requests={activeRequests} privileges={data.privileges} companies={data.companies} t={t} />
+              </TabsContent>
+              <TabsContent value="rejected">
+                <RequestList requests={rejectedRequests} privileges={data.privileges} companies={data.companies} t={t} />
+              </TabsContent>
+            </Tabs>
+          </div>
+        )}
       </main>
+    </div>
+  );
+}
+
+// Helper component to display request list
+function RequestList({ 
+  requests, 
+  privileges, 
+  companies,
+  t 
+}: { 
+  requests: PrivilegeRequest[]; 
+  privileges: Privilege[]; 
+  companies: Company[];
+  t: typeof DICT["en"];
+}) {
+  if (requests.length === 0) {
+    return <p className="text-sm text-muted-foreground text-center py-4">{t.noRequests}</p>;
+  }
+
+  return (
+    <div className="space-y-2">
+      {requests.map(req => {
+        const company = companies.find(c => c.id === req.companyId);
+        const roleCount = req.rolesSelected.length;
+        
+        return (
+          <div 
+            key={req.id} 
+            className="rounded-lg border border-border bg-background p-3"
+            data-testid={`request-item-${req.id}`}
+          >
+            <div className="flex items-start justify-between gap-2 flex-wrap">
+              <div className="flex-1">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-sm font-medium">{req.module}</span>
+                  <span className="text-muted-foreground">/</span>
+                  <span className="text-sm">{req.function}</span>
+                  <span className="inline-flex items-center rounded-full bg-indigo-100 dark:bg-indigo-900/60 px-2 py-0.5 text-xs font-medium text-indigo-700 dark:text-indigo-300">
+                    {roleCount} {roleCount === 1 ? 'role' : 'roles'}
+                  </span>
+                </div>
+                <div className="flex items-center gap-4 text-xs text-muted-foreground mt-1">
+                  <span>{company?.name}</span>
+                  <span>{req.startDate} - {req.endDate || 'No end date'}</span>
+                </div>
+              </div>
+              <div className={`px-2 py-1 rounded text-xs font-medium ${
+                req.status === 'pending' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/60 dark:text-yellow-300' :
+                req.status === 'active' ? 'bg-green-100 text-green-800 dark:bg-green-900/60 dark:text-green-300' :
+                'bg-red-100 text-red-800 dark:bg-red-900/60 dark:text-red-300'
+              }`}>
+                {req.status}
+              </div>
+            </div>
+            {req.adminComment && (
+              <div className="mt-2 text-xs text-muted-foreground border-t pt-2">
+                <span className="font-medium">Admin:</span> {req.adminComment}
+              </div>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }

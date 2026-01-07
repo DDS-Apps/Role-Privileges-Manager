@@ -17,8 +17,34 @@ export interface Employee {
   title: string;
   email: string;
   isManager: boolean;
+  isAdmin?: boolean;       // Admin users can approve/reject requests
   legalCompanyId: string;  // The ONE company the employee legally belongs to
   managerId?: string;      // Which manager manages this employee (for non-managers)
+}
+
+// ============================================
+// REQUEST STATUS
+// ============================================
+export type RequestStatus = "pending" | "active" | "rejected";
+
+// ============================================
+// PRIVILEGE REQUESTS (Manager creates, Admin approves)
+// ============================================
+export interface PrivilegeRequest {
+  id: string;
+  managerId: string;
+  managerLegalCompanyId: string;
+  employeeId: string;
+  companyId: string;           // Company context for privileges
+  module: string;
+  function: string;
+  rolesSelected: string[];     // Array of privilege IDs
+  startDate: string;           // ISO date string
+  endDate: string | null;      // ISO date string or null for no end
+  status: RequestStatus;
+  adminComments: string | null;
+  createdAt: string;
+  updatedAt: string;
 }
 
 // ============================================
@@ -47,7 +73,11 @@ export interface Assignment {
 export type AuditActionType = 
   | "ADD_ROLE"
   | "REMOVE_ROLE"
-  | "UPLOAD_CATALOG";
+  | "UPLOAD_CATALOG"
+  | "REQUEST_CREATED"
+  | "REQUEST_APPROVED"
+  | "REQUEST_REJECTED"
+  | "EMPLOYEE_TERMINATED";
 
 export interface AuditEntry {
   id: string;
@@ -67,6 +97,7 @@ export interface AppData {
   employees: Employee[];
   privileges: Privilege[];
   assignments: Assignment[];
+  requests: PrivilegeRequest[];
 }
 
 // ============================================
@@ -96,3 +127,30 @@ export const uploadCatalogSchema = z.object({
   })),
 });
 export type UploadCatalogRequest = z.infer<typeof uploadCatalogSchema>;
+
+// Create privilege request schema
+export const createRequestSchema = z.object({
+  managerId: z.string(),
+  employeeId: z.string(),
+  companyId: z.string(),
+  module: z.string(),
+  function: z.string(),
+  rolesSelected: z.array(z.string()).min(1, "At least one role must be selected"),
+  startDate: z.string(),
+  endDate: z.string().nullable(),
+});
+export type CreateRequestInput = z.infer<typeof createRequestSchema>;
+
+// Update request (admin approve/reject)
+export const updateRequestSchema = z.object({
+  status: z.enum(["active", "rejected"]),
+  adminComments: z.string().nullable(),
+});
+export type UpdateRequestInput = z.infer<typeof updateRequestSchema>;
+
+// Terminate employee schema
+export const terminateEmployeeSchema = z.object({
+  employeeId: z.string(),
+  adminId: z.string(),
+});
+export type TerminateEmployeeInput = z.infer<typeof terminateEmployeeSchema>;
