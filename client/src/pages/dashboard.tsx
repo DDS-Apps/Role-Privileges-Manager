@@ -536,19 +536,21 @@ export default function Dashboard() {
   return (
     <div className="min-h-screen bg-background font-sans">
       {/* Header */}
-      <header className="sticky top-0 z-50 border-b bg-gradient-to-r from-indigo-600 to-blue-500 dark:from-indigo-800 dark:to-blue-700 px-4 py-3 shadow-md">
+      <header className="sticky top-0 z-50 bg-gradient-to-r from-indigo-600 via-indigo-700 to-violet-600 dark:from-indigo-800 dark:via-indigo-900 dark:to-violet-800 px-4 py-2 shadow-lg">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 flex-wrap">
           <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/20 text-white">
-              <ShieldCheck className="h-5 w-5" />
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/20 text-white">
+              <ShieldCheck className="h-4 w-4" />
             </div>
-            <h1 className="text-lg font-bold tracking-tight md:text-xl text-white">{t.title}</h1>
+            <h1 className="text-base font-bold tracking-tight md:text-lg text-white">{t.title}</h1>
           </div>
 
-          <div className="flex items-center gap-3 flex-wrap">
-            {/* Act As Dropdown - Managers Only */}
-            <div className="flex items-center gap-2 bg-white/10 rounded-lg px-3 py-2">
-              <span className="text-sm text-white/80">{t.actAs}:</span>
+          <div className="flex items-center gap-2 flex-wrap">
+            {/* Act As Manager - Pill with Avatar */}
+            <div className="flex items-center gap-2 bg-white/15 backdrop-blur-sm rounded-full pl-1 pr-3 py-1 border border-white/20">
+              <div className="h-6 w-6 rounded-full bg-gradient-to-br from-white/30 to-white/10 flex items-center justify-center text-white text-xs font-bold">
+                {actingUser?.name.charAt(0) || "M"}
+              </div>
               <select
                 value={actingUserId}
                 onChange={(e) => {
@@ -556,7 +558,8 @@ export default function Dashboard() {
                   setSelectedEmployeeId("");
                   setSelectedCompanyId("");
                 }}
-                className="rounded-lg border border-white/30 bg-white/20 text-white px-3 py-1.5 text-sm font-medium backdrop-blur-sm"
+                className="bg-transparent text-white text-sm font-medium cursor-pointer focus:outline-none appearance-none pr-4"
+                style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='white'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 0 center', backgroundSize: '16px' }}
                 data-testid="select-act-as"
               >
                 {managers.map(emp => (
@@ -567,13 +570,16 @@ export default function Dashboard() {
               </select>
             </div>
 
+            {/* Divider */}
+            <div className="h-5 w-px bg-white/30" />
+
             {/* Language Toggle */}
             <button
               onClick={toggleLanguage}
-              className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium text-white/80 hover:bg-white/20"
+              className="flex items-center gap-1.5 rounded-full px-3 py-1 text-sm font-medium text-white/90 hover:bg-white/20 transition-colors"
               data-testid="button-language-toggle"
             >
-              <Globe className="h-4 w-4" />
+              <Globe className="h-3.5 w-3.5" />
               {language.toUpperCase()}
             </button>
           </div>
