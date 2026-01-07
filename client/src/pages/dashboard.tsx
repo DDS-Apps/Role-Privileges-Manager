@@ -462,7 +462,7 @@ export default function Dashboard() {
     });
   }, [data, editorModule, editorFunction, currentPrivileges]);
 
-  // When function is selected, initialize checkboxes based on current assignments
+  // When function is selected, initialize all checkboxes to selected by default
   useEffect(() => {
     if (editorFunction && data) {
       const roles = editorFunction === "__all__" 
@@ -471,8 +471,8 @@ export default function Dashboard() {
       
       const selections: Record<string, boolean> = {};
       for (const priv of roles) {
-        // Initialize to current assignment state
-        selections[priv.id] = currentPrivileges.includes(priv.id);
+        // Initialize all to selected by default
+        selections[priv.id] = true;
       }
       setRoleSelections(selections);
     }
