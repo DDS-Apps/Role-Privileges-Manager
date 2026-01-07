@@ -967,6 +967,7 @@
         "P_SCM_CST_03",
         "P_SCM_CST_05",
         "P_SCM_CST_01",
+        "P_SCM_CST_02",
         "P_SCM_CST_04"
       ]
     },
@@ -1079,41 +1080,6 @@
       "privilegeIds": [
         "P_FIN_ACC_01",
         "P_FIN_AR_01"
-      ]
-    },
-    {
-      "companyId": "046",
-      "employeeId": "9280",
-      "privilegeIds": [
-        "P_HR_ER_01",
-        "P_HR_LRN_04",
-        "P_HR_PM_02",
-        "P_HR_LRN_02",
-        "P_HR_PM_05",
-        "P_HR_LRN_01",
-        "P_HR_REC_02",
-        "P_HR_REC_07",
-        "P_HR_REC_06",
-        "P_HR_LRN_05",
-        "P_HR_PM_01",
-        "P_HR_ER_07",
-        "P_HR_ER_04",
-        "P_HR_REC_01",
-        "P_HR_LRN_03",
-        "P_HR_PAY_02",
-        "P_HR_ER_02",
-        "P_HR_PAY_01",
-        "P_HR_PM_03",
-        "P_HR_PAY_04",
-        "P_HR_REC_03",
-        "P_HR_ER_06",
-        "P_HR_PAY_03",
-        "P_HR_REC_04",
-        "P_HR_PAY_05",
-        "P_HR_PM_04",
-        "P_HR_REC_05",
-        "P_HR_ER_03",
-        "P_HR_ER_05"
       ]
     }
   ]
