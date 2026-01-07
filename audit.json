@@ -88,5 +88,86 @@
     "companyId": "055",
     "targetEmployeeId": "E003",
     "details": "Mohammed Nawar added HR/Employee Relation/Manage employee benefits e.g., medical insurance, annual ticket, etc. to Shahad Alharbi in الشركة السعودية للمدن السياحية"
+  },
+  {
+    "id": "82b9ae3b-0aa6-45b2-a698-1c8cf684d603",
+    "timestamp": "2026-01-07T10:38:26.201Z",
+    "managerUserId": "E001",
+    "actionType": "ADD_ROLE",
+    "companyId": "001",
+    "targetEmployeeId": "E003",
+    "details": "Mohammed Nawar added Finance/Accounting and Reporting/Review and post the entire accounting process to Shahad Alharbi in شركة دله البركة القابضة"
+  },
+  {
+    "id": "d312069d-4c2a-47d5-9e88-c450e98054e1",
+    "timestamp": "2026-01-07T10:38:26.202Z",
+    "managerUserId": "E001",
+    "actionType": "ADD_ROLE",
+    "companyId": "001",
+    "targetEmployeeId": "E003",
+    "details": "Mohammed Nawar added Finance/Accounting and Reporting/Manage and configure the company chart of accounts to Shahad Alharbi in شركة دله البركة القابضة"
+  },
+  {
+    "id": "6983036f-caf0-47f6-9801-bcd45a279cb2",
+    "timestamp": "2026-01-07T10:38:26.203Z",
+    "managerUserId": "E001",
+    "actionType": "ADD_ROLE",
+    "companyId": "001",
+    "targetEmployeeId": "E003",
+    "details": "Mohammed Nawar added Finance/Accounting and Reporting/Configure fiscal periods and tax codes to Shahad Alharbi in شركة دله البركة القابضة"
+  },
+  {
+    "id": "d7c59370-4236-4ceb-b867-24c66e935420",
+    "timestamp": "2026-01-07T10:38:26.203Z",
+    "managerUserId": "E001",
+    "actionType": "ADD_ROLE",
+    "companyId": "001",
+    "targetEmployeeId": "E003",
+    "details": "Mohammed Nawar added Finance/Accounting and Reporting/Close the books (monthly, quarterly, annually) to Shahad Alharbi in شركة دله البركة القابضة"
+  },
+  {
+    "id": "cb4be7d5-f18f-4154-a6b9-3b59f275a428",
+    "timestamp": "2026-01-07T10:38:26.204Z",
+    "managerUserId": "E001",
+    "actionType": "ADD_ROLE",
+    "companyId": "001",
+    "targetEmployeeId": "E003",
+    "details": "Mohammed Nawar added Finance/Accounting and Reporting/Prepare financial reports monthly, quarterly and annually to Shahad Alharbi in شركة دله البركة القابضة"
+  },
+  {
+    "id": "a1b33276-8436-4bd8-a9d0-f4668bc26a07",
+    "timestamp": "2026-01-07T10:38:26.205Z",
+    "managerUserId": "E001",
+    "actionType": "ADD_ROLE",
+    "companyId": "001",
+    "targetEmployeeId": "E003",
+    "details": "Mohammed Nawar added Finance/Accounting and Reporting/Handle auditor queries to Shahad Alharbi in شركة دله البركة القابضة"
+  },
+  {
+    "id": "fa505292-5c00-4f5d-9290-d5ff5479fc7b",
+    "timestamp": "2026-01-07T10:38:26.206Z",
+    "managerUserId": "E001",
+    "actionType": "ADD_ROLE",
+    "companyId": "001",
+    "targetEmployeeId": "E003",
+    "details": "Mohammed Nawar added Finance/Accounting and Reporting/Approve journal entries and payable invoices to Shahad Alharbi in شركة دله البركة القابضة"
+  },
+  {
+    "id": "a729ddb3-e020-4dc0-8180-6a11944eee4c",
+    "timestamp": "2026-01-07T10:38:26.207Z",
+    "managerUserId": "E001",
+    "actionType": "ADD_ROLE",
+    "companyId": "001",
+    "targetEmployeeId": "E003",
+    "details": "Mohammed Nawar added Finance/Accounting and Reporting/Coordinate with IT for system upgrades, integrations and troubleshooting to Shahad Alharbi in شركة دله البركة القابضة"
+  },
+  {
+    "id": "0b41f967-e575-4cbb-88c6-fd4a3606f9a5",
+    "timestamp": "2026-01-07T10:38:26.208Z",
+    "managerUserId": "E001",
+    "actionType": "ADD_ROLE",
+    "companyId": "001",
+    "targetEmployeeId": "E003",
+    "details": "Mohammed Nawar added Finance/Accounting and Reporting/Correct errors and suggest financial adjustments to Shahad Alharbi in شركة دله البركة القابضة"
   }
 ]

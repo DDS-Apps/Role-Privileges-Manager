@@ -1,0 +1,272 @@
+You are working on an existing Replit web app called “Business Users Roles and Privileges”.
+Update the current codebase to implement the new business rules and UI redesign below.
+
+Critical instruction
+
+Do NOT create a new project or new architecture.
+
+Keep existing styling/theme where possible, but redesign layout to match the new workflow.
+
+Keep existing seed data and file storage, but update the data model and UI behavior accordingly.
+
+1) Remove Old Logic / Features
+
+Remove Delegation completely
+
+Delete delegation UI sections, modals, API endpoints, JSON schema, and any logic related to delegated permissions.
+
+Remove role template dropdowns if they exist (we don’t use templates anymore).
+
+The app should be used by Managers only (for MVP testing):
+
+“Act as” dropdown should list only managers, not all users.
+
+2) New Business Rule: Manager Scope and Employee Selection
+2.1 Manager legal company restriction
+
+Each Manager has a Legal Company.
+
+Manager cannot assign privileges for another legal company.
+
+Manager can request privileges for ANY organization employee (not limited to manager company employees).
+
+2.2 Add “Company Employees” checkbox beside Employee dropdown
+
+In Manager page, under employee selection:
+
+Add checkbox Company Employees
+
+✅ Checked → Employee dropdown shows ONLY employees from manager legal company
+
+⬜ Unchecked → Employee dropdown shows ALL org employees in format:
+(EmployeeID - Name - Legal Company)
+
+Keep search input (search by Employee ID or Name) working in both modes.
+
+3) Privileges Data Model Update
+3.1 Privilege Catalog (from Excel upload)
+
+The uploaded file contains ONLY:
+
+module, function, role
+
+Remove role filter dropdowns.
+
+Keep module dropdown and function dropdown.
+
+3.2 Privilege “Request” System (NEW)
+
+Managers no longer directly assign roles.
+Instead, clicking Add/Remove Privileges creates a Request at the FUNCTION level.
+
+Each request must store:
+
+requestId
+
+managerId
+
+managerLegalCompanyId (fixed legal company context)
+
+employeeId
+
+module
+
+function
+
+rolesSelected[] (checkbox list)
+
+startDate
+
+endDate
+
+status: On progress, Active, Rejected
+
+adminComments
+
+createdAt / updatedAt
+
+Rules:
+
+When manager submits → status must be On progress (Pending review)
+
+Only Admin can set status to Active or Rejected
+
+Start/End/Status/Comments are stored per Function request (not per role).
+
+4) Apply Logic when Admin sets “Active”
+
+When Admin approves a request (sets status Active):
+
+Immediately apply roles to the employee assignments under the selected (module + function):
+
+The final roles for that function should match exactly rolesSelected[].
+
+Roles not selected under that function are removed.
+
+Newly selected are added.
+
+When Admin rejects:
+
+Do not change assignments.
+
+Log all actions in audit log.
+
+5) Admin Page (NEW page in existing app)
+
+Create a new route/page: /admin
+
+This page is accessible only to admin (for MVP: a simple check is fine, e.g. isAdmin=true in user data or a query param ?admin=1).
+
+5.1 Admin request management
+
+Show table/list of requests with filters:
+
+Status
+
+Manager legal company
+
+Employee
+
+Clicking a request shows details:
+
+module/function
+
+selected roles list
+
+start/end
+
+admin comment input
+
+Actions:
+
+Approve → status=Active + apply assignments + log
+
+Reject → status=Rejected + log
+
+Save comment
+
+5.2 Employee Termination (Admin-only)
+
+Add a panel with:
+
+Search employee
+
+Select employee
+
+Button: Employee Termination
+
+Confirmation modal
+
+Action: remove ALL assigned roles immediately across ALL legal companies
+
+Log audit entry
+
+6) Manager Page UI Redesign (Update Existing Layout)
+
+Redesign the main page to match workflow:
+
+Section A: Sticky Header
+
+Title
+
+Act as Manager dropdown (managers only)
+
+EN/AR toggle
+
+Section B: Manager Details Card
+
+Must show:
+
+Legal Company (fixed)
+
+Manager Name
+
+Position
+
+Section C: Employee Selection + Details Card
+
+Company Employees checkbox
+
+Employee dropdown + search
+
+Employee details (Legal company, Name, Position)
+
+Section D: Current Privileges
+
+Show ACTIVE assigned privileges for selected employee under manager legal company context (or show all assigned grouped by function if that’s easier).
+
+Table: Module | Function | Role
+
+Add button: Add/Remove Privileges
+
+Section E: Requests Tabs
+
+Tabs:
+
+Pending (On progress)
+
+Active
+
+Rejected
+Show requests for the selected employee and manager legal company, include admin comments if exist.
+
+7) Upload Privileges Catalog (Keep, but update parsing)
+
+Keep your existing upload UI/endpoint if present, but update it to support the excel structure:
+
+module, function, role
+Use xlsx parsing if already used; otherwise add it.
+After upload:
+
+Replace existing catalog
+
+Rebuild module/function lists
+
+Log audit action
+
+8) Export Excel (Keep)
+
+Keep export feature if exists, but update:
+
+Export should include:
+
+Employee details
+
+Roles assigned (Active)
+
+Optionally include requests summary
+
+Use exceljs
+
+9) Data Storage Update (Keep files, update schema)
+
+Keep minimal JSON storage:
+
+data.json
+
+audit.json
+Update data.json schema to include:
+
+requests[]
+
+assignments structure compatible with apply logic
+
+admin flag (isAdmin) for admin user
+
+10) Implementation Checklist (must be completed)
+
+ Delegation removed completely
+
+ “Company Employees” checkbox implemented
+
+ Requests workflow implemented
+
+ Admin page created and functional
+
+ Employee Termination implemented
+
+ UI redesigned with tinted background cards
+
+ RTL support in Arabic still works
+
+ Audit logging covers: submit request, approve/reject, apply changes, termination, upload catalog
