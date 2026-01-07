@@ -594,7 +594,7 @@ export default function Dashboard() {
       <main className="mx-auto max-w-7xl p-4 md:p-6 space-y-6">
         {/* Context Card - Acting Authority */}
         {actingUser && (
-          <div className="flex rounded-lg border border-border bg-muted/50 overflow-hidden">
+          <div className="flex rounded-lg border border-border bg-muted overflow-hidden">
             {/* Left Gradient Strip */}
             <div className="w-1.5 bg-gradient-to-b from-indigo-500 via-indigo-600 to-violet-600 flex-shrink-0" />
             
@@ -626,7 +626,7 @@ export default function Dashboard() {
 
         {/* Employee Selection Card */}
         {actingUser && (
-          <div className="rounded-lg border border-border bg-muted/50 p-4">
+          <div className="rounded-lg border border-border bg-muted p-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="text-sm font-medium text-muted-foreground flex items-center gap-1">
@@ -671,7 +671,7 @@ export default function Dashboard() {
 
         {/* Employee Details Card */}
         {selectedEmployee && (
-          <div className="rounded-lg border border-border bg-muted/50 p-4">
+          <div className="rounded-lg border border-border bg-muted p-4">
             <h3 className="text-sm font-semibold text-muted-foreground mb-3">{t.employeeDetails}</h3>
             <div className="flex flex-wrap gap-4 items-center">
               <div className="flex items-center gap-3">
@@ -699,7 +699,7 @@ export default function Dashboard() {
 
         {/* Add / Remove Privileges (Full Width) - with Company Context inside */}
         {selectedEmployee && (
-          <div className="rounded-lg border border-border bg-muted/50 p-4">
+          <div className="rounded-lg border border-border bg-muted p-4">
             <button
               onClick={() => setIsAddRemoveExpanded(!isAddRemoveExpanded)}
               className="w-full flex items-center justify-between"
@@ -802,7 +802,7 @@ export default function Dashboard() {
                       return (
                         <label 
                           key={priv.id} 
-                          className="flex items-start gap-2 cursor-pointer hover:bg-muted/50 p-2 rounded"
+                          className="flex items-start gap-2 cursor-pointer hover:bg-muted p-2 rounded"
                         >
                           <input
                             type="checkbox"
@@ -865,7 +865,7 @@ export default function Dashboard() {
 
         {/* Current Privilege - Multi-company hierarchical view */}
         {selectedEmployee && (
-          <div className="rounded-lg border border-border bg-muted/50 p-4">
+          <div className="rounded-lg border border-border bg-muted p-4">
             <div className="flex items-center gap-2 mb-4">
               <ShieldCheck className="h-5 w-5 text-muted-foreground" />
               <h3 className="text-lg font-semibold">{t.currentPrivilege}</h3>
