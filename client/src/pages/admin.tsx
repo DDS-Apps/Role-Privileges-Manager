@@ -105,7 +105,7 @@ const DICT = {
   }
 };
 
-const ADMIN_USER_ID = "admin-001";
+const ADMIN_USER_ID = "E001"; // Mohammed Nawar - the admin user
 
 function getStatusColor(status: RequestStatus) {
   switch (status) {
