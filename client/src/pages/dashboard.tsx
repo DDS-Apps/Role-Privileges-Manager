@@ -215,9 +215,12 @@ function ExpandableHierarchy({
                             const funcKey = `${moduleKey}-${funcName}`;
                             const isFuncExpanded = expandedFunctions.has(funcKey);
 
-                            // Only show assigned roles, sorted alphabetically
+                            // Split into assigned and unassigned roles, sorted alphabetically
                             const assignedRoles = funcPrivs
                               .filter(p => privilegeIds.includes(p.id))
+                              .sort((a, b) => a.role.localeCompare(b.role));
+                            const unassignedRoles = funcPrivs
+                              .filter(p => !privilegeIds.includes(p.id))
                               .sort((a, b) => a.role.localeCompare(b.role));
 
                             return (
@@ -233,7 +236,7 @@ function ExpandableHierarchy({
                                   <span className="text-xs text-slate-600/70 dark:text-slate-400/70">({funcAssignedCount}/{funcPrivs.length})</span>
                                 </button>
 
-                                {/* Roles - only show assigned roles */}
+                                {/* Roles - show assigned first, then unassigned */}
                                 {isFuncExpanded && (
                                   <div className="pl-14 pr-3 pb-2 space-y-1">
                                     {assignedRoles.map(priv => (
@@ -250,6 +253,21 @@ function ExpandableHierarchy({
                                         />
                                         <span className="text-sm">{priv.role}</span>
                                         <span className="text-xs text-indigo-600 dark:text-indigo-400">({t.assigned})</span>
+                                      </label>
+                                    ))}
+                                    {unassignedRoles.map(priv => (
+                                      <label 
+                                        key={priv.id} 
+                                        className="flex items-start gap-2 p-1.5 rounded opacity-50"
+                                      >
+                                        <input
+                                          type="checkbox"
+                                          checked={false}
+                                          disabled
+                                          className="rounded border-gray-300 mt-0.5"
+                                          data-testid={`checkbox-current-unassigned-${company.id}-${priv.id}`}
+                                        />
+                                        <span className="text-sm text-muted-foreground">{priv.role}</span>
                                       </label>
                                     ))}
                                   </div>
