@@ -233,7 +233,6 @@ function ExpandableHierarchy({
                                 >
                                   {isFuncExpanded ? <ChevronDown className="h-3 w-3 text-indigo-600" /> : <ChevronRight className="h-3 w-3 text-indigo-600" />}
                                   <span className="text-sm text-muted-foreground">{funcName}</span>
-                                  <span className="text-xs text-slate-600/70 dark:text-slate-400/70">({funcAssignedCount}/{funcPrivs.length})</span>
                                 </button>
 
                                 {/* Roles - show assigned first, then unassigned */}
