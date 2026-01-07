@@ -462,16 +462,21 @@ export default function Dashboard() {
     });
   }, [data, editorModule, editorFunction, currentPrivileges]);
 
-  // When function is selected, initialize all checkboxes to checked
+  // When function is selected, initialize checkboxes based on current assignments
   useEffect(() => {
-    if (editorFunction && rolesForFunction.length > 0) {
+    if (editorFunction && data) {
+      const roles = editorFunction === "__all__" 
+        ? data.privileges.filter(p => p.module === editorModule)
+        : data.privileges.filter(p => p.module === editorModule && p.function === editorFunction);
+      
       const selections: Record<string, boolean> = {};
-      for (const priv of rolesForFunction) {
-        selections[priv.id] = true;
+      for (const priv of roles) {
+        // Initialize to current assignment state
+        selections[priv.id] = currentPrivileges.includes(priv.id);
       }
       setRoleSelections(selections);
     }
-  }, [editorFunction, rolesForFunction]);
+  }, [editorFunction, editorModule, data]);
 
   // Reset editor when employee/company changes
   useEffect(() => {
