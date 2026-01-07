@@ -42,6 +42,9 @@ const DICT = {
     selectEmployee: "Select Employee",
     noLegalEmployees: "No employees under this manager",
     rolesAssigned: "roles assigned",
+    all: "All",
+    selectAll: "Select All",
+    unselectAll: "Unselect All",
   },
   ar: {
     title: "أدوار وامتيازات مستخدمي الأعمال",
@@ -75,6 +78,9 @@ const DICT = {
     selectEmployee: "اختر موظف",
     noLegalEmployees: "لا يوجد موظفين تحت هذا المدير",
     rolesAssigned: "أدوار مخصصة",
+    all: "الكل",
+    selectAll: "تحديد الكل",
+    unselectAll: "إلغاء تحديد الكل",
   }
 };
 
@@ -437,10 +443,14 @@ export default function Dashboard() {
     )).sort();
   }, [data, editorModule]);
 
-  // Editor: roles for selected module + function, sorted: assigned first, then unassigned
+  // Editor: roles for selected module + function (or all functions if "All" selected)
   const rolesForFunction = useMemo(() => {
     if (!data || !editorModule || !editorFunction) return [];
-    const roles = data.privileges.filter(p => p.module === editorModule && p.function === editorFunction);
+    
+    // If "All" is selected, show all roles from all functions in the module
+    const roles = editorFunction === "__all__" 
+      ? data.privileges.filter(p => p.module === editorModule)
+      : data.privileges.filter(p => p.module === editorModule && p.function === editorFunction);
     
     // Sort: assigned first, then alphabetically within each group
     return roles.sort((a, b) => {
@@ -735,6 +745,7 @@ export default function Dashboard() {
                     data-testid="select-editor-function"
                   >
                     <option value="">{t.selectFunction}</option>
+                    <option value="__all__">{t.all}</option>
                     {functionsForModule.map(f => (
                       <option key={f} value={f}>{f}</option>
                     ))}
@@ -747,7 +758,24 @@ export default function Dashboard() {
                 <div>
                   <div className="flex items-center justify-between mb-2">
                     <label className="text-sm font-medium">{t.role}</label>
-                    <span className="text-xs text-muted-foreground">{t.allRolesSelected}</span>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={rolesForFunction.every(p => roleSelections[p.id] === true)}
+                        onChange={(e) => {
+                          const newSelections: Record<string, boolean> = {};
+                          for (const priv of rolesForFunction) {
+                            newSelections[priv.id] = e.target.checked;
+                          }
+                          setRoleSelections(prev => ({ ...prev, ...newSelections }));
+                        }}
+                        className="rounded border-gray-300"
+                        data-testid="checkbox-select-all-roles"
+                      />
+                      <span className="text-sm font-medium">
+                        {rolesForFunction.every(p => roleSelections[p.id] === true) ? t.unselectAll : t.selectAll}
+                      </span>
+                    </label>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 border rounded-lg p-3 bg-muted/20 max-h-80 overflow-y-auto">
                     {rolesForFunction.map(priv => {

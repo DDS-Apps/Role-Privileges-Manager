@@ -1,1 +1,56 @@
-[]
+[
+  {
+    "id": "66ec2c67-4b93-444d-a19f-d39601654cf8",
+    "timestamp": "2026-01-07T06:16:26.988Z",
+    "managerUserId": "E001",
+    "actionType": "REMOVE_ROLE",
+    "companyId": "001",
+    "targetEmployeeId": "E003",
+    "details": "Mohammed Nawar removed Finance/Accountant/Generate financial reports from Shahad Alharbi in شركة دله البركة القابضة"
+  },
+  {
+    "id": "3533c892-5d32-4214-be69-5a09d5dfcd0c",
+    "timestamp": "2026-01-07T06:16:35.929Z",
+    "managerUserId": "E001",
+    "actionType": "ADD_ROLE",
+    "companyId": "001",
+    "targetEmployeeId": "E003",
+    "details": "Mohammed Nawar added SCM/Cost Management/Analyze material, labor, and overhead variances to Shahad Alharbi in شركة دله البركة القابضة"
+  },
+  {
+    "id": "b67997e3-bb91-44d2-97d0-abf05520010f",
+    "timestamp": "2026-01-07T06:16:35.931Z",
+    "managerUserId": "E001",
+    "actionType": "ADD_ROLE",
+    "companyId": "001",
+    "targetEmployeeId": "E003",
+    "details": "Mohammed Nawar added SCM/Cost Management/Generate cost and margin analysis reports to Shahad Alharbi in شركة دله البركة القابضة"
+  },
+  {
+    "id": "92792563-0764-46a5-b728-2fc86bd27aa7",
+    "timestamp": "2026-01-07T06:16:35.933Z",
+    "managerUserId": "E001",
+    "actionType": "ADD_ROLE",
+    "companyId": "001",
+    "targetEmployeeId": "E003",
+    "details": "Mohammed Nawar added SCM/Cost Management/Maintain item costs and cost structures to Shahad Alharbi in شركة دله البركة القابضة"
+  },
+  {
+    "id": "a78e27f3-e3a3-4233-8a1a-f9d261d13cf5",
+    "timestamp": "2026-01-07T06:16:35.934Z",
+    "managerUserId": "E001",
+    "actionType": "ADD_ROLE",
+    "companyId": "001",
+    "targetEmployeeId": "E003",
+    "details": "Mohammed Nawar added SCM/Cost Management/Perform cost rollups and updates to Shahad Alharbi in شركة دله البركة القابضة"
+  },
+  {
+    "id": "26fcbff0-1a83-4985-a4a0-6b5ba81eb1f0",
+    "timestamp": "2026-01-07T06:16:35.935Z",
+    "managerUserId": "E001",
+    "actionType": "ADD_ROLE",
+    "companyId": "001",
+    "targetEmployeeId": "E003",
+    "details": "Mohammed Nawar added SCM/Cost Management/Support inventory and manufacturing valuation to Shahad Alharbi in شركة دله البركة القابضة"
+  }
+]

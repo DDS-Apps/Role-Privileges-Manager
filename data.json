@@ -964,7 +964,11 @@
       "companyId": "001",
       "employeeId": "E003",
       "privilegeIds": [
-        "P_FIN_ACC_09"
+        "P_SCM_CST_03",
+        "P_SCM_CST_05",
+        "P_SCM_CST_01",
+        "P_SCM_CST_02",
+        "P_SCM_CST_04"
       ]
     },
     {
