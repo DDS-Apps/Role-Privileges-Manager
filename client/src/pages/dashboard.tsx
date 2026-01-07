@@ -594,7 +594,7 @@ export default function Dashboard() {
       <main className="mx-auto max-w-7xl p-4 md:p-6 space-y-6">
         {/* Context Card - Acting Authority */}
         {actingUser && (
-          <div className="flex rounded-lg border border-border bg-card overflow-hidden shadow-sm">
+          <div className="flex rounded-lg border border-border/50 bg-transparent overflow-hidden">
             {/* Left Gradient Strip */}
             <div className="w-1.5 bg-gradient-to-b from-indigo-500 via-indigo-600 to-violet-600 flex-shrink-0" />
             
@@ -626,7 +626,7 @@ export default function Dashboard() {
 
         {/* Employee Selection Card */}
         {actingUser && (
-          <div className="rounded-lg border border-border bg-card p-4 shadow-sm">
+          <div className="rounded-lg border border-border/50 bg-transparent p-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="text-sm font-medium text-muted-foreground flex items-center gap-1">
@@ -671,8 +671,8 @@ export default function Dashboard() {
 
         {/* Employee Details Card */}
         {selectedEmployee && (
-          <div className="rounded-xl border-2 border-slate-200 dark:border-slate-700 bg-gradient-to-r from-slate-50 to-gray-50 dark:from-slate-900/50 dark:to-gray-900/50 p-4 shadow-sm">
-            <h3 className="text-sm font-semibold text-slate-600 dark:text-slate-400 mb-3">{t.employeeDetails}</h3>
+          <div className="rounded-lg border border-border/50 bg-transparent p-4">
+            <h3 className="text-sm font-semibold text-muted-foreground mb-3">{t.employeeDetails}</h3>
             <div className="flex flex-wrap gap-4 items-center">
               <div className="flex items-center gap-3">
                 <div className="h-10 w-10 rounded-full bg-gradient-to-br from-slate-500 to-gray-600 flex items-center justify-center text-white font-bold">
@@ -683,13 +683,13 @@ export default function Dashboard() {
                   <p className="text-sm text-muted-foreground">{selectedEmployee.title}</p>
                 </div>
               </div>
-              <div className="h-8 w-px bg-slate-200 dark:bg-slate-700 hidden sm:block" />
+              <div className="h-8 w-px bg-border hidden sm:block" />
               <div>
                 <div className="flex items-center gap-2 mb-1">
-                  <Building2 className="h-4 w-4 text-slate-500" />
-                  <span className="text-sm font-medium text-slate-600 dark:text-slate-400">{t.legalCompany}</span>
+                  <Building2 className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-sm font-medium text-muted-foreground">{t.legalCompany}</span>
                 </div>
-                <span className="inline-flex items-center rounded-md bg-slate-100 dark:bg-slate-800 px-2 py-0.5 text-xs font-medium text-slate-700 dark:text-slate-300">
+                <span className="inline-flex items-center rounded-full bg-muted px-3 py-1 text-sm font-medium">
                   {employeeLegalCompany?.name || "N/A"}
                 </span>
               </div>
@@ -699,17 +699,17 @@ export default function Dashboard() {
 
         {/* Add / Remove Privileges (Full Width) - with Company Context inside */}
         {selectedEmployee && (
-          <div className="rounded-xl border-2 border-indigo-200 dark:border-indigo-800 bg-gradient-to-r from-indigo-50 to-blue-50 dark:from-indigo-950/50 dark:to-blue-950/50 p-4 shadow-sm">
+          <div className="rounded-lg border border-border/50 bg-transparent p-4">
             <button
               onClick={() => setIsAddRemoveExpanded(!isAddRemoveExpanded)}
               className="w-full flex items-center justify-between"
               data-testid="toggle-add-remove"
             >
               <div className="flex items-center gap-2">
-                <ShieldCheck className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
-                <h3 className="text-lg font-semibold text-indigo-700 dark:text-indigo-300">{t.addRemove}</h3>
+                <ShieldCheck className="h-5 w-5 text-muted-foreground" />
+                <h3 className="text-lg font-semibold">{t.addRemove}</h3>
               </div>
-              {isAddRemoveExpanded ? <ChevronDown className="h-5 w-5 text-indigo-600" /> : <ChevronRight className="h-5 w-5 text-indigo-600" />}
+              {isAddRemoveExpanded ? <ChevronDown className="h-5 w-5 text-muted-foreground" /> : <ChevronRight className="h-5 w-5 text-muted-foreground" />}
             </button>
 
             {isAddRemoveExpanded && (
@@ -865,11 +865,11 @@ export default function Dashboard() {
 
         {/* Current Privilege - Multi-company hierarchical view */}
         {selectedEmployee && (
-          <div className="rounded-xl border-2 border-slate-200 dark:border-slate-700 bg-gradient-to-r from-slate-50 to-gray-50 dark:from-slate-900/50 dark:to-gray-900/50 p-4 shadow-sm">
+          <div className="rounded-lg border border-border/50 bg-transparent p-4">
             <div className="flex items-center gap-2 mb-4">
-              <ShieldCheck className="h-5 w-5 text-slate-600 dark:text-slate-400" />
-              <h3 className="text-lg font-semibold text-slate-700 dark:text-slate-300">{t.currentPrivilege}</h3>
-              <span className="text-sm text-slate-600/70 dark:text-slate-400/70">
+              <ShieldCheck className="h-5 w-5 text-muted-foreground" />
+              <h3 className="text-lg font-semibold">{t.currentPrivilege}</h3>
+              <span className="text-sm text-muted-foreground">
                 ({employeeAssignmentsWithCompanies.length} {employeeAssignmentsWithCompanies.length === 1 ? 'company' : 'companies'})
               </span>
             </div>

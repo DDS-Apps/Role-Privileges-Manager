@@ -52,5 +52,41 @@
     "companyId": "001",
     "targetEmployeeId": "E003",
     "details": "Mohammed Nawar added SCM/Cost Management/Support inventory and manufacturing valuation to Shahad Alharbi in شركة دله البركة القابضة"
+  },
+  {
+    "id": "33d4a426-ee87-4d77-ac96-753944eaa805",
+    "timestamp": "2026-01-07T08:22:14.072Z",
+    "managerUserId": "E001",
+    "actionType": "ADD_ROLE",
+    "companyId": "055",
+    "targetEmployeeId": "E003",
+    "details": "Mohammed Nawar added HR/Employee Relation/Access and manage worker personal, employment, and assignment information to Shahad Alharbi in الشركة السعودية للمدن السياحية"
+  },
+  {
+    "id": "3bd28cec-833b-48d3-9acc-700610bf15d8",
+    "timestamp": "2026-01-07T08:22:14.073Z",
+    "managerUserId": "E001",
+    "actionType": "ADD_ROLE",
+    "companyId": "055",
+    "targetEmployeeId": "E003",
+    "details": "Mohammed Nawar added HR/Employee Relation/Perform hiring, termination, promotion, and transfer transactions to Shahad Alharbi in الشركة السعودية للمدن السياحية"
+  },
+  {
+    "id": "43d12000-c3c1-451f-879b-895868cc6755",
+    "timestamp": "2026-01-07T08:22:41.912Z",
+    "managerUserId": "E001",
+    "actionType": "ADD_ROLE",
+    "companyId": "055",
+    "targetEmployeeId": "E003",
+    "details": "Mohammed Nawar added HR/Employee Relation/Update worker documents, addresses, and contact details to Shahad Alharbi in الشركة السعودية للمدن السياحية"
+  },
+  {
+    "id": "1d30fa96-23b4-44af-800a-09c8bd3bbbf7",
+    "timestamp": "2026-01-07T08:22:41.913Z",
+    "managerUserId": "E001",
+    "actionType": "ADD_ROLE",
+    "companyId": "055",
+    "targetEmployeeId": "E003",
+    "details": "Mohammed Nawar added HR/Employee Relation/Manage employee benefits e.g., medical insurance, annual ticket, etc. to Shahad Alharbi in الشركة السعودية للمدن السياحية"
   }
 ]

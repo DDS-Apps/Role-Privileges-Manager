@@ -1081,6 +1081,16 @@
         "P_FIN_ACC_01",
         "P_FIN_AR_01"
       ]
+    },
+    {
+      "companyId": "055",
+      "employeeId": "E003",
+      "privilegeIds": [
+        "P_HR_ER_01",
+        "P_HR_ER_02",
+        "P_HR_ER_03",
+        "P_HR_ER_07"
+      ]
     }
   ]
 }
