@@ -587,35 +587,42 @@ export default function Dashboard() {
       </header>
 
       <main className="mx-auto max-w-7xl p-4 md:p-6 space-y-6">
-        {/* Manager Details Card */}
+        {/* Context Card - Acting Authority */}
         {actingUser && (
-          <div className="rounded-xl border-2 border-indigo-200 dark:border-indigo-800 bg-gradient-to-r from-indigo-50 to-blue-50 dark:from-indigo-950/50 dark:to-blue-950/50 p-4 shadow-sm">
-            <h2 className="text-sm font-semibold text-indigo-600 dark:text-indigo-400 mb-3">{t.managerDetails}</h2>
-            <div className="flex flex-wrap gap-4 items-center">
-              <div className="flex items-center gap-3">
-                <div className="h-12 w-12 rounded-full bg-gradient-to-br from-indigo-500 to-blue-600 flex items-center justify-center text-white font-bold text-lg shadow-md">
-                  {actingUser.name.charAt(0)}
+          <div className="flex rounded-lg border border-border bg-card overflow-hidden shadow-sm">
+            {/* Left Gradient Strip */}
+            <div className="w-1.5 bg-gradient-to-b from-indigo-500 via-indigo-600 to-violet-600 flex-shrink-0" />
+            
+            {/* Content */}
+            <div className="flex-1 p-4">
+              <div className="flex flex-wrap items-center gap-6">
+                {/* Avatar + Name + Position - Stacked */}
+                <div className="flex items-center gap-3">
+                  <div className="h-11 w-11 rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center text-white font-bold text-lg shadow-md flex-shrink-0">
+                    {actingUser.name.charAt(0)}
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="font-semibold text-base leading-tight">{actingUser.name}</span>
+                    <span className="text-sm text-muted-foreground leading-tight">{actingUser.title}</span>
+                  </div>
                 </div>
-                <div>
-                  <p className="font-semibold text-lg">{actingUser.name}</p>
-                  <p className="text-sm text-muted-foreground">{actingUser.title}</p>
+
+                {/* Legal Company Badge */}
+                <div className="flex items-center gap-2">
+                  <Building2 className="h-4 w-4 text-muted-foreground" />
+                  <span className="inline-flex items-center rounded-full bg-indigo-100 dark:bg-indigo-900/60 px-3 py-1 text-sm font-medium text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-700">
+                    {managerLegalCompany?.name || "N/A"}
+                  </span>
                 </div>
-              </div>
-              <div className="h-10 w-px bg-indigo-200 dark:bg-indigo-700 hidden sm:block" />
-              <div>
-                <div className="flex items-center gap-2 mb-1">
-                  <Building2 className="h-4 w-4 text-indigo-500" />
-                  <span className="text-sm font-medium text-indigo-600 dark:text-indigo-400">{t.legalCompany}</span>
-                </div>
-                <span className="inline-flex items-center rounded-md bg-indigo-100 dark:bg-indigo-900/50 px-2 py-0.5 text-xs font-medium text-indigo-700 dark:text-indigo-300">
-                  {managerLegalCompany?.name || "N/A"}
-                </span>
               </div>
             </div>
+          </div>
+        )}
 
-            {/* Employee Selector */}
-            <div className="mt-4 pt-4 border-t border-indigo-200 dark:border-indigo-700">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {/* Employee Selection Card */}
+        {actingUser && (
+          <div className="rounded-lg border border-border bg-card p-4 shadow-sm">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="text-sm font-medium text-muted-foreground flex items-center gap-1">
                     <Users className="h-3 w-3" />
@@ -654,7 +661,6 @@ export default function Dashboard() {
                   </div>
                 </div>
               </div>
-            </div>
           </div>
         )}
 
