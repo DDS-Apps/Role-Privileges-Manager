@@ -312,9 +312,22 @@ export class JsonStorage implements IStorage {
     try {
       const content = await fs.readFile(this.dataPath, "utf-8");
       this.data = JSON.parse(content);
+      let needsSave = false;
+      
       // Ensure requests array exists (for backwards compatibility)
       if (!this.data.requests) {
         this.data.requests = [];
+        needsSave = true;
+      }
+      
+      // Ensure E001 has isAdmin flag (for backwards compatibility)
+      const e001 = this.data.employees.find(e => e.id === "E001");
+      if (e001 && !e001.isAdmin) {
+        e001.isAdmin = true;
+        needsSave = true;
+      }
+      
+      if (needsSave) {
         await this.saveData();
       }
     } catch {

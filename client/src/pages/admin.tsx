@@ -324,8 +324,9 @@ export default function AdminPage() {
                           const privileges = getPrivilegeDetails(request.rolesSelected);
                           
                           return (
-                            <tbody key={request.id}>
+                            <>
                               <tr 
+                                key={request.id}
                                 className="border-b border-slate-200 dark:border-slate-600 cursor-pointer hover:bg-slate-200/50 dark:hover:bg-slate-600/50 transition-colors"
                                 onClick={() => setExpandedRequestId(isExpanded ? null : request.id)}
                                 data-testid={`row-request-${request.id}`}
@@ -417,7 +418,7 @@ export default function AdminPage() {
                                   </td>
                                 </tr>
                               )}
-                            </tbody>
+                            </>
                           );
                         })}
                       </tbody>

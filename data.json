@@ -152,7 +152,8 @@
       "title": "Manager",
       "email": "mohammed.nawar@example.com",
       "isManager": true,
-      "legalCompanyId": "001"
+      "legalCompanyId": "001",
+      "isAdmin": true
     },
     {
       "id": "E002",
