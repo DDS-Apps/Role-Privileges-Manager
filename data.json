@@ -1101,6 +1101,17 @@
         "P_HR_ER_03",
         "P_HR_ER_07"
       ]
+    },
+    {
+      "companyId": "054",
+      "employeeId": "E003",
+      "privilegeIds": [
+        "P_HR_PM_01",
+        "P_HR_PM_02",
+        "P_HR_PM_03",
+        "P_HR_PM_04",
+        "P_HR_PM_05"
+      ]
     }
   ],
   "requests": [
@@ -1121,10 +1132,10 @@
       ],
       "startDate": "2026-01-07",
       "endDate": "2026-01-30",
-      "status": "pending",
-      "adminComments": null,
+      "status": "active",
+      "adminComments": "OK I will give it to you",
       "createdAt": "2026-01-07T14:48:48.303Z",
-      "updatedAt": "2026-01-07T14:48:48.303Z"
+      "updatedAt": "2026-01-07T14:55:56.428Z"
     }
   ]
 }

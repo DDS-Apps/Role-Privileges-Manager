@@ -178,5 +178,14 @@
     "companyId": "054",
     "targetEmployeeId": "E003",
     "details": "Mohammed Nawar requested HR/Performance Management privileges for Shahad Alharbi in شركة دله للتنمية العقارية والسياحية (5 roles)"
+  },
+  {
+    "id": "6e78dca7-a868-4ed9-a95c-a96db45bc451",
+    "timestamp": "2026-01-07T14:55:56.434Z",
+    "managerUserId": "E001",
+    "actionType": "REQUEST_APPROVED",
+    "companyId": "054",
+    "targetEmployeeId": "E003",
+    "details": "Mohammed Nawar approved HR/Performance Management request for Shahad Alharbi in شركة دله للتنمية العقارية والسياحية - Comment: OK I will give it to you"
   }
 ]

@@ -60,6 +60,7 @@ const DICT = {
     noRequests: "No requests found",
     requestCreated: "Request submitted successfully",
     adminPanel: "Admin Panel",
+    noEndDate: "No end date",
   },
   ar: {
     title: "أدوار وامتيازات مستخدمي الأعمال",
@@ -109,6 +110,7 @@ const DICT = {
     noRequests: "لم يتم العثور على طلبات",
     requestCreated: "تم تقديم الطلب بنجاح",
     adminPanel: "لوحة الإدارة",
+    noEndDate: "لا يوجد تاريخ انتهاء",
   }
 };
 
@@ -116,10 +118,12 @@ const DICT = {
 function ExpandableHierarchy({ 
   allPrivileges, 
   companyAssignments,
+  activeRequests,
   t 
 }: { 
   allPrivileges: Privilege[];
   companyAssignments: { company: Company; privilegeIds: string[] }[];
+  activeRequests: PrivilegeRequest[];
   t: typeof DICT.en;
 }) {
   const [expandedCompanies, setExpandedCompanies] = useState<Set<string>>(new Set());
@@ -256,6 +260,11 @@ function ExpandableHierarchy({
                               .filter(p => !privilegeIds.includes(p.id))
                               .sort((a, b) => a.role.localeCompare(b.role));
 
+                            // Find active request for this function/company to get dates
+                            const matchingRequest = activeRequests.find(
+                              r => r.companyId === company.id && r.module === moduleName && r.function === funcName
+                            );
+
                             return (
                               <div key={funcKey}>
                                 {/* Function Header */}
@@ -267,6 +276,11 @@ function ExpandableHierarchy({
                                   {isFuncExpanded ? <ChevronDown className="h-3 w-3 text-indigo-600" /> : <ChevronRight className="h-3 w-3 text-indigo-600" />}
                                   <span className="text-sm text-muted-foreground">{funcName}</span>
                                   <span className="text-xs text-slate-600/70 dark:text-slate-400/70">({funcAssignedCount}/{funcPrivs.length})</span>
+                                  {matchingRequest && (
+                                    <span className="text-xs text-emerald-600 dark:text-emerald-400 ml-2">
+                                      {matchingRequest.startDate} - {matchingRequest.endDate || t.noEndDate}
+                                    </span>
+                                  )}
                                 </button>
 
                                 {/* Roles - show assigned first, then unassigned */}
@@ -1011,6 +1025,7 @@ export default function Dashboard() {
             <ExpandableHierarchy
               allPrivileges={data.privileges}
               companyAssignments={employeeAssignmentsWithCompanies}
+              activeRequests={activeRequests}
               t={t}
             />
           </div>
@@ -1106,9 +1121,9 @@ function RequestList({
                 {req.status}
               </div>
             </div>
-            {req.adminComment && (
+            {req.adminComments && (
               <div className="mt-2 text-xs text-muted-foreground border-t pt-2">
-                <span className="font-medium">Admin:</span> {req.adminComment}
+                <span className="font-medium">Admin:</span> {req.adminComments}
               </div>
             )}
           </div>
