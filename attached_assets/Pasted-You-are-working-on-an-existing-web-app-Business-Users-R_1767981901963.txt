@@ -1,0 +1,252 @@
+You are working on an existing web app Business Users Roles and Privileges.
+This task is UI/UX redesign only. Do not change business rules, API endpoints, or data model.
+Only refactor frontend layout, components, styling, and usability.
+
+1) Global UI Style Update (Modern Admin Console)
+
+Use a clean enterprise admin console style:
+
+Soft gray app background (#F7F8FC style)
+
+White cards with subtle shadow
+
+Rounded corners (12–16px)
+
+Clear spacing (24px sections)
+
+Consistent typography (title, subtitle, label, body)
+
+Keep the current primary color (purple/indigo), but use it only for:
+
+Header
+
+primary buttons
+
+active tab indicator
+
+status badges
+
+Add a design token file (or constants) for:
+
+colors, spacing, border radius, shadows
+
+Make the UI responsive:
+
+Desktop: 2-column where possible
+
+Mobile: stack cards vertically
+
+2) Replace Current Layout With a Clear “Context → Action → Results” Structure
+
+Redesign the main Manager page into 3 zones:
+
+Zone A: Sticky Top Header (Slim)
+
+Height ~56px, modern gradient or solid purple
+
+Left: App icon + title
+
+Right:
+
+“Act as Manager” selector (only managers)
+
+Language toggle (EN/AR)
+
+“Admin Panel” button (small outline button or link)
+
+Add subtle bottom shadow for sticky header
+
+Zone B: Context Cards Row (Two cards side-by-side)
+
+Create two cards in a 2-column grid:
+
+Card 1: Manager Context
+
+Avatar circle with initial
+
+Manager Name (bold)
+
+Position (muted)
+
+Legal Company as a pill badge (chip)
+
+Keep this card slightly highlighted (tinted background or left border accent)
+
+Card 2: Employee Context
+
+Employee avatar
+
+Employee Name
+
+Position
+
+Legal Company badge
+
+If no employee selected, show placeholder: “Select an employee”
+
+Zone C: Work Area (Privileges + Requests)
+
+Below the context cards, create a main work card that contains:
+
+A header row with:
+
+Title: “Privilege Requests”
+
+Primary button: + New Request (instead of “Add/Remove Privileges” accordion)
+
+Tabs:
+
+Pending / Active / Rejected with count badges
+
+Table/List of requests with columns:
+
+Module & Function (stacked)
+
+Roles summary (e.g., “5 roles selected” + small expand)
+
+Start Date
+
+End Date
+
+Status badge
+
+Chevron to expand row
+
+When row expands:
+
+Show role checklist summary (read-only)
+
+Show Admin Comments panel (if exists)
+
+Show created date
+
+3) Improve Employee Picker UX (Most Important)
+
+Replace the current “Company Employees” + dropdown into a cleaner selection panel:
+
+Add a small selection card under context cards (or left column):
+
+Checkbox: Company Employees
+
+Employee dropdown
+
+Search input (ID or name)
+
+When checkbox is unchecked, format dropdown options as:
+
+E003 – Shahad Alharbi – Dallah Holding
+
+Add “empty state” text if no results
+
+4) Current Privileges Section (Simplify)
+
+Instead of listing “Current Privilege (3 companies)” as collapsible boxes, show:
+
+A compact card titled Current Active Privileges
+
+Show:
+
+Total roles assigned
+
+Group by Module → Function (accordion)
+
+Each function row shows:
+
+Function name
+
+roles count (badge)
+
+Expand to show roles list
+
+5) Status Badges (Modern Chips)
+
+Create consistent status chips:
+
+Pending/On progress: amber
+
+Active: green
+
+Rejected: red
+Use consistent shape, small icon, and clear text.
+
+6) Modals / Panels
+
+When user clicks + New Request:
+
+Open a modal with:
+
+Module dropdown
+
+Function dropdown
+
+Roles checklist (default checked)
+
+Start date + End date
+
+Submit button (primary)
+
+Cancel button (secondary)
+
+Modal should be visually clean, with good spacing and sticky footer actions.
+
+7) RTL Support (Arabic)
+
+When language = Arabic:
+
+Switch layout direction to RTL
+
+Flip alignment (labels, icons)
+
+Keep same spacing
+
+Ensure badges and icons align properly in RTL
+
+Use Arabic font fallback if available (optional)
+
+8) Implementation Notes (So you don’t break the app)
+
+Do not change API calls or state logic; only reorganize UI components.
+
+Refactor UI into reusable components:
+
+TopBar
+
+ContextCard
+
+EmployeeSelector
+
+RequestsTabs
+
+RequestsTable
+
+PrivilegesPanel
+
+NewRequestModal
+
+StatusBadge
+
+Keep existing routes; add only UI improvements.
+
+Ensure accessibility:
+
+Focus states
+
+Keyboard close modal (Esc)
+
+Button disabled/loading states
+
+9) Deliverable
+
+After updating:
+
+UI should look like a modern SaaS admin dashboard:
+
+cleaner spacing
+
+fewer heavy borders
+
+strong hierarchy
+
+fewer stacked boxes
+
+Provide a short README note describing the new layout and where components are.
