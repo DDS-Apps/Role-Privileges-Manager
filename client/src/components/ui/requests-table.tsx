@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, Fragment } from "react";
 import { ChevronDown, ChevronRight, MessageSquare } from "lucide-react";
 import { StatusBadge } from "./status-badge";
 import type { PrivilegeRequest, Privilege, Company } from "@shared/schema";
@@ -78,9 +78,8 @@ export function RequestsTable({ requests, privileges, companies, t }: RequestsTa
             const roleDetails = getPrivilegeDetails(request.rolesSelected);
             
             return (
-              <>
+              <Fragment key={request.id}>
                 <tr 
-                  key={request.id}
                   className="border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer transition-colors"
                   onClick={() => toggleExpand(request.id)}
                   data-testid={`request-row-${request.id}`}
@@ -129,7 +128,7 @@ export function RequestsTable({ requests, privileges, companies, t }: RequestsTa
                 </tr>
                 
                 {isExpanded && (
-                  <tr key={`${request.id}-expanded`} className="bg-slate-50 dark:bg-slate-800/30">
+                  <tr className="bg-slate-50 dark:bg-slate-800/30">
                     <td colSpan={6} className="px-6 py-4">
                       <div className="space-y-4">
                         <div>
@@ -170,7 +169,7 @@ export function RequestsTable({ requests, privileges, companies, t }: RequestsTa
                     </td>
                   </tr>
                 )}
-              </>
+              </Fragment>
             );
           })}
         </tbody>
