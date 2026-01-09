@@ -12,19 +12,19 @@ const statusConfig = {
     label: 'Pending',
     labelAr: 'قيد الانتظار',
     icon: Clock,
-    className: 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300',
+    className: 'bg-amber-50 text-amber-800 border border-amber-200 dark:bg-amber-950/50 dark:text-amber-200 dark:border-amber-800',
   },
   active: {
     label: 'Active',
     labelAr: 'نشط',
     icon: CheckCircle2,
-    className: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300',
+    className: 'bg-teal-50 text-teal-800 border border-teal-200 dark:bg-teal-950/50 dark:text-teal-200 dark:border-teal-800',
   },
   rejected: {
     label: 'Rejected',
     labelAr: 'مرفوض',
     icon: XCircle,
-    className: 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300',
+    className: 'bg-rose-50 text-rose-800 border border-rose-200 dark:bg-rose-950/50 dark:text-rose-200 dark:border-rose-800',
   },
 };
 

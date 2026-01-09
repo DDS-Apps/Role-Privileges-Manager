@@ -1,43 +1,51 @@
 export const colors = {
   background: {
-    app: '#F7F8FC',
+    app: '#ECF1F6',
     card: '#FFFFFF',
-    cardMuted: '#F8FAFC',
-    cardAccent: '#F0F4FF',
+    cardMuted: '#F4F7FA',
+    cardAccent: '#E8EEF4',
   },
   primary: {
-    50: '#EEF2FF',
-    100: '#E0E7FF',
-    500: '#6366F1',
-    600: '#4F46E5',
-    700: '#4338CA',
+    50: '#E8EEF4',
+    100: '#D1DEE9',
+    500: '#1F4F6B',
+    600: '#0F2A4D',
+    700: '#0A1E38',
+  },
+  accent: {
+    50: '#E6F4F6',
+    100: '#C2E5EA',
+    500: '#218C9C',
+    600: '#1A7080',
+    700: '#145664',
   },
   status: {
     pending: {
-      bg: '#FEF3C7',
-      text: '#D97706',
-      border: '#F59E0B',
+      bg: '#FEF7E8',
+      text: '#B5751D',
+      border: '#D4A34A',
     },
     active: {
-      bg: '#D1FAE5',
-      text: '#059669',
-      border: '#10B981',
+      bg: '#E8F5F0',
+      text: '#2D7A5E',
+      border: '#48A37E',
     },
     rejected: {
-      bg: '#FEE2E2',
-      text: '#DC2626',
-      border: '#EF4444',
+      bg: '#FBE9E9',
+      text: '#B54242',
+      border: '#D66666',
     },
   },
   text: {
-    primary: '#1E293B',
-    secondary: '#64748B',
-    muted: '#94A3B8',
+    primary: '#1A2B3C',
+    secondary: '#4A5C6D',
+    muted: '#7A8B9C',
   },
   border: {
-    light: '#E2E8F0',
-    medium: '#CBD5E1',
+    light: '#D6DEE6',
+    medium: '#B8C4D0',
   },
+  divider: '#A7B4C2',
 };
 
 export const spacing = {
@@ -61,7 +69,7 @@ export const shadows = {
   sm: '0 1px 2px 0 rgb(0 0 0 / 0.05)',
   md: '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)',
   lg: '0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1)',
-  header: '0 2px 8px 0 rgb(0 0 0 / 0.1)',
+  header: '0 2px 8px 0 rgb(0 0 0 / 0.12)',
 };
 
 export const typography = {

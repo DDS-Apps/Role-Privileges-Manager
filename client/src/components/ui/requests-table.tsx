@@ -108,7 +108,7 @@ export function RequestsTable({ requests, privileges, companies, t }: RequestsTa
                         </span>
                       ))}
                       {roleDetails.length > 2 && (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-indigo-100 dark:bg-indigo-900/40 text-xs text-indigo-600 dark:text-indigo-300">
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-teal-100 dark:bg-teal-900/40 text-xs text-teal-700 dark:text-teal-300">
                           +{roleDetails.length - 2} more
                         </span>
                       )}

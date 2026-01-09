@@ -250,7 +250,7 @@ export default function AdminPage() {
 
   return (
     <div className="min-h-screen bg-background font-sans">
-      <header className="sticky top-0 z-50 bg-gradient-to-r from-indigo-600 via-indigo-700 to-violet-600 dark:from-indigo-800 dark:via-indigo-900 dark:to-violet-800 px-4 py-2 shadow-lg">
+      <header className="sticky top-0 z-50 bg-gradient-to-r from-slate-800 via-slate-900 to-slate-800 dark:from-slate-900 dark:via-slate-950 dark:to-slate-900 px-4 py-2 shadow-lg">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 flex-wrap">
           <div className="flex items-center gap-3">
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/20 text-white">

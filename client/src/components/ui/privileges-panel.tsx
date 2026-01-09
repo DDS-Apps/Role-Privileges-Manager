@@ -79,10 +79,10 @@ export function PrivilegesPanel({
     <div className="rounded-xl bg-white dark:bg-slate-800 p-4 shadow-md border border-slate-200 dark:border-slate-700">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
-          <ShieldCheck className="h-5 w-5 text-indigo-500" />
+          <ShieldCheck className="h-5 w-5 text-teal-600" />
           <h3 className="font-semibold text-slate-900 dark:text-slate-100">{t.currentPrivilege}</h3>
         </div>
-        <span className="px-2.5 py-1 rounded-full bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 text-sm font-medium">
+        <span className="px-2.5 py-1 rounded-full bg-teal-100 dark:bg-teal-900/40 text-teal-700 dark:text-teal-300 text-sm font-medium">
           {totalRoles} {t.rolesAssigned}
         </span>
       </div>
@@ -103,9 +103,9 @@ export function PrivilegesPanel({
               >
                 <div className="flex items-center gap-2">
                   {isExpanded ? (
-                    <ChevronDown className="h-4 w-4 text-indigo-500" />
+                    <ChevronDown className="h-4 w-4 text-teal-600" />
                   ) : (
-                    <ChevronRight className="h-4 w-4 text-indigo-500" />
+                    <ChevronRight className="h-4 w-4 text-teal-600" />
                   )}
                   <Building2 className="h-4 w-4 text-slate-400" />
                   <span className="font-medium text-slate-700 dark:text-slate-200 text-sm">{company.name}</span>
@@ -135,11 +135,11 @@ export function PrivilegesPanel({
                           data-testid={`toggle-module-${moduleKey}`}
                         >
                           {isModuleExpanded ? (
-                            <ChevronDown className="h-3 w-3 text-indigo-500" />
+                            <ChevronDown className="h-3 w-3 text-teal-600" />
                           ) : (
-                            <ChevronRight className="h-3 w-3 text-indigo-500" />
+                            <ChevronRight className="h-3 w-3 text-teal-600" />
                           )}
-                          <span className="px-2 py-0.5 rounded-md bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 text-xs font-medium">
+                          <span className="px-2 py-0.5 rounded-md bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-medium">
                             {moduleName}
                           </span>
                           <span className="text-xs text-slate-400">({moduleCount})</span>
@@ -173,7 +173,7 @@ export function PrivilegesPanel({
                                   {assignedRoles.length}
                                 </span>
                                 {matchingRequest && (
-                                  <span className="text-xs text-emerald-600 dark:text-emerald-400 ml-auto">
+                                  <span className="text-xs text-teal-600 dark:text-teal-400 ml-auto">
                                     {matchingRequest.startDate} - {matchingRequest.endDate || t.noEndDate}
                                   </span>
                                 )}
@@ -186,7 +186,7 @@ export function PrivilegesPanel({
                                       key={role.id}
                                       className="flex items-center gap-2 p-1.5 text-sm text-slate-600 dark:text-slate-300"
                                     >
-                                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
+                                      <span className="h-1.5 w-1.5 rounded-full bg-teal-500"></span>
                                       {role.role}
                                     </div>
                                   ))}

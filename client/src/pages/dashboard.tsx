@@ -264,7 +264,7 @@ export default function DashboardPage() {
   return (
     <div className="min-h-screen bg-background font-sans">
       {/* Zone A: Sticky Top Header (Slim 56px) */}
-      <header className="sticky top-0 z-50 h-14 bg-gradient-to-r from-indigo-600 via-indigo-700 to-violet-600 dark:from-indigo-800 dark:via-indigo-900 dark:to-violet-800 px-4 shadow-lg">
+      <header className="sticky top-0 z-50 h-14 bg-gradient-to-r from-slate-800 via-slate-900 to-slate-800 dark:from-slate-900 dark:via-slate-950 dark:to-slate-900 px-4 shadow-lg">
         <div className="mx-auto h-full max-w-7xl flex items-center justify-between gap-4">
           {/* Left: App Icon + Title */}
           <div className="flex items-center gap-3">
