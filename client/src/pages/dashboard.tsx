@@ -375,9 +375,9 @@ export default function DashboardPage() {
 
         {/* Zone C: Work Area - Only show when employee is selected */}
         {selectedEmployee && (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Main Content - Current Privileges */}
-            <div className="lg:col-span-2">
+          <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+            {/* Main Content - Current Privileges (60%) */}
+            <div className="lg:col-span-3">
               <PrivilegesPanel
                 allPrivileges={data.privileges}
                 companyAssignments={employeeAssignmentsWithCompanies}
@@ -391,8 +391,8 @@ export default function DashboardPage() {
               />
             </div>
 
-            {/* Sidebar - Privilege Requests */}
-            <div className="lg:col-span-1 space-y-6">
+            {/* Sidebar - Privilege Requests (40%) */}
+            <div className="lg:col-span-2 space-y-6">
               {/* Privilege Requests Card */}
               <div className="rounded-xl bg-white dark:bg-slate-800 p-4 shadow-md border border-slate-200 dark:border-slate-700">
                 {/* Header with New Request Button */}
