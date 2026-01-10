@@ -1112,6 +1112,15 @@
         "P_HR_PM_04",
         "P_HR_PM_05"
       ]
+    },
+    {
+      "companyId": "020",
+      "employeeId": "E004",
+      "privilegeIds": [
+        "P_HR_PM_02",
+        "P_HR_PM_05",
+        "P_HR_PM_01"
+      ]
     }
   ],
   "requests": [
@@ -1136,6 +1145,26 @@
       "adminComments": "OK I will give it to you",
       "createdAt": "2026-01-07T14:48:48.303Z",
       "updatedAt": "2026-01-07T14:55:56.428Z"
+    },
+    {
+      "id": "a32aedaa-dbf8-4e97-8981-2fc5c613c74e",
+      "managerId": "E001",
+      "managerLegalCompanyId": "001",
+      "employeeId": "E004",
+      "companyId": "020",
+      "module": "HR",
+      "function": "Performance Management",
+      "rolesSelected": [
+        "P_HR_PM_02",
+        "P_HR_PM_05",
+        "P_HR_PM_01"
+      ],
+      "startDate": "2026-01-10",
+      "endDate": "2026-01-22",
+      "status": "active",
+      "adminComments": "OK for one month",
+      "createdAt": "2026-01-10T11:40:59.430Z",
+      "updatedAt": "2026-01-10T11:41:22.914Z"
     }
   ]
 }

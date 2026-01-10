@@ -187,5 +187,23 @@
     "companyId": "054",
     "targetEmployeeId": "E003",
     "details": "Mohammed Nawar approved HR/Performance Management request for Shahad Alharbi in شركة دله للتنمية العقارية والسياحية - Comment: OK I will give it to you"
+  },
+  {
+    "id": "3ad8284d-cd98-4c49-b0f8-1928be9252ad",
+    "timestamp": "2026-01-10T11:40:59.435Z",
+    "managerUserId": "E001",
+    "actionType": "REQUEST_CREATED",
+    "companyId": "020",
+    "targetEmployeeId": "E004",
+    "details": "Mohammed Nawar requested HR/Performance Management privileges for Jameel Ashraf in شركة مجموعة خدمات الطعام (3 roles)"
+  },
+  {
+    "id": "55971470-82bc-43a0-9f4e-7999c745fbe9",
+    "timestamp": "2026-01-10T11:41:22.916Z",
+    "managerUserId": "E001",
+    "actionType": "REQUEST_APPROVED",
+    "companyId": "020",
+    "targetEmployeeId": "E004",
+    "details": "Mohammed Nawar approved HR/Performance Management request for Jameel Ashraf in شركة مجموعة خدمات الطعام - Comment: OK for one month"
   }
 ]
