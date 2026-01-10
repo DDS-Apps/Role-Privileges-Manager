@@ -335,7 +335,7 @@ export default function DashboardPage() {
       </header>
 
       <main className="mx-auto max-w-7xl p-4 md:p-6 space-y-6">
-        {/* Zone B: Context Cards Row */}
+        {/* Zone B: Manager Card + Employee Selector Row */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* Manager Context Card */}
           <ContextCard
@@ -346,42 +346,57 @@ export default function DashboardPage() {
             isHighlighted={true}
           />
 
-          {/* Employee Context Card */}
-          <ContextCard
-            type="employee"
-            name={selectedEmployee?.name}
-            title={selectedEmployee?.title}
-            company={employeeLegalCompany?.name}
-            placeholder={t.selectEmployeeFirst}
+          {/* Employee Selector */}
+          <EmployeeSelector
+            employees={availableEmployees}
+            companies={data.companies}
+            selectedEmployeeId={selectedEmployeeId}
+            onSelect={setSelectedEmployeeId}
+            managerLegalCompanyId={actingUser?.legalCompanyId || ""}
+            companyEmployeesOnly={companyEmployeesOnly}
+            onToggleCompanyEmployees={setCompanyEmployeesOnly}
+            t={{
+              companyEmployees: t.companyEmployees,
+              allEmployees: t.allEmployees,
+              selectEmployee: t.selectEmployee,
+              search: t.search,
+            }}
           />
         </div>
 
-        {/* Employee Selector */}
-        <EmployeeSelector
-          employees={availableEmployees}
-          companies={data.companies}
-          selectedEmployeeId={selectedEmployeeId}
-          onSelect={setSelectedEmployeeId}
-          managerLegalCompanyId={actingUser?.legalCompanyId || ""}
-          companyEmployeesOnly={companyEmployeesOnly}
-          onToggleCompanyEmployees={setCompanyEmployeesOnly}
-          t={{
-            companyEmployees: t.companyEmployees,
-            allEmployees: t.allEmployees,
-            selectEmployee: t.selectEmployee,
-            search: t.search,
-          }}
+        {/* Employee Details Card */}
+        <ContextCard
+          type="employee"
+          name={selectedEmployee?.name}
+          title={selectedEmployee?.title}
+          company={employeeLegalCompany?.name}
+          placeholder={t.selectEmployeeFirst}
         />
 
         {/* Zone C: Work Area - Only show when employee is selected */}
         {selectedEmployee && (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Main Content - Requests */}
-            <div className="lg:col-span-2 space-y-6">
+            {/* Main Content - Current Privileges */}
+            <div className="lg:col-span-2">
+              <PrivilegesPanel
+                allPrivileges={data.privileges}
+                companyAssignments={employeeAssignmentsWithCompanies}
+                activeRequests={activeRequests}
+                t={{
+                  currentPrivilege: t.currentPrivilege,
+                  noPrivileges: t.noPrivileges,
+                  rolesAssigned: t.rolesAssigned,
+                  noEndDate: t.noEndDate,
+                }}
+              />
+            </div>
+
+            {/* Sidebar - Privilege Requests */}
+            <div className="lg:col-span-1 space-y-6">
               {/* Privilege Requests Card */}
               <div className="rounded-xl bg-white dark:bg-slate-800 p-4 shadow-md border border-slate-200 dark:border-slate-700">
                 {/* Header with New Request Button */}
-                <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center justify-between mb-4 gap-2 flex-wrap">
                   <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100" data-testid="text-requests-title">
                     {t.privilegeRequests}
                     <span className="ml-2 text-sm font-normal text-slate-500">
@@ -390,6 +405,7 @@ export default function DashboardPage() {
                   </h2>
                   <Button 
                     onClick={() => setShowNewRequestModal(true)}
+                    size="sm"
                     className="gap-1.5"
                     data-testid="button-new-request"
                   >
@@ -400,7 +416,7 @@ export default function DashboardPage() {
 
                 {/* Tabs */}
                 <Tabs value={requestTab} onValueChange={(v) => setRequestTab(v as RequestStatus)}>
-                  <TabsList className="mb-4">
+                  <TabsList className="mb-4 flex-wrap h-auto gap-1">
                     <TabsTrigger value="pending" data-testid="tab-pending">
                       {t.pending}
                       <span className="ml-1.5 px-1.5 py-0.5 rounded-full bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 text-xs">
@@ -409,13 +425,13 @@ export default function DashboardPage() {
                     </TabsTrigger>
                     <TabsTrigger value="active" data-testid="tab-active">
                       {t.active}
-                      <span className="ml-1.5 px-1.5 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 text-xs">
+                      <span className="ml-1.5 px-1.5 py-0.5 rounded-full bg-teal-100 dark:bg-teal-900/40 text-teal-700 dark:text-teal-300 text-xs">
                         {activeRequests.length}
                       </span>
                     </TabsTrigger>
                     <TabsTrigger value="rejected" data-testid="tab-rejected">
                       {t.rejected}
-                      <span className="ml-1.5 px-1.5 py-0.5 rounded-full bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300 text-xs">
+                      <span className="ml-1.5 px-1.5 py-0.5 rounded-full bg-rose-100 dark:bg-rose-900/40 text-rose-700 dark:text-rose-300 text-xs">
                         {rejectedRequests.length}
                       </span>
                     </TabsTrigger>
@@ -441,21 +457,6 @@ export default function DashboardPage() {
                   </TabsContent>
                 </Tabs>
               </div>
-            </div>
-
-            {/* Sidebar - Current Privileges */}
-            <div className="lg:col-span-1">
-              <PrivilegesPanel
-                allPrivileges={data.privileges}
-                companyAssignments={employeeAssignmentsWithCompanies}
-                activeRequests={activeRequests}
-                t={{
-                  currentPrivilege: t.currentPrivilege,
-                  noPrivileges: t.noPrivileges,
-                  rolesAssigned: t.rolesAssigned,
-                  noEndDate: t.noEndDate,
-                }}
-              />
             </div>
           </div>
         )}
