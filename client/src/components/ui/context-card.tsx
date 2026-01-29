@@ -1,4 +1,4 @@
-import { Building2, Briefcase } from "lucide-react";
+import { Building2, Briefcase, User, Mail, Phone } from "lucide-react";
 
 interface ContextCardProps {
   type: 'manager' | 'employee';
@@ -18,55 +18,63 @@ export function ContextCard({
   isHighlighted = false 
 }: ContextCardProps) {
   const isEmpty = !name;
-  const initial = name?.charAt(0).toUpperCase() || (type === 'manager' ? 'M' : 'E');
-  
-  const bgGradient = type === 'manager' 
-    ? 'from-slate-700 to-slate-800' 
-    : 'from-slate-500 to-slate-600';
+  const cardTitle = type === 'manager' ? 'Manager Details' : 'Employee Details';
 
   return (
     <div 
-      className={`relative rounded-xl bg-white dark:bg-slate-800 p-4 shadow-sm border transition-all ${
-        isHighlighted 
-          ? 'border-l-4 border-l-teal-600 border-t border-r border-b border-slate-200 dark:border-slate-700' 
-          : 'border-slate-200 dark:border-slate-700'
-      }`}
+      className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden"
       data-testid={`context-card-${type}`}
     >
-      <div className="flex items-center gap-4">
-        <div className={`flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br ${bgGradient} text-white text-lg font-bold shadow-sm`}>
-          {initial}
-        </div>
-        
-        <div className="flex-1 min-w-0">
-          {isEmpty ? (
-            <p className="text-slate-400 dark:text-slate-500 text-sm italic">
+      {/* Card Header */}
+      <div className={`px-4 py-3 border-b border-slate-200 dark:border-slate-700 ${
+        isHighlighted ? 'bg-slate-50 dark:bg-slate-900' : 'bg-slate-50 dark:bg-slate-900'
+      }`}>
+        <h3 className="font-semibold text-slate-900 dark:text-slate-100 text-sm">
+          {cardTitle}
+        </h3>
+      </div>
+
+      {/* Card Body */}
+      <div className="divide-y divide-slate-100 dark:divide-slate-700">
+        {isEmpty ? (
+          <div className="px-4 py-8 text-center">
+            <User className="h-10 w-10 mx-auto mb-2 text-slate-300 dark:text-slate-600" />
+            <p className="text-slate-400 dark:text-slate-500 text-sm">
               {placeholder || `Select ${type}`}
             </p>
-          ) : (
-            <>
-              <h3 className="font-semibold text-slate-900 dark:text-slate-100 truncate" data-testid={`${type}-name`}>
+          </div>
+        ) : (
+          <>
+            {/* Name Row */}
+            <div className="flex items-center justify-between px-4 py-3">
+              <span className="text-sm text-slate-500 dark:text-slate-400">Name</span>
+              <span className="text-sm font-medium text-slate-900 dark:text-slate-100" data-testid={`${type}-name`}>
                 {name}
-              </h3>
-              {title && (
-                <div className="flex items-center gap-1.5 text-sm text-slate-500 dark:text-slate-400">
-                  <Briefcase className="h-3.5 w-3.5" />
-                  <span className="truncate">{title}</span>
-                </div>
-              )}
-            </>
-          )}
-        </div>
+              </span>
+            </div>
+
+            {/* Title Row */}
+            {title && (
+              <div className="flex items-center justify-between px-4 py-3">
+                <span className="text-sm text-slate-500 dark:text-slate-400">Position</span>
+                <span className="text-sm text-slate-700 dark:text-slate-300">
+                  {title}
+                </span>
+              </div>
+            )}
+
+            {/* Company Row */}
+            {company && (
+              <div className="flex items-center justify-between px-4 py-3">
+                <span className="text-sm text-slate-500 dark:text-slate-400">Legal Company</span>
+                <span className="text-sm text-teal-600 dark:text-teal-400 font-medium">
+                  {company}
+                </span>
+              </div>
+            )}
+          </>
+        )}
       </div>
-      
-      {company && (
-        <div className="mt-3 flex items-center gap-2">
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-medium border border-slate-200 dark:border-slate-600">
-            <Building2 className="h-3 w-3" />
-            {company}
-          </span>
-        </div>
-      )}
     </div>
   );
 }

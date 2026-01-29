@@ -1121,6 +1121,15 @@
         "P_HR_PM_05",
         "P_HR_PM_01"
       ]
+    },
+    {
+      "companyId": "022",
+      "employeeId": "9280",
+      "privilegeIds": [
+        "P_SCM_OM_01",
+        "P_SCM_OM_05",
+        "P_SCM_OM_04"
+      ]
     }
   ],
   "requests": [
@@ -1165,6 +1174,65 @@
       "adminComments": "OK for one month",
       "createdAt": "2026-01-10T11:40:59.430Z",
       "updatedAt": "2026-01-10T11:41:22.914Z"
+    },
+    {
+      "id": "4fbe12f1-4586-474c-9b52-dee493fb8544",
+      "managerId": "E001",
+      "managerLegalCompanyId": "001",
+      "employeeId": "9280",
+      "companyId": "022",
+      "module": "SCM",
+      "function": "Order Management",
+      "rolesSelected": [
+        "P_SCM_OM_01",
+        "P_SCM_OM_05",
+        "P_SCM_OM_04"
+      ],
+      "startDate": "2026-01-11",
+      "endDate": "2026-01-21",
+      "status": "active",
+      "adminComments": null,
+      "createdAt": "2026-01-11T06:31:13.261Z",
+      "updatedAt": "2026-01-11T06:31:34.784Z"
+    },
+    {
+      "id": "d5bb5c55-2208-4c9c-b9db-83ef060f383a",
+      "managerId": "E001",
+      "managerLegalCompanyId": "001",
+      "employeeId": "9280",
+      "companyId": "022",
+      "module": "SCM",
+      "function": "Order Management",
+      "rolesSelected": [
+        "P_SCM_OM_01"
+      ],
+      "startDate": "2026-01-11",
+      "endDate": "2026-01-25",
+      "status": "pending",
+      "adminComments": null,
+      "createdAt": "2026-01-11T06:32:42.524Z",
+      "updatedAt": "2026-01-11T06:32:42.524Z"
+    },
+    {
+      "id": "8c2cfd11-09c8-482b-9953-1d232f196da5",
+      "managerId": "E002",
+      "managerLegalCompanyId": "002",
+      "employeeId": "E008",
+      "companyId": "002",
+      "module": "HR",
+      "function": "Performance Management",
+      "rolesSelected": [
+        "P_HR_PM_02",
+        "P_HR_PM_05",
+        "P_HR_PM_01",
+        "P_HR_PM_03"
+      ],
+      "startDate": "2026-01-29",
+      "endDate": null,
+      "status": "pending",
+      "adminComments": null,
+      "createdAt": "2026-01-29T10:25:01.907Z",
+      "updatedAt": "2026-01-29T10:25:01.907Z"
     }
   ]
 }

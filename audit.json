@@ -205,5 +205,41 @@
     "companyId": "020",
     "targetEmployeeId": "E004",
     "details": "Mohammed Nawar approved HR/Performance Management request for Jameel Ashraf in شركة مجموعة خدمات الطعام - Comment: OK for one month"
+  },
+  {
+    "id": "9cacf27b-435b-470e-9079-b0f87a28443e",
+    "timestamp": "2026-01-11T06:31:13.264Z",
+    "managerUserId": "E001",
+    "actionType": "REQUEST_CREATED",
+    "companyId": "022",
+    "targetEmployeeId": "9280",
+    "details": "Mohammed Nawar requested SCM/Order Management privileges for Ibrahim Mohammed Shaker in شركة دله لتعليم قيادة السيارات (3 roles)"
+  },
+  {
+    "id": "f0c6549b-c796-4ea4-9250-01999095eeaa",
+    "timestamp": "2026-01-11T06:31:34.786Z",
+    "managerUserId": "E001",
+    "actionType": "REQUEST_APPROVED",
+    "companyId": "022",
+    "targetEmployeeId": "9280",
+    "details": "Mohammed Nawar approved SCM/Order Management request for Ibrahim Mohammed Shaker in شركة دله لتعليم قيادة السيارات"
+  },
+  {
+    "id": "382d0a07-48a9-4eb3-bbe4-55ff3bcf9636",
+    "timestamp": "2026-01-11T06:32:42.527Z",
+    "managerUserId": "E001",
+    "actionType": "REQUEST_CREATED",
+    "companyId": "022",
+    "targetEmployeeId": "9280",
+    "details": "Mohammed Nawar requested SCM/Order Management privileges for Ibrahim Mohammed Shaker in شركة دله لتعليم قيادة السيارات (1 roles)"
+  },
+  {
+    "id": "2ff1f099-4078-47ee-ab54-e6f523f73190",
+    "timestamp": "2026-01-29T10:25:01.918Z",
+    "managerUserId": "E002",
+    "actionType": "REQUEST_CREATED",
+    "companyId": "002",
+    "targetEmployeeId": "E008",
+    "details": "Adnan Alqahtani requested HR/Performance Management privileges for Khalid Saleh in شركة دله الرقمية (4 roles)"
   }
 ]

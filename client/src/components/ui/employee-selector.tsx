@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { Search, Users } from "lucide-react";
+import { Search, Users, ChevronDown } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
@@ -63,15 +63,18 @@ export function EmployeeSelector({
   }, [employees, companyEmployeesOnly, managerLegalCompanyId, searchQuery]);
 
   return (
-    <div className="rounded-xl bg-white dark:bg-slate-800 p-4 shadow-md border border-slate-200 dark:border-slate-700">
-      <div className="flex items-center gap-2 mb-4">
-        <Users className="h-4 w-4 text-slate-500" />
-        <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
+    <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden">
+      {/* Card Header */}
+      <div className="px-4 py-3 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900">
+        <h3 className="font-semibold text-slate-900 dark:text-slate-100 text-sm flex items-center gap-2">
+          <Users className="h-4 w-4 text-teal-600" />
           {t.selectEmployee}
-        </span>
+        </h3>
       </div>
 
-      <div className="space-y-3">
+      {/* Card Body */}
+      <div className="p-4 space-y-3">
+        {/* Toggle */}
         <div className="flex items-center gap-2">
           <Checkbox 
             id="company-employees" 
@@ -87,6 +90,7 @@ export function EmployeeSelector({
           </Label>
         </div>
 
+        {/* Search */}
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
           <Input
@@ -98,8 +102,9 @@ export function EmployeeSelector({
           />
         </div>
 
+        {/* Select */}
         <Select value={selectedEmployeeId} onValueChange={onSelect}>
-          <SelectTrigger className="bg-slate-50 dark:bg-slate-900" data-testid="select-employee">
+          <SelectTrigger className="bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-700" data-testid="select-employee">
             <SelectValue placeholder={t.selectEmployee} />
           </SelectTrigger>
           <SelectContent>

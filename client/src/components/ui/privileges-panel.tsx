@@ -62,43 +62,42 @@ export function PrivilegesPanel({
 
   if (companyAssignments.length === 0) {
     return (
-      <div className="rounded-xl bg-white dark:bg-slate-800 p-6 shadow-md border border-slate-200 dark:border-slate-700">
-        <div className="flex items-center gap-2 mb-4">
-          <ShieldCheck className="h-5 w-5 text-slate-400" />
-          <h3 className="font-semibold text-slate-900 dark:text-slate-100">{t.currentPrivilege}</h3>
+      <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden">
+        <div className="px-4 py-3 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 flex items-center gap-2">
+          <ShieldCheck className="h-4 w-4 text-teal-600" />
+          <h3 className="font-semibold text-slate-900 dark:text-slate-100 text-sm">{t.currentPrivilege}</h3>
         </div>
-        <div className="text-center py-8 text-slate-400">
-          <ShieldCheck className="h-12 w-12 mx-auto mb-2 opacity-30" />
-          <p className="text-sm">{t.noPrivileges}</p>
+        <div className="text-center py-12 px-4">
+          <ShieldCheck className="h-12 w-12 mx-auto mb-3 text-slate-300 dark:text-slate-600" />
+          <p className="text-sm text-slate-400">{t.noPrivileges}</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="rounded-xl bg-white dark:bg-slate-800 p-4 shadow-md border border-slate-200 dark:border-slate-700">
-      <div className="flex items-center justify-between mb-4">
+    <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden">
+      {/* Header */}
+      <div className="px-4 py-3 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <ShieldCheck className="h-5 w-5 text-teal-600" />
-          <h3 className="font-semibold text-slate-900 dark:text-slate-100">{t.currentPrivilege}</h3>
+          <ShieldCheck className="h-4 w-4 text-teal-600" />
+          <h3 className="font-semibold text-slate-900 dark:text-slate-100 text-sm">{t.currentPrivilege}</h3>
         </div>
-        <span className="px-2.5 py-1 rounded-full bg-teal-100 dark:bg-teal-900/40 text-teal-700 dark:text-teal-300 text-sm font-medium">
+        <span className="px-2.5 py-1 rounded-full bg-teal-100 dark:bg-teal-900/40 text-teal-700 dark:text-teal-300 text-xs font-medium">
           {totalRoles} {t.rolesAssigned}
         </span>
       </div>
 
-      <div className="space-y-2">
+      {/* Body */}
+      <div className="divide-y divide-slate-100 dark:divide-slate-700">
         {companyAssignments.map(({ company, privilegeIds }) => {
           const isExpanded = expandedCompanies.has(company.id);
           
           return (
-            <div 
-              key={company.id} 
-              className="rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden bg-slate-50 dark:bg-slate-900/50"
-            >
+            <div key={company.id}>
               <button
                 onClick={() => toggleCompany(company.id)}
-                className="w-full flex items-center justify-between p-3 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-left"
+                className="w-full flex items-center justify-between px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-900/50 transition-colors text-left"
                 data-testid={`toggle-company-${company.id}`}
               >
                 <div className="flex items-center gap-2">
@@ -110,13 +109,13 @@ export function PrivilegesPanel({
                   <Building2 className="h-4 w-4 text-slate-400" />
                   <span className="font-medium text-slate-700 dark:text-slate-200 text-sm">{company.name}</span>
                 </div>
-                <span className="text-xs text-slate-500 dark:text-slate-400 bg-slate-200 dark:bg-slate-700 px-2 py-0.5 rounded-full">
+                <span className="text-xs text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-700 px-2 py-0.5 rounded-full">
                   {privilegeIds.length}
                 </span>
               </button>
 
               {isExpanded && (
-                <div className="border-t border-slate-200 dark:border-slate-700">
+                <div className="bg-slate-50/50 dark:bg-slate-900/30">
                   {Object.entries(moduleGroups).sort(([a], [b]) => a.localeCompare(b)).map(([moduleName, functionGroups]) => {
                     const moduleKey = `${company.id}-${moduleName}`;
                     const isModuleExpanded = expandedModules.has(moduleKey);
@@ -128,10 +127,10 @@ export function PrivilegesPanel({
                     if (moduleCount === 0) return null;
 
                     return (
-                      <div key={moduleKey} className="border-t border-slate-100 dark:border-slate-800 first:border-t-0">
+                      <div key={moduleKey} className="border-t border-slate-100 dark:border-slate-800">
                         <button
                           onClick={() => toggleModule(moduleKey)}
-                          className="w-full flex items-center gap-2 p-2 pl-6 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-left"
+                          className="w-full flex items-center gap-2 px-4 py-2 pl-8 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-left"
                           data-testid={`toggle-module-${moduleKey}`}
                         >
                           {isModuleExpanded ? (
@@ -139,7 +138,7 @@ export function PrivilegesPanel({
                           ) : (
                             <ChevronRight className="h-3 w-3 text-teal-600" />
                           )}
-                          <span className="px-2 py-0.5 rounded-md bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-medium">
+                          <span className="px-2 py-0.5 rounded bg-teal-100 dark:bg-teal-900/40 text-teal-700 dark:text-teal-300 text-xs font-medium">
                             {moduleName}
                           </span>
                           <span className="text-xs text-slate-400">({moduleCount})</span>
@@ -160,7 +159,7 @@ export function PrivilegesPanel({
                             <div key={funcKey}>
                               <button
                                 onClick={() => toggleFunction(funcKey)}
-                                className="w-full flex items-center gap-2 p-2 pl-10 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-left"
+                                className="w-full flex items-center gap-2 px-4 py-2 pl-12 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-left"
                                 data-testid={`toggle-function-${funcKey}`}
                               >
                                 {isFuncExpanded ? (
@@ -180,11 +179,11 @@ export function PrivilegesPanel({
                               </button>
 
                               {isFuncExpanded && (
-                                <div className="pl-14 pr-3 pb-2 space-y-1">
+                                <div className="pl-16 pr-4 pb-2 space-y-1">
                                   {assignedRoles.sort((a, b) => a.role.localeCompare(b.role)).map(role => (
                                     <div 
                                       key={role.id}
-                                      className="flex items-center gap-2 p-1.5 text-sm text-slate-600 dark:text-slate-300"
+                                      className="flex items-center gap-2 py-1.5 text-sm text-slate-600 dark:text-slate-300"
                                     >
                                       <span className="h-1.5 w-1.5 rounded-full bg-teal-500"></span>
                                       {role.role}

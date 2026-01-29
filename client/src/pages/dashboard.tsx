@@ -334,50 +334,66 @@ export default function DashboardPage() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-7xl p-4 md:p-6 space-y-6">
-        {/* Zone B: Manager Card + Employee Selector Row */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* Manager Context Card */}
+      <main className="mx-auto max-w-7xl p-4 md:p-6 space-y-8">
+        {/* Section: Account Details */}
+        <section>
+          <h2 className="flex items-center gap-2 text-lg font-bold text-slate-900 dark:text-slate-100 mb-4">
+            <span className="w-1 h-6 bg-teal-600 rounded-full"></span>
+            {t.managerDetails}
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Manager Context Card */}
+            <ContextCard
+              type="manager"
+              name={actingUser?.name}
+              title={actingUser?.title}
+              company={managerLegalCompany?.name}
+              isHighlighted={true}
+            />
+
+            {/* Employee Selector */}
+            <EmployeeSelector
+              employees={availableEmployees}
+              companies={data.companies}
+              selectedEmployeeId={selectedEmployeeId}
+              onSelect={setSelectedEmployeeId}
+              managerLegalCompanyId={actingUser?.legalCompanyId || ""}
+              companyEmployeesOnly={companyEmployeesOnly}
+              onToggleCompanyEmployees={setCompanyEmployeesOnly}
+              t={{
+                companyEmployees: t.companyEmployees,
+                allEmployees: t.allEmployees,
+                selectEmployee: t.selectEmployee,
+                search: t.search,
+              }}
+            />
+          </div>
+        </section>
+
+        {/* Section: Employee Details */}
+        <section>
+          <h2 className="flex items-center gap-2 text-lg font-bold text-slate-900 dark:text-slate-100 mb-4">
+            <span className="w-1 h-6 bg-teal-600 rounded-full"></span>
+            {t.employeeDetails}
+          </h2>
           <ContextCard
-            type="manager"
-            name={actingUser?.name}
-            title={actingUser?.title}
-            company={managerLegalCompany?.name}
-            isHighlighted={true}
+            type="employee"
+            name={selectedEmployee?.name}
+            title={selectedEmployee?.title}
+            company={employeeLegalCompany?.name}
+            placeholder={t.selectEmployeeFirst}
           />
+        </section>
 
-          {/* Employee Selector */}
-          <EmployeeSelector
-            employees={availableEmployees}
-            companies={data.companies}
-            selectedEmployeeId={selectedEmployeeId}
-            onSelect={setSelectedEmployeeId}
-            managerLegalCompanyId={actingUser?.legalCompanyId || ""}
-            companyEmployeesOnly={companyEmployeesOnly}
-            onToggleCompanyEmployees={setCompanyEmployeesOnly}
-            t={{
-              companyEmployees: t.companyEmployees,
-              allEmployees: t.allEmployees,
-              selectEmployee: t.selectEmployee,
-              search: t.search,
-            }}
-          />
-        </div>
-
-        {/* Employee Details Card */}
-        <ContextCard
-          type="employee"
-          name={selectedEmployee?.name}
-          title={selectedEmployee?.title}
-          company={employeeLegalCompany?.name}
-          placeholder={t.selectEmployeeFirst}
-        />
-
-        {/* Zone C: Work Area - Only show when employee is selected */}
+        {/* Section: Privileges Overview - Only show when employee is selected */}
         {selectedEmployee && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Current Privileges (50%) */}
-            <div>
+          <section>
+            <h2 className="flex items-center gap-2 text-lg font-bold text-slate-900 dark:text-slate-100 mb-4">
+              <span className="w-1 h-6 bg-teal-600 rounded-full"></span>
+              {t.privileges}
+            </h2>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Current Privileges (50%) */}
               <PrivilegesPanel
                 allPrivileges={data.privileges}
                 companyAssignments={employeeAssignmentsWithCompanies}
@@ -389,89 +405,91 @@ export default function DashboardPage() {
                   noEndDate: t.noEndDate,
                 }}
               />
-            </div>
 
-            {/* Privilege Requests (50%) */}
-            <div className="space-y-6">
-              {/* Privilege Requests Card */}
-              <div className="rounded-xl bg-white dark:bg-slate-800 p-4 shadow-md border border-slate-200 dark:border-slate-700">
-                {/* Header with New Request Button */}
-                <div className="flex items-center justify-between mb-4 gap-2 flex-wrap">
-                  <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100" data-testid="text-requests-title">
+              {/* Privilege Requests (50%) */}
+              <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden">
+                {/* Card Header with New Request Button */}
+                <div className="px-4 py-3 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 flex items-center justify-between gap-2 flex-wrap">
+                  <h3 className="font-semibold text-slate-900 dark:text-slate-100 text-sm" data-testid="text-requests-title">
                     {t.privilegeRequests}
-                    <span className="ml-2 text-sm font-normal text-slate-500">
-                      {employeeRequests.length}
+                    <span className="ml-2 text-xs font-normal text-slate-500">
+                      ({employeeRequests.length})
                     </span>
-                  </h2>
+                  </h3>
                   <Button 
                     onClick={() => setShowNewRequestModal(true)}
                     size="sm"
-                    className="gap-1.5"
+                    className="gap-1.5 h-8"
                     data-testid="button-new-request"
                   >
-                    <Plus className="h-4 w-4" />
+                    <Plus className="h-3.5 w-3.5" />
                     {t.newRequest}
                   </Button>
                 </div>
 
-                {/* Tabs */}
-                <Tabs value={requestTab} onValueChange={(v) => setRequestTab(v as RequestStatus)}>
-                  <TabsList className="mb-4 flex-wrap h-auto gap-1">
-                    <TabsTrigger value="pending" data-testid="tab-pending">
-                      {t.pending}
-                      <span className="ml-1.5 px-1.5 py-0.5 rounded-full bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 text-xs">
-                        {pendingRequests.length}
-                      </span>
-                    </TabsTrigger>
-                    <TabsTrigger value="active" data-testid="tab-active">
-                      {t.active}
-                      <span className="ml-1.5 px-1.5 py-0.5 rounded-full bg-teal-100 dark:bg-teal-900/40 text-teal-700 dark:text-teal-300 text-xs">
-                        {activeRequests.length}
-                      </span>
-                    </TabsTrigger>
-                    <TabsTrigger value="rejected" data-testid="tab-rejected">
-                      {t.rejected}
-                      <span className="ml-1.5 px-1.5 py-0.5 rounded-full bg-rose-100 dark:bg-rose-900/40 text-rose-700 dark:text-rose-300 text-xs">
-                        {rejectedRequests.length}
-                      </span>
-                    </TabsTrigger>
-                  </TabsList>
+                {/* Card Body with Tabs */}
+                <div className="p-4">
+                  <Tabs value={requestTab} onValueChange={(v) => setRequestTab(v as RequestStatus)}>
+                    <TabsList className="mb-4 flex-wrap h-auto gap-1 bg-slate-100 dark:bg-slate-800">
+                      <TabsTrigger value="pending" data-testid="tab-pending" className="text-xs">
+                        {t.pending}
+                        <span className="ml-1.5 px-1.5 py-0.5 rounded-full bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 text-xs">
+                          {pendingRequests.length}
+                        </span>
+                      </TabsTrigger>
+                      <TabsTrigger value="active" data-testid="tab-active" className="text-xs">
+                        {t.active}
+                        <span className="ml-1.5 px-1.5 py-0.5 rounded-full bg-teal-100 dark:bg-teal-900/40 text-teal-700 dark:text-teal-300 text-xs">
+                          {activeRequests.length}
+                        </span>
+                      </TabsTrigger>
+                      <TabsTrigger value="rejected" data-testid="tab-rejected" className="text-xs">
+                        {t.rejected}
+                        <span className="ml-1.5 px-1.5 py-0.5 rounded-full bg-rose-100 dark:bg-rose-900/40 text-rose-700 dark:text-rose-300 text-xs">
+                          {rejectedRequests.length}
+                        </span>
+                      </TabsTrigger>
+                    </TabsList>
 
-                  <TabsContent value={requestTab}>
-                    <RequestsTable
-                      requests={currentTabRequests}
-                      privileges={data.privileges}
-                      companies={data.companies}
-                      t={{
-                        moduleFunction: t.moduleFunction,
-                        requestedRoles: t.requestedRoles,
-                        startDate: t.startDate,
-                        endDate: t.endDate,
-                        status: t.status,
-                        noRequests: t.noRequests,
-                        adminComment: t.adminComment,
-                        roles: t.roles,
-                        noEndDate: t.noEndDate,
-                      }}
-                    />
-                  </TabsContent>
-                </Tabs>
+                    <TabsContent value={requestTab}>
+                      <RequestsTable
+                        requests={currentTabRequests}
+                        privileges={data.privileges}
+                        companies={data.companies}
+                        t={{
+                          moduleFunction: t.moduleFunction,
+                          requestedRoles: t.requestedRoles,
+                          startDate: t.startDate,
+                          endDate: t.endDate,
+                          status: t.status,
+                          noRequests: t.noRequests,
+                          adminComment: t.adminComment,
+                          roles: t.roles,
+                          noEndDate: t.noEndDate,
+                        }}
+                      />
+                    </TabsContent>
+                  </Tabs>
+                </div>
               </div>
             </div>
-          </div>
+          </section>
         )}
 
         {/* Empty State when no employee selected */}
         {!selectedEmployee && (
-          <div className="rounded-xl bg-white dark:bg-slate-800 p-12 shadow-md border border-slate-200 dark:border-slate-700 text-center">
-            <ShieldCheck className="h-16 w-16 mx-auto mb-4 text-slate-300 dark:text-slate-600" />
-            <h3 className="text-lg font-medium text-slate-600 dark:text-slate-400 mb-2">
-              {t.selectEmployeeFirst}
-            </h3>
-            <p className="text-sm text-slate-500 dark:text-slate-500">
-              {t.noLegalEmployees}
-            </p>
-          </div>
+          <section>
+            <h2 className="flex items-center gap-2 text-lg font-bold text-slate-900 dark:text-slate-100 mb-4">
+              <span className="w-1 h-6 bg-teal-600 rounded-full"></span>
+              {t.privileges}
+            </h2>
+            <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-12 text-center">
+              <ShieldCheck className="h-12 w-12 mx-auto mb-3 text-slate-300 dark:text-slate-600" />
+              <h3 className="text-base font-medium text-slate-600 dark:text-slate-400 mb-1">
+                {t.selectEmployeeFirst}
+              </h3>
+            </div>
+          </section>
         )}
       </main>
 
