@@ -63,7 +63,7 @@ export function EmployeeSelector({
   }, [employees, companyEmployeesOnly, managerLegalCompanyId, searchQuery]);
 
   return (
-    <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden">
+    <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden shadow-md hover:shadow-lg transition-shadow">
       {/* Card Header */}
       <div className="px-4 py-3 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900">
         <h3 className="font-semibold text-slate-900 dark:text-slate-100 text-sm flex items-center gap-2">

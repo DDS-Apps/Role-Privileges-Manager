@@ -22,7 +22,7 @@ export function ContextCard({
 
   return (
     <div 
-      className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden"
+      className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden shadow-md hover:shadow-lg transition-shadow"
       data-testid={`context-card-${type}`}
     >
       {/* Card Header */}

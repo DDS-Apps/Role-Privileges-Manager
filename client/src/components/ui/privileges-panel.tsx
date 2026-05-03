@@ -62,7 +62,7 @@ export function PrivilegesPanel({
 
   if (companyAssignments.length === 0) {
     return (
-      <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden">
+      <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden shadow-md hover:shadow-lg transition-shadow">
         <div className="px-4 py-3 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 flex items-center gap-2">
           <ShieldCheck className="h-4 w-4 text-teal-600" />
           <h3 className="font-semibold text-slate-900 dark:text-slate-100 text-sm">{t.currentPrivilege}</h3>
@@ -76,7 +76,7 @@ export function PrivilegesPanel({
   }
 
   return (
-    <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden">
+    <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden shadow-md hover:shadow-lg transition-shadow">
       {/* Header */}
       <div className="px-4 py-3 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 flex items-center justify-between">
         <div className="flex items-center gap-2">
