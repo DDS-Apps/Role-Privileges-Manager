@@ -17,13 +17,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import type { Privilege, Company } from "@shared/schema";
+import type { Privilege } from "@shared/schema";
 
 interface NewRequestModalProps {
   open: boolean;
   onClose: () => void;
   onSubmit: (data: {
-    companyId: string;
     module: string;
     function: string;
     rolesSelected: string[];
@@ -31,11 +30,9 @@ interface NewRequestModalProps {
     endDate: string | null;
   }) => Promise<void>;
   privileges: Privilege[];
-  companies: Company[];
   isSubmitting: boolean;
   t: {
     newRequest: string;
-    company: string;
     module: string;
     function: string;
     role: string;
@@ -54,11 +51,9 @@ export function NewRequestModal({
   onClose,
   onSubmit,
   privileges,
-  companies,
   isSubmitting,
   t,
 }: NewRequestModalProps) {
-  const [selectedCompanyId, setSelectedCompanyId] = useState("");
   const [selectedModule, setSelectedModule] = useState("");
   const [selectedFunction, setSelectedFunction] = useState("");
   const [roleSelections, setRoleSelections] = useState<Record<string, boolean>>({});
@@ -118,7 +113,6 @@ export function NewRequestModal({
       .map(([id]) => id);
 
     await onSubmit({
-      companyId: selectedCompanyId,
       module: selectedModule,
       function: selectedFunction,
       rolesSelected: selectedRoles,
@@ -128,7 +122,7 @@ export function NewRequestModal({
   };
 
   const selectedCount = Object.values(roleSelections).filter(Boolean).length;
-  const canSubmit = selectedCompanyId && selectedModule && selectedFunction && selectedCount > 0 && startDate;
+  const canSubmit = selectedModule && selectedFunction && selectedCount > 0 && startDate;
 
   return (
     <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
@@ -140,20 +134,6 @@ export function NewRequestModal({
         </DialogHeader>
 
         <div className="space-y-4 py-2">
-          <div>
-            <Label className="text-sm font-medium mb-1.5 block">{t.company}</Label>
-            <Select value={selectedCompanyId} onValueChange={setSelectedCompanyId}>
-              <SelectTrigger data-testid="modal-select-company">
-                <SelectValue placeholder={`Select ${t.company.toLowerCase()}`} />
-              </SelectTrigger>
-              <SelectContent>
-                {companies.map(c => (
-                  <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
           <div>
             <Label className="text-sm font-medium mb-1.5 block">{t.module}</Label>
             <Select value={selectedModule} onValueChange={setSelectedModule}>

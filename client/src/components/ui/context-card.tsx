@@ -4,25 +4,29 @@ interface ContextCardProps {
   type: 'manager' | 'employee';
   name?: string;
   title?: string;
+  department?: string;
+  lineManager?: string;
   company?: string;
   placeholder?: string;
   isHighlighted?: boolean;
 }
 
-export function ContextCard({ 
-  type, 
-  name, 
-  title, 
-  company, 
+export function ContextCard({
+  type,
+  name,
+  title,
+  department,
+  lineManager,
+  company,
   placeholder,
-  isHighlighted = false 
+  isHighlighted = false
 }: ContextCardProps) {
   const isEmpty = !name;
   const cardTitle = type === 'manager' ? 'Manager Details' : 'Employee Details';
 
   return (
     <div 
-      className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden shadow-md hover:shadow-lg transition-shadow"
+      className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl overflow-hidden shadow-xl hover:shadow-2xl transition-shadow"
       data-testid={`context-card-${type}`}
     >
       {/* Card Header */}
@@ -63,10 +67,32 @@ export function ContextCard({
               </div>
             )}
 
+            {/* Department Row */}
+            {department && (
+              <div className="flex items-center justify-between px-4 py-3">
+                <span className="text-sm text-slate-500 dark:text-slate-400">Department</span>
+                <span className="text-sm text-slate-700 dark:text-slate-300">
+                  {department}
+                </span>
+              </div>
+            )}
+
+            {/* Line Manager Row */}
+            {lineManager && (
+              <div className="flex items-center justify-between px-4 py-3">
+                <span className="text-sm text-slate-500 dark:text-slate-400">Line Manager</span>
+                <span className="text-sm text-slate-700 dark:text-slate-300">
+                  {lineManager}
+                </span>
+              </div>
+            )}
+
             {/* Company Row */}
             {company && (
               <div className="flex items-center justify-between px-4 py-3">
-                <span className="text-sm text-slate-500 dark:text-slate-400">Legal Company</span>
+                <span className="text-sm text-slate-500 dark:text-slate-400">
+                  {type === 'manager' ? 'Company' : 'Legal Company'}
+                </span>
                 <span className="text-sm text-teal-600 dark:text-teal-400 font-medium">
                   {company}
                 </span>

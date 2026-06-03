@@ -1,15 +1,19 @@
 import { useState, useMemo } from "react";
 import { useBootstrapData, useCreateRequest, useRequests } from "@/hooks/use-app-data";
-import { 
-  Loader2, Globe, ShieldCheck, Plus, Settings
+import { useAuth, useLogout } from "@/hooks/use-auth";
+import {
+  Loader2, Globe, ShieldCheck, Plus, Settings, LogOut
 } from "lucide-react";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import type { Employee, Company, Privilege, PrivilegeRequest, RequestStatus } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
+import { NotificationBell } from "@/components/ui/notification-bell";
+import { CompanySwitcher } from "@/components/ui/company-switcher";
 import { ContextCard } from "@/components/ui/context-card";
 import { EmployeeSelector } from "@/components/ui/employee-selector";
+import { AccessSearchCard } from "@/components/ui/access-search-card";
 import { NewRequestModal } from "@/components/ui/new-request-modal";
 import { RequestsTable } from "@/components/ui/requests-table";
 import { PrivilegesPanel } from "@/components/ui/privileges-panel";
@@ -123,16 +127,26 @@ const DICT = {
 
 export default function DashboardPage() {
   const [language, setLanguage] = useState<Language>("en");
-  const [actingUserId, setActingUserId] = useState("E001");
   const [selectedEmployeeId, setSelectedEmployeeId] = useState("");
   const [companyEmployeesOnly, setCompanyEmployeesOnly] = useState(true);
   const [requestTab, setRequestTab] = useState<RequestStatus>("pending");
   const [showNewRequestModal, setShowNewRequestModal] = useState(false);
 
+  const { data: authUser } = useAuth();
+  const logout = useLogout();
+  const [, navigate] = useLocation();
+  const actingUserId = authUser?.id || "";
+  const selectedCompanyId = authUser?.selectedCompanyId || "";
+
   const { data, isLoading, error } = useBootstrapData();
   const { data: requests = [] } = useRequests();
   const createRequest = useCreateRequest();
   const { toast } = useToast();
+
+  const handleLogout = async () => {
+    await logout.mutateAsync();
+    navigate("/login");
+  };
 
   const t = DICT[language];
 
@@ -147,15 +161,19 @@ export default function DashboardPage() {
     return data?.employees.filter(e => e.isManager) || [];
   }, [data]);
 
-  // Current acting manager
+  // Current acting manager — try SAP userId first, then email, then contact id
   const actingUser = useMemo(() => {
-    return data?.employees.find(e => e.id === actingUserId);
-  }, [data, actingUserId]);
+    return (
+      data?.employees.find(e => authUser?.userId && e.id === authUser.userId) ||
+      data?.employees.find(e => authUser?.email && e.email.toLowerCase() === authUser.email.toLowerCase()) ||
+      data?.employees.find(e => e.id === actingUserId)
+    );
+  }, [data, actingUserId, authUser]);
 
-  // Manager's legal company
-  const managerLegalCompany = useMemo(() => {
-    return data?.companies.find(c => c.id === actingUser?.legalCompanyId);
-  }, [data, actingUser]);
+  // Manager's currently selected working company (changes when switching via header)
+  const managerSelectedCompany = useMemo(() => {
+    return data?.companies.find(c => c.id === selectedCompanyId);
+  }, [data, selectedCompanyId]);
 
   // Selected employee
   const selectedEmployee = useMemo(() => {
@@ -167,13 +185,16 @@ export default function DashboardPage() {
     return data?.companies.find(c => c.id === selectedEmployee?.legalCompanyId);
   }, [data, selectedEmployee]);
 
-  // Employees filtered for the dropdown
+  // Employee's line manager name
+  const employeeLineManager = useMemo(() => {
+    if (!selectedEmployee?.managerId) return undefined;
+    return data?.employees.find(e => e.id === selectedEmployee.managerId)?.name;
+  }, [data, selectedEmployee]);
+
+  // All employees — EmployeeSelector handles company filtering internally
   const availableEmployees = useMemo(() => {
-    if (!data || !actingUser) return [];
-    return data.employees.filter(e => 
-      !e.isManager && e.managerId === actingUserId
-    );
-  }, [data, actingUser, actingUserId]);
+    return data?.employees || [];
+  }, [data]);
 
   // Get all companies for the request modal
   const allCompanies = useMemo(() => {
@@ -212,7 +233,6 @@ export default function DashboardPage() {
 
   // Handle new request submission
   const handleSubmitRequest = async (requestData: {
-    companyId: string;
     module: string;
     function: string;
     rolesSelected: string[];
@@ -223,9 +243,10 @@ export default function DashboardPage() {
 
     try {
       await createRequest.mutateAsync({
-        managerId: actingUserId,
+        managerId: actingUser?.id || actingUserId,
+        managerUserId: authUser?.userId || undefined,
         employeeId: selectedEmployeeId,
-        companyId: requestData.companyId,
+        companyId: selectedCompanyId,
         module: requestData.module,
         function: requestData.function,
         rolesSelected: requestData.rolesSelected,
@@ -262,13 +283,15 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background font-sans">
+    <div className="min-h-screen bg-slate-50 font-sans">
       {/* Zone A: Sticky Top Header (Slim 56px) */}
-      <header className="sticky top-0 z-50 h-14 bg-gradient-to-r from-slate-800 via-slate-900 to-slate-800 dark:from-slate-900 dark:via-slate-950 dark:to-slate-900 px-4 shadow-lg">
-        <div className="mx-auto h-full max-w-7xl flex items-center justify-between gap-4">
+      <header className="sticky top-0 z-50 h-14 bg-gradient-to-br from-slate-900 via-slate-800 to-teal-900 px-4 shadow-lg overflow-hidden">
+        {/* Teal glow decoration */}
+        <div className="absolute -top-8 -right-8 w-40 h-40 rounded-full bg-teal-500/10 blur-2xl pointer-events-none" />
+        <div className="mx-auto h-full max-w-7xl flex items-center justify-between gap-4 relative">
           {/* Left: App Icon + Title */}
           <div className="flex items-center gap-3">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/20 text-white">
+            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-teal-500 text-white shadow-md">
               <ShieldCheck className="h-4 w-4" />
             </div>
             <h1 className="text-sm font-bold tracking-tight md:text-base text-white hidden sm:block" data-testid="text-app-title">
@@ -278,33 +301,27 @@ export default function DashboardPage() {
 
           {/* Right: Controls */}
           <div className="flex items-center gap-3">
-            {/* Act as Manager Selector */}
+            {/* Logged-in user badge */}
             <div className="flex items-center gap-2 bg-white/15 backdrop-blur-sm rounded-full pl-2 pr-3 py-1.5 border border-white/20">
               <div className="h-6 w-6 rounded-full bg-gradient-to-br from-white/30 to-white/10 flex items-center justify-center text-white text-xs font-bold">
-                {actingUser?.name.charAt(0) || "M"}
+                {(authUser?.name || actingUser?.name || "?").charAt(0)}
               </div>
-              <select
-                value={actingUserId}
-                onChange={(e) => {
-                  setActingUserId(e.target.value);
-                  setSelectedEmployeeId("");
-                }}
-                className="bg-transparent text-white text-sm font-medium cursor-pointer focus:outline-none appearance-none pr-4"
-                style={{ 
-                  backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='white'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`, 
-                  backgroundRepeat: 'no-repeat', 
-                  backgroundPosition: 'right 0 center', 
-                  backgroundSize: '14px' 
-                }}
-                data-testid="select-act-as"
-              >
-                {managers.map(emp => (
-                  <option key={emp.id} value={emp.id} className="text-foreground bg-background">
-                    {emp.name}
-                  </option>
-                ))}
-              </select>
+              <span className="text-white text-sm font-medium">{authUser?.name || actingUser?.name}</span>
             </div>
+
+            {/* Company Switcher — only shown when user has multiple companies */}
+            <CompanySwitcher
+              companies={authUser?.companies || []}
+              selectedCompanyId={selectedCompanyId}
+            />
+
+            {/* Notification Bell */}
+            <NotificationBell
+              requests={requests}
+              employees={data.employees}
+              companies={data.companies}
+              managerId={actingUser?.id || actingUserId}
+            />
 
             {/* Language Toggle */}
             <button
@@ -317,11 +334,11 @@ export default function DashboardPage() {
             </button>
 
             {/* Admin Panel Link */}
-            {actingUser?.isAdmin && (
+            {(actingUser?.isAdmin || authUser?.isAdmin) && (
               <Link href="/admin">
-                <Button 
-                  variant="outline" 
-                  size="sm" 
+                <Button
+                  variant="outline"
+                  size="sm"
                   className="border-white/30 text-white hover:bg-white/20 bg-transparent"
                   data-testid="link-admin-panel"
                 >
@@ -330,6 +347,15 @@ export default function DashboardPage() {
                 </Button>
               </Link>
             )}
+
+            {/* Logout */}
+            <button
+              onClick={handleLogout}
+              className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium text-white/80 hover:text-white hover:bg-white/20 transition-colors"
+              title="Sign out"
+            >
+              <LogOut className="h-3.5 w-3.5" />
+            </button>
           </div>
         </div>
       </header>
@@ -341,23 +367,33 @@ export default function DashboardPage() {
             <span className="w-1 h-6 bg-teal-600 rounded-full"></span>
             {t.managerDetails}
           </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Manager Context Card */}
+          <div className="flex flex-col gap-4">
+            {/* 1. Manager Context Card */}
             <ContextCard
               type="manager"
-              name={actingUser?.name}
+              name={authUser?.name || actingUser?.name}
               title={actingUser?.title}
-              company={managerLegalCompany?.name}
+              company={managerSelectedCompany?.name}
               isHighlighted={true}
             />
 
-            {/* Employee Selector */}
+            {/* 2. Access Search Card */}
+            <AccessSearchCard
+              privileges={data.privileges}
+              assignments={data.assignments}
+              employees={data.employees}
+              companies={data.companies}
+              companyId={selectedCompanyId}
+              onSelectEmployee={setSelectedEmployeeId}
+            />
+
+            {/* 3. Employee Selector */}
             <EmployeeSelector
               employees={availableEmployees}
               companies={data.companies}
               selectedEmployeeId={selectedEmployeeId}
               onSelect={setSelectedEmployeeId}
-              managerLegalCompanyId={actingUser?.legalCompanyId || ""}
+              managerLegalCompanyId={selectedCompanyId}
               companyEmployeesOnly={companyEmployeesOnly}
               onToggleCompanyEmployees={setCompanyEmployeesOnly}
               t={{
@@ -380,6 +416,8 @@ export default function DashboardPage() {
             type="employee"
             name={selectedEmployee?.name}
             title={selectedEmployee?.title}
+            department={selectedEmployee?.department}
+            lineManager={employeeLineManager}
             company={employeeLegalCompany?.name}
             placeholder={t.selectEmployeeFirst}
           />
@@ -407,7 +445,7 @@ export default function DashboardPage() {
               />
 
               {/* Privilege Requests (50%) */}
-              <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden shadow-md hover:shadow-lg transition-shadow">
+              <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl overflow-hidden shadow-xl hover:shadow-2xl transition-shadow">
                 {/* Card Header with New Request Button */}
                 <div className="px-4 py-3 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 flex items-center justify-between gap-2 flex-wrap">
                   <h3 className="font-semibold text-slate-900 dark:text-slate-100 text-sm" data-testid="text-requests-title">
@@ -499,11 +537,9 @@ export default function DashboardPage() {
         onClose={() => setShowNewRequestModal(false)}
         onSubmit={handleSubmitRequest}
         privileges={data.privileges}
-        companies={allCompanies}
         isSubmitting={createRequest.isPending}
         t={{
           newRequest: t.newRequest,
-          company: t.company,
           module: t.module,
           function: t.function,
           role: t.role,

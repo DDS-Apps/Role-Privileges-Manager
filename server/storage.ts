@@ -1,7 +1,9 @@
+import { sendRequestSubmittedEmail } from "./email.js";
 import {
   AppData,
   AuditEntry,
   Company,
+  Contact,
   Employee,
   Privilege,
   Assignment,
@@ -44,6 +46,13 @@ export interface IStorage {
   
   // Employee Termination
   terminateEmployee(employeeId: string, adminId: string): Promise<void>;
+
+  // Contacts CRUD
+  findContactByEmail(email: string): Promise<Contact | undefined>;
+  getContacts(): Promise<Contact[]>;
+  createContact(contact: Omit<Contact, "id">): Promise<Contact>;
+  updateContact(id: string, updates: Partial<Omit<Contact, "id">>): Promise<Contact>;
+  deleteContact(id: string): Promise<void>;
 }
 
 export class JsonStorage implements IStorage {
@@ -301,6 +310,7 @@ export class JsonStorage implements IStorage {
       privileges,
       assignments,
       requests,
+      contacts: [],
     };
   }
 
@@ -317,6 +327,11 @@ export class JsonStorage implements IStorage {
       // Ensure requests array exists (for backwards compatibility)
       if (!this.data.requests) {
         this.data.requests = [];
+        needsSave = true;
+      }
+      // Ensure contacts array exists (for backwards compatibility)
+      if (!this.data.contacts) {
+        this.data.contacts = [];
         needsSave = true;
       }
       
@@ -579,8 +594,15 @@ export class JsonStorage implements IStorage {
   async createRequest(input: CreateRequestInput): Promise<PrivilegeRequest> {
     await this.initialized;
 
-    // Get manager
-    const manager = this.data.employees.find(e => e.id === input.managerId && e.isManager);
+    // Get manager — accept any employee (contacts are pre-authenticated as managers)
+    // Also try matching via contact userId for contacts whose SAP id differs from actingUserId
+    const manager = this.data.employees.find(e => e.id === input.managerId)
+      || (() => {
+        const contact = this.data.contacts.find(c => c.id === input.managerId);
+        return contact?.userId
+          ? this.data.employees.find(e => e.id === contact.userId)
+          : undefined;
+      })();
     if (!manager) {
       throw new Error("Manager not found");
     }
@@ -612,6 +634,7 @@ export class JsonStorage implements IStorage {
     const request: PrivilegeRequest = {
       id: randomUUID(),
       managerId: input.managerId,
+      ...(input.managerUserId ? { managerUserId: input.managerUserId } : {}),
       managerLegalCompanyId: manager.legalCompanyId,
       employeeId: input.employeeId,
       companyId: input.companyId,
@@ -628,6 +651,23 @@ export class JsonStorage implements IStorage {
 
     this.data.requests.push(request);
     await this.saveData();
+
+    // Send email notification (fire-and-forget — never blocks the response)
+    const notifCompany = this.data.companies.find(c => c.id === input.companyId);
+    const notifEmployee = this.data.employees.find(e => e.id === input.employeeId);
+    sendRequestSubmittedEmail({
+      managerName: manager.name,
+      managerUserId: input.managerUserId,
+      employeeName: notifEmployee?.name || input.employeeId,
+      employeeId: input.employeeId,
+      companyName: notifCompany?.name || input.companyId,
+      module: input.module,
+      functionName: input.function,
+      rolesCount: input.rolesSelected.length,
+      startDate: input.startDate,
+      endDate: input.endDate,
+      requestId: request.id,
+    });
 
     // Log audit entry
     await this.addAuditEntry(
@@ -669,11 +709,13 @@ export class JsonStorage implements IStorage {
   ): Promise<PrivilegeRequest> {
     await this.initialized;
 
-    // Verify admin
-    const admin = this.data.employees.find(e => e.id === adminId && e.isAdmin);
-    if (!admin) {
+    // Verify admin — check employees OR contacts
+    const adminEmp = this.data.employees.find(e => e.id === adminId && e.isAdmin);
+    const adminContact = this.data.contacts.find(c => c.id === adminId && c.isAdmin);
+    if (!adminEmp && !adminContact) {
       throw new Error("Only admins can approve/reject requests");
     }
+    const adminName = adminEmp?.name || adminContact?.name || adminId;
 
     // Find request
     const requestIdx = this.data.requests.findIndex(r => r.id === requestId);
@@ -733,7 +775,7 @@ export class JsonStorage implements IStorage {
     await this.addAuditEntry(
       adminId,
       status === "active" ? "REQUEST_APPROVED" : "REQUEST_REJECTED",
-      `${admin.name} ${status === "active" ? "approved" : "rejected"} ${request.module}/${request.function} request for ${employee?.name} in ${company?.name}${adminComments ? ` - Comment: ${adminComments}` : ""}`,
+      `${adminName} ${status === "active" ? "approved" : "rejected"} ${request.module}/${request.function} request for ${employee?.name} in ${company?.name}${adminComments ? ` - Comment: ${adminComments}` : ""}`,
       request.companyId,
       request.employeeId
     );
@@ -744,11 +786,13 @@ export class JsonStorage implements IStorage {
   async terminateEmployee(employeeId: string, adminId: string): Promise<void> {
     await this.initialized;
 
-    // Verify admin
-    const admin = this.data.employees.find(e => e.id === adminId && e.isAdmin);
-    if (!admin) {
+    // Verify admin — check employees OR contacts
+    const adminEmp2 = this.data.employees.find(e => e.id === adminId && e.isAdmin);
+    const adminContact2 = this.data.contacts.find(c => c.id === adminId && c.isAdmin);
+    if (!adminEmp2 && !adminContact2) {
       throw new Error("Only admins can terminate employees");
     }
+    const admin = adminEmp2 || { name: adminContact2?.name || adminId };
 
     // Find employee
     const employee = this.data.employees.find(e => e.id === employeeId);
@@ -780,6 +824,45 @@ export class JsonStorage implements IStorage {
       undefined,
       employeeId
     );
+  }
+
+  // ── Contacts ──────────────────────────────────────────────────────────────
+
+  async findContactByEmail(email: string): Promise<Contact | undefined> {
+    await this.initialized;
+    const lower = email.trim().toLowerCase();
+    return this.data.contacts.find(c => c.email.toLowerCase() === lower);
+  }
+
+  async getContacts(): Promise<Contact[]> {
+    await this.initialized;
+    return [...this.data.contacts].sort((a, b) => a.name.localeCompare(b.name));
+  }
+
+  async createContact(contact: Omit<Contact, "id">): Promise<Contact> {
+    await this.initialized;
+    const id = `C${String(this.data.contacts.length + 1).padStart(3, "0")}`;
+    const newContact: Contact = { id, ...contact };
+    this.data.contacts.push(newContact);
+    await this.saveData();
+    return newContact;
+  }
+
+  async updateContact(id: string, updates: Partial<Omit<Contact, "id">>): Promise<Contact> {
+    await this.initialized;
+    const idx = this.data.contacts.findIndex(c => c.id === id);
+    if (idx < 0) throw new Error("Contact not found");
+    this.data.contacts[idx] = { ...this.data.contacts[idx], ...updates };
+    await this.saveData();
+    return this.data.contacts[idx];
+  }
+
+  async deleteContact(id: string): Promise<void> {
+    await this.initialized;
+    const idx = this.data.contacts.findIndex(c => c.id === id);
+    if (idx < 0) throw new Error("Contact not found");
+    this.data.contacts.splice(idx, 1);
+    await this.saveData();
   }
 }
 

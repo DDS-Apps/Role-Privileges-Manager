@@ -44,26 +44,38 @@ export function EmployeeSelector({
     return companies.find(c => c.id === companyId)?.name || companyId;
   };
 
+  const MAX_VISIBLE = 50;
+
   const filteredEmployees = useMemo(() => {
-    let result = employees.filter(e => !e.isManager);
-    
+    let result = [...employees];
+
     if (companyEmployeesOnly) {
       result = result.filter(e => e.legalCompanyId === managerLegalCompanyId);
     }
-    
+
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
-      result = result.filter(e => 
-        e.id.toLowerCase().includes(q) || 
+      result = result.filter(e =>
+        e.id.toLowerCase().includes(q) ||
         e.name.toLowerCase().includes(q)
       );
     }
-    
-    return result;
+
+    return result.slice(0, MAX_VISIBLE);
+  }, [employees, companyEmployeesOnly, managerLegalCompanyId, searchQuery]);
+
+  const totalBeforeLimit = useMemo(() => {
+    let result = [...employees];
+    if (companyEmployeesOnly) result = result.filter(e => e.legalCompanyId === managerLegalCompanyId);
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      result = result.filter(e => e.id.toLowerCase().includes(q) || e.name.toLowerCase().includes(q));
+    }
+    return result.length;
   }, [employees, companyEmployeesOnly, managerLegalCompanyId, searchQuery]);
 
   return (
-    <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden shadow-md hover:shadow-lg transition-shadow">
+    <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl overflow-hidden shadow-xl hover:shadow-2xl transition-shadow">
       {/* Card Header */}
       <div className="px-4 py-3 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900">
         <h3 className="font-semibold text-slate-900 dark:text-slate-100 text-sm flex items-center gap-2">
@@ -113,19 +125,26 @@ export function EmployeeSelector({
                 No employees found
               </div>
             ) : (
-              filteredEmployees.map((emp) => (
-                <SelectItem 
-                  key={emp.id} 
-                  value={emp.id}
-                  data-testid={`option-employee-${emp.id}`}
-                >
-                  {companyEmployeesOnly ? (
-                    emp.name
-                  ) : (
-                    <span>{emp.id} – {emp.name} – {getCompanyName(emp.legalCompanyId)}</span>
-                  )}
-                </SelectItem>
-              ))
+              <>
+                {filteredEmployees.map((emp) => (
+                  <SelectItem
+                    key={emp.id}
+                    value={emp.id}
+                    data-testid={`option-employee-${emp.id}`}
+                  >
+                    {companyEmployeesOnly ? (
+                      emp.name
+                    ) : (
+                      <span>{emp.id} – {emp.name} – {getCompanyName(emp.legalCompanyId)}</span>
+                    )}
+                  </SelectItem>
+                ))}
+                {totalBeforeLimit > MAX_VISIBLE && (
+                  <div className="px-3 py-2 text-xs text-slate-400 text-center border-t border-slate-100 dark:border-slate-700">
+                    Showing {MAX_VISIBLE} of {totalBeforeLimit} — refine your search
+                  </div>
+                )}
+              </>
             )}
           </SelectContent>
         </Select>

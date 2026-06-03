@@ -1,4 +1,4 @@
-import type { Express } from "express";
+import type { Express, Request, Response } from "express";
 import type { Server } from "http";
 import { storage } from "./storage";
 import { api } from "@shared/routes";
@@ -6,10 +6,155 @@ import { applyAssignmentsSchema, uploadCatalogSchema, createRequestSchema, updat
 import { z } from "zod";
 import * as XLSX from "xlsx";
 
+// Extend session with auth data
+declare module "express-session" {
+  interface SessionData {
+    contactId: string;
+    selectedCompanyId: string;
+    isAdmin: boolean;
+  }
+}
+
+// Demo password — same for all contacts (MVP)
+const DEMO_PASSWORD = "password";
+
+function requireAuth(req: Request, res: Response, next: () => void) {
+  if (!req.session.contactId) return res.status(401).json({ message: "Unauthorized" });
+  next();
+}
+
+function requireAdmin(req: Request, res: Response, next: () => void) {
+  if (!req.session.contactId || !req.session.isAdmin) {
+    return res.status(403).json({ message: "Admin access required" });
+  }
+  next();
+}
+
 export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
+
+  // ============================================
+  // AUTH
+  // ============================================
+
+  // POST /api/auth/login  { email, password }
+  // Returns { contact, companies } — client picks company if multiple
+  app.post("/api/auth/login", async (req, res) => {
+    try {
+      const { email, password } = req.body as { email: string; password: string };
+      if (!email || !password) return res.status(400).json({ message: "Email and password required" });
+      if (password !== DEMO_PASSWORD) return res.status(401).json({ message: "Invalid credentials" });
+
+      const contact = await storage.findContactByEmail(email);
+      if (!contact) return res.status(401).json({ message: "No account found for this email" });
+
+      // Enrich companies with names
+      const data = await storage.getBootstrapData();
+      const companies = contact.companies.map(cc => ({
+        companyId: cc.companyId,
+        role: cc.role,
+        name: data.companies.find(c => c.id === cc.companyId)?.name || cc.companyId,
+      }));
+
+      // Always auto-select the first company — user can switch via header dropdown
+      req.session.contactId = contact.id;
+      req.session.isAdmin = contact.isAdmin;
+      if (companies.length > 0) {
+        req.session.selectedCompanyId = companies[0].companyId;
+      }
+
+      return res.json({
+        id: contact.id,
+        name: contact.name,
+        email: contact.email,
+        isAdmin: contact.isAdmin,
+        companies,
+        selectedCompanyId: req.session.selectedCompanyId || null,
+      });
+    } catch (err) {
+      console.error("Login error:", err);
+      res.status(500).json({ message: "Login failed" });
+    }
+  });
+
+  // POST /api/auth/select-company  { companyId }
+  app.post("/api/auth/select-company", (req, res) => {
+    if (!req.session.contactId) return res.status(401).json({ message: "Not authenticated" });
+    const { companyId } = req.body as { companyId: string };
+    if (!companyId) return res.status(400).json({ message: "companyId required" });
+    req.session.selectedCompanyId = companyId;
+    res.json({ ok: true, selectedCompanyId: companyId });
+  });
+
+  app.post("/api/auth/logout", (req, res) => {
+    req.session.destroy(() => res.json({ ok: true }));
+  });
+
+  app.get("/api/auth/me", async (req, res) => {
+    if (!req.session.contactId) return res.status(401).json({ message: "Not authenticated" });
+    try {
+      const contact = await storage.findContactByEmail(""); // placeholder
+      const contacts = await storage.getContacts();
+      const c = contacts.find(x => x.id === req.session.contactId);
+      if (!c) return res.status(401).json({ message: "User not found" });
+      const data = await storage.getBootstrapData();
+      const companies = c.companies.map(cc => ({
+        companyId: cc.companyId,
+        role: cc.role,
+        name: data.companies.find(co => co.id === cc.companyId)?.name || cc.companyId,
+      }));
+      return res.json({
+        id: c.id,
+        userId: c.userId,
+        name: c.name,
+        email: c.email,
+        isAdmin: c.isAdmin,
+        companies,
+        selectedCompanyId: req.session.selectedCompanyId || null,
+      });
+    } catch {
+      res.status(500).json({ message: "Failed to get session" });
+    }
+  });
+
+  // ── Contacts CRUD (admin only) ─────────────────────────────────────────────
+  app.get("/api/contacts", requireAdmin as any, async (_req, res) => {
+    try {
+      const contacts = await storage.getContacts();
+      res.json(contacts);
+    } catch (err) {
+      res.status(500).json({ message: "Failed to fetch contacts" });
+    }
+  });
+
+  app.post("/api/contacts", requireAdmin as any, async (req, res) => {
+    try {
+      const contact = await storage.createContact(req.body);
+      res.json(contact);
+    } catch (err) {
+      res.status(500).json({ message: "Failed to create contact" });
+    }
+  });
+
+  app.put("/api/contacts/:id", requireAdmin as any, async (req, res) => {
+    try {
+      const contact = await storage.updateContact(req.params.id, req.body);
+      res.json(contact);
+    } catch (err: any) {
+      res.status(err.message === "Contact not found" ? 404 : 500).json({ message: err.message });
+    }
+  });
+
+  app.delete("/api/contacts/:id", requireAdmin as any, async (req, res) => {
+    try {
+      await storage.deleteContact(req.params.id);
+      res.json({ ok: true });
+    } catch (err: any) {
+      res.status(err.message === "Contact not found" ? 404 : 500).json({ message: err.message });
+    }
+  });
 
   // Bootstrap - get all data
   app.get(api.bootstrap.get.path, async (req, res) => {
@@ -187,18 +332,19 @@ export async function registerRoutes(
   app.patch("/api/requests/:requestId", async (req, res) => {
     try {
       const { requestId } = req.params;
-      const { adminId } = req.query;
+      // Support both session-based and query-param adminId (backward compat)
+      const adminId = (req.query.adminId as string) || req.session.contactId || "";
       const input = updateRequestSchema.parse(req.body);
-      
+
       if (!adminId) {
-        return res.status(400).json({ message: "adminId query parameter is required" });
+        return res.status(400).json({ message: "adminId required" });
       }
 
       const request = await storage.updateRequestStatus(
         requestId,
         input.status,
         input.adminComments,
-        adminId as string
+        adminId
       );
       res.json(request);
     } catch (err) {

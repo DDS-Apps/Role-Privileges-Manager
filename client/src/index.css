@@ -8,37 +8,37 @@
   --font-sans: 'Inter', sans-serif;
   --font-display: 'Outfit', sans-serif;
 
-  /* Modern Admin Console Palette - Indigo/Slate based */
-  --background: 225 25% 97%;
+  /* Login-matched Palette - Slate/Teal */
+  --background: 210 40% 98%;
   --foreground: 222 47% 11%;
-  
+
   --card: 0 0% 100%;
   --card-foreground: 222 47% 11%;
-  
-  --primary: 239 84% 67%;
+
+  --primary: 174 77% 40%;
   --primary-foreground: 0 0% 100%;
-  
+
   --secondary: 220 14% 96%;
   --secondary-foreground: 222 47% 11%;
-  
+
   --muted: 220 14% 96%;
   --muted-foreground: 215 16% 47%;
-  
-  --accent: 239 84% 97%;
-  --accent-foreground: 239 84% 47%;
-  
+
+  --accent: 174 77% 94%;
+  --accent-foreground: 174 77% 25%;
+
   --destructive: 0 84% 60%;
   --destructive-foreground: 0 0% 100%;
 
   --border: 220 13% 91%;
   --input: 220 13% 91%;
-  --ring: 239 84% 67%;
-  
+  --ring: 174 77% 40%;
+
   --radius: 0.75rem;
-  
+
   /* Custom tokens */
-  --header-gradient-start: 239 84% 67%;
-  --header-gradient-end: 270 75% 50%;
+  --header-gradient-start: 174 77% 40%;
+  --header-gradient-end: 174 77% 25%;
   --card-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
   --card-shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
 }

@@ -9,12 +9,30 @@ export interface Company {
 }
 
 // ============================================
+// CONTACTS (login users — real company contacts)
+// ============================================
+export interface ContactCompany {
+  companyId: string;
+  role: "GM" | "2nd" | "3rd" | "4th" | "Admin" | string;
+}
+
+export interface Contact {
+  id: string;
+  userId: string;       // SAP/HR number, may be empty
+  name: string;
+  email: string;        // lowercase, primary login identifier
+  isAdmin: boolean;
+  companies: ContactCompany[];
+}
+
+// ============================================
 // EMPLOYEES (also users for "act-as")
 // ============================================
 export interface Employee {
   id: string;
   name: string;
   title: string;
+  department?: string;
   email: string;
   isManager: boolean;
   isAdmin?: boolean;       // Admin users can approve/reject requests
@@ -33,6 +51,7 @@ export type RequestStatus = "pending" | "active" | "rejected";
 export interface PrivilegeRequest {
   id: string;
   managerId: string;
+  managerUserId?: string;        // Contact's HR/employee number (userId)
   managerLegalCompanyId: string;
   employeeId: string;
   companyId: string;           // Company context for privileges
@@ -98,6 +117,7 @@ export interface AppData {
   privileges: Privilege[];
   assignments: Assignment[];
   requests: PrivilegeRequest[];
+  contacts: Contact[];
 }
 
 // ============================================
@@ -131,6 +151,7 @@ export type UploadCatalogRequest = z.infer<typeof uploadCatalogSchema>;
 // Create privilege request schema
 export const createRequestSchema = z.object({
   managerId: z.string(),
+  managerUserId: z.string().optional(),
   employeeId: z.string(),
   companyId: z.string(),
   module: z.string(),

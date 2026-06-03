@@ -65,6 +65,7 @@ export function RequestsTable({ requests, privileges, companies, t }: RequestsTa
         <thead>
           <tr className="border-b border-slate-200 dark:border-slate-700 text-left">
             <th className="py-3 px-3 font-medium text-slate-600 dark:text-slate-400 w-8"></th>
+            <th className="py-3 px-3 font-medium text-slate-600 dark:text-slate-400">Company</th>
             <th className="py-3 px-3 font-medium text-slate-600 dark:text-slate-400">Module & Function</th>
             <th className="py-3 px-3 font-medium text-slate-600 dark:text-slate-400">Requested Roles</th>
             <th className="py-3 px-3 font-medium text-slate-600 dark:text-slate-400">{t.startDate}</th>
@@ -90,6 +91,11 @@ export function RequestsTable({ requests, privileges, companies, t }: RequestsTa
                     ) : (
                       <ChevronRight className="h-4 w-4 text-slate-400" />
                     )}
+                  </td>
+                  <td className="py-3 px-3">
+                    <span className="text-xs font-medium text-teal-700 dark:text-teal-400" dir="rtl">
+                      {getCompanyName(request.companyId)}
+                    </span>
                   </td>
                   <td className="py-3 px-3">
                     <div className="flex flex-col">
@@ -129,8 +135,15 @@ export function RequestsTable({ requests, privileges, companies, t }: RequestsTa
                 
                 {isExpanded && (
                   <tr className="bg-slate-50 dark:bg-slate-800/30">
-                    <td colSpan={6} className="px-6 py-4">
+                    <td colSpan={7} className="px-6 py-4">
                       <div className="space-y-4">
+                        {request.managerUserId && (
+                          <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+                            <span className="font-medium">User ID:</span>
+                            <span className="font-mono bg-slate-100 dark:bg-slate-700 px-1.5 py-0.5 rounded">{request.managerUserId}</span>
+                          </div>
+                        )}
+
                         <div>
                           <h4 className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
                             {t.roles} ({roleDetails.length})

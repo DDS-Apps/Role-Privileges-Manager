@@ -1,8 +1,8 @@
 import { useState, useMemo } from "react";
 import { Link } from "wouter";
 import { useBootstrapData, useRequests, useUpdateRequest, useTerminateEmployee } from "@/hooks/use-app-data";
-import { 
-  Loader2, Globe, ArrowLeft, ShieldCheck, Search, 
+import {
+  Loader2, Globe, ArrowLeft, ShieldCheck, Search, Users,
   UserX, ChevronDown, ChevronRight, Check, X, AlertTriangle
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -154,6 +154,10 @@ export default function AdminPage() {
     return data?.employees.find(e => e.id === id)?.name || id;
   };
 
+  const getCompanyName = (id: string) => {
+    return data?.companies.find(c => c.id === id)?.name || id;
+  };
+
   const getPrivilegeDetails = (privilegeIds: string[]) => {
     if (!data) return [];
     return privilegeIds.map(id => data.privileges.find(p => p.id === id)).filter(Boolean);
@@ -249,11 +253,12 @@ export default function AdminPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background font-sans">
-      <header className="sticky top-0 z-50 bg-gradient-to-r from-slate-800 via-slate-900 to-slate-800 dark:from-slate-900 dark:via-slate-950 dark:to-slate-900 px-4 py-2 shadow-lg">
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 flex-wrap">
+    <div className="min-h-screen bg-slate-50 font-sans">
+      <header className="sticky top-0 z-50 bg-gradient-to-br from-slate-900 via-slate-800 to-teal-900 px-4 py-2 shadow-lg overflow-hidden">
+        <div className="absolute -top-8 -right-8 w-40 h-40 rounded-full bg-teal-500/10 blur-2xl pointer-events-none" />
+        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 flex-wrap relative">
           <div className="flex items-center gap-3">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/20 text-white">
+            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-teal-500 text-white shadow-md">
               <ShieldCheck className="h-4 w-4" />
             </div>
             <h1 className="text-base font-bold tracking-tight md:text-lg text-white" data-testid="text-admin-title">{t.title}</h1>
@@ -264,6 +269,13 @@ export default function AdminPage() {
               <Button variant="ghost" size="sm" className="text-white/90 hover:bg-white/20" data-testid="link-back-dashboard">
                 <ArrowLeft className="h-4 w-4 mr-1" />
                 {t.backToDashboard}
+              </Button>
+            </Link>
+
+            <Link href="/admin/contacts">
+              <Button variant="ghost" size="sm" className="text-white/90 hover:bg-white/20 gap-1.5">
+                <Users className="h-4 w-4" />
+                Contacts
               </Button>
             </Link>
 
@@ -310,6 +322,7 @@ export default function AdminPage() {
                         <tr className="border-b border-slate-300 dark:border-slate-600">
                           <th className="text-left py-2 px-3 font-medium">{t.employee}</th>
                           <th className="text-left py-2 px-3 font-medium">{t.manager}</th>
+                          <th className="text-left py-2 px-3 font-medium">Company</th>
                           <th className="text-left py-2 px-3 font-medium">{t.moduleFunction}</th>
                           <th className="text-left py-2 px-3 font-medium">{t.rolesCount}</th>
                           <th className="text-left py-2 px-3 font-medium">{t.startDate}</th>
@@ -334,10 +347,23 @@ export default function AdminPage() {
                                 <td className="py-3 px-3">
                                   <div className="flex items-center gap-2">
                                     {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-                                    {getEmployeeName(request.employeeId)}
+                                    <div>
+                                      <div>{getEmployeeName(request.employeeId)}</div>
+                                      <div className="text-xs text-slate-400 font-mono">{request.employeeId}</div>
+                                    </div>
                                   </div>
                                 </td>
-                                <td className="py-3 px-3">{getEmployeeName(request.managerId)}</td>
+                                <td className="py-3 px-3">
+                                  <div>{getEmployeeName(request.managerId)}</div>
+                                  {request.managerUserId && (
+                                    <div className="text-xs text-slate-400 font-mono">{request.managerUserId}</div>
+                                  )}
+                                </td>
+                                <td className="py-3 px-3">
+                                  <span className="text-xs font-medium text-teal-700 dark:text-teal-400" dir="rtl">
+                                    {getCompanyName(request.companyId)}
+                                  </span>
+                                </td>
                                 <td className="py-3 px-3">{request.module} / {request.function}</td>
                                 <td className="py-3 px-3">{request.rolesSelected.length}</td>
                                 <td className="py-3 px-3">{formatDate(request.startDate)}</td>
