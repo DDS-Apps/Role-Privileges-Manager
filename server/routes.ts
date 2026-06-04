@@ -10,21 +10,23 @@ import * as XLSX from "xlsx";
 declare module "express-session" {
   interface SessionData {
     contactId: string;
+    employeeId: string;   // set when a line-manager employee logs in (not a contact)
     selectedCompanyId: string;
     isAdmin: boolean;
   }
 }
 
-// Demo password — same for all contacts (MVP)
+// Demo password — same for all users (MVP)
 const DEMO_PASSWORD = "password";
 
 function requireAuth(req: Request, res: Response, next: () => void) {
-  if (!req.session.contactId) return res.status(401).json({ message: "Unauthorized" });
+  if (!req.session.contactId && !req.session.employeeId)
+    return res.status(401).json({ message: "Unauthorized" });
   next();
 }
 
 function requireAdmin(req: Request, res: Response, next: () => void) {
-  if (!req.session.contactId || !req.session.isAdmin) {
+  if (!req.session.isAdmin) {
     return res.status(403).json({ message: "Admin access required" });
   }
   next();
@@ -47,31 +49,53 @@ export async function registerRoutes(
       if (!email || !password) return res.status(400).json({ message: "Email and password required" });
       if (password !== DEMO_PASSWORD) return res.status(401).json({ message: "Invalid credentials" });
 
-      const contact = await storage.findContactByEmail(email);
-      if (!contact) return res.status(401).json({ message: "No account found for this email" });
-
-      // Enrich companies with names
       const data = await storage.getBootstrapData();
-      const companies = contact.companies.map(cc => ({
-        companyId: cc.companyId,
-        role: cc.role,
-        name: data.companies.find(c => c.id === cc.companyId)?.name || cc.companyId,
-      }));
 
-      // Always auto-select the first company — user can switch via header dropdown
-      req.session.contactId = contact.id;
-      req.session.isAdmin = contact.isAdmin;
-      if (companies.length > 0) {
-        req.session.selectedCompanyId = companies[0].companyId;
+      // ── Try contact login first ────────────────────────────────────────────
+      const contact = await storage.findContactByEmail(email);
+      if (contact) {
+        const companies = contact.companies.map(cc => ({
+          companyId: cc.companyId,
+          role: cc.role,
+          name: data.companies.find(c => c.id === cc.companyId)?.name || cc.companyId,
+        }));
+        req.session.contactId = contact.id;
+        req.session.isAdmin = contact.isAdmin;
+        if (companies.length > 0) {
+          req.session.selectedCompanyId = companies[0].companyId;
+        }
+        return res.json({
+          id: contact.id,
+          userId: contact.userId,
+          name: contact.name,
+          email: contact.email,
+          isAdmin: contact.isAdmin,
+          companies,
+          selectedCompanyId: req.session.selectedCompanyId || null,
+        });
       }
 
+      // ── Try line-manager employee login ───────────────────────────────────
+      const empLower = email.trim().toLowerCase();
+      const employee = data.employees.find(
+        e => e.isManager && e.email.toLowerCase() === empLower
+      );
+      if (!employee) return res.status(401).json({ message: "No account found for this email" });
+
+      req.session.employeeId = employee.id;
+      req.session.isAdmin = false;
+      req.session.selectedCompanyId = employee.legalCompanyId;
+      const empCompanyName = data.companies.find(c => c.id === employee.legalCompanyId)?.name || employee.legalCompanyId;
+
       return res.json({
-        id: contact.id,
-        name: contact.name,
-        email: contact.email,
-        isAdmin: contact.isAdmin,
-        companies,
-        selectedCompanyId: req.session.selectedCompanyId || null,
+        id: employee.id,
+        userId: employee.id,
+        name: employee.name,
+        email: employee.email,
+        isAdmin: false,
+        isLineManager: true,
+        companies: [{ companyId: employee.legalCompanyId, role: "Manager", name: empCompanyName }],
+        selectedCompanyId: employee.legalCompanyId,
       });
     } catch (err) {
       console.error("Login error:", err);
@@ -81,7 +105,7 @@ export async function registerRoutes(
 
   // POST /api/auth/select-company  { companyId }
   app.post("/api/auth/select-company", (req, res) => {
-    if (!req.session.contactId) return res.status(401).json({ message: "Not authenticated" });
+    if (!req.session.contactId && !req.session.employeeId) return res.status(401).json({ message: "Not authenticated" });
     const { companyId } = req.body as { companyId: string };
     if (!companyId) return res.status(400).json({ message: "companyId required" });
     req.session.selectedCompanyId = companyId;
@@ -93,13 +117,32 @@ export async function registerRoutes(
   });
 
   app.get("/api/auth/me", async (req, res) => {
-    if (!req.session.contactId) return res.status(401).json({ message: "Not authenticated" });
+    if (!req.session.contactId && !req.session.employeeId)
+      return res.status(401).json({ message: "Not authenticated" });
     try {
-      const contact = await storage.findContactByEmail(""); // placeholder
+      const data = await storage.getBootstrapData();
+
+      // ── Employee (line manager) session ──────────────────────────────────
+      if (req.session.employeeId) {
+        const emp = data.employees.find(e => e.id === req.session.employeeId);
+        if (!emp) return res.status(401).json({ message: "User not found" });
+        const empCompanyName = data.companies.find(c => c.id === emp.legalCompanyId)?.name || emp.legalCompanyId;
+        return res.json({
+          id: emp.id,
+          userId: emp.id,
+          name: emp.name,
+          email: emp.email,
+          isAdmin: false,
+          isLineManager: true,
+          companies: [{ companyId: emp.legalCompanyId, role: "Manager", name: empCompanyName }],
+          selectedCompanyId: req.session.selectedCompanyId || emp.legalCompanyId,
+        });
+      }
+
+      // ── Contact session ───────────────────────────────────────────────────
       const contacts = await storage.getContacts();
       const c = contacts.find(x => x.id === req.session.contactId);
       if (!c) return res.status(401).json({ message: "User not found" });
-      const data = await storage.getBootstrapData();
       const companies = c.companies.map(cc => ({
         companyId: cc.companyId,
         role: cc.role,
@@ -315,11 +358,12 @@ export async function registerRoutes(
   // List Requests
   app.get(api.requests.list.path, async (req, res) => {
     try {
-      const { managerId, employeeId, status } = req.query;
+      const { managerId, employeeId, status, targetCompanyIds } = req.query;
       const requests = await storage.getRequests({
         managerId: managerId as string | undefined,
         employeeId: employeeId as string | undefined,
         status: status as RequestStatus | undefined,
+        targetCompanyIds: targetCompanyIds ? (targetCompanyIds as string).split(",") : undefined,
       });
       res.json(requests);
     } catch (err) {

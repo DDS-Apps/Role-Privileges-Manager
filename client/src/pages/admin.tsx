@@ -1,10 +1,12 @@
 import { useState, useMemo } from "react";
 import { Link } from "wouter";
 import { useBootstrapData, useRequests, useUpdateRequest, useTerminateEmployee } from "@/hooks/use-app-data";
+import { useAuth } from "@/hooks/use-auth";
 import {
   Loader2, Globe, ArrowLeft, ShieldCheck, Search, Users,
   UserX, ChevronDown, ChevronRight, Check, X, AlertTriangle
 } from "lucide-react";
+import { DallahLogo } from "@/components/ui/dallah-logo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -105,7 +107,7 @@ const DICT = {
   }
 };
 
-const ADMIN_USER_ID = "E001"; // Mohammed Nawar - the admin user
+// ADMIN_USER_ID is now derived from the session
 
 function getStatusColor(status: RequestStatus) {
   switch (status) {
@@ -134,9 +136,21 @@ export default function AdminPage() {
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>("");
   const [showTerminateDialog, setShowTerminateDialog] = useState(false);
 
+  const { data: authUser } = useAuth();
   const { data, isLoading: isBootstrapLoading } = useBootstrapData();
+
+  // The ID sent as adminId for approve/reject (contact id or employee SAP id)
+  const adminId = authUser?.id || "";
+
+  // GM companies: contacts with role "GM" — used to filter visible requests
+  const gmCompanyIds = authUser?.isAdmin
+    ? undefined  // system admin sees all
+    : authUser?.companies.filter(c => c.role === "GM").map(c => c.companyId);
+
   const { data: requests, isLoading: isRequestsLoading } = useRequests(
-    statusFilter === "all" ? undefined : { status: statusFilter }
+    statusFilter === "all"
+      ? (gmCompanyIds?.length ? { targetCompanyIds: gmCompanyIds } : undefined)
+      : { status: statusFilter, ...(gmCompanyIds?.length ? { targetCompanyIds: gmCompanyIds } : {}) }
   );
   const updateRequest = useUpdateRequest();
   const terminateEmployee = useTerminateEmployee();
@@ -187,7 +201,7 @@ export default function AdminPage() {
     try {
       await updateRequest.mutateAsync({
         requestId: request.id,
-        adminId: ADMIN_USER_ID,
+        adminId: adminId,
         data: {
           status: "active",
           adminComments: adminComments[request.id] || null,
@@ -208,7 +222,7 @@ export default function AdminPage() {
     try {
       await updateRequest.mutateAsync({
         requestId: request.id,
-        adminId: ADMIN_USER_ID,
+        adminId: adminId,
         data: {
           status: "rejected",
           adminComments: adminComments[request.id] || null,
@@ -230,7 +244,7 @@ export default function AdminPage() {
     try {
       await terminateEmployee.mutateAsync({
         employeeId: selectedEmployeeId,
-        adminId: ADMIN_USER_ID,
+        adminId: adminId,
       });
       toast({ title: "Employee terminated successfully" });
       setShowTerminateDialog(false);
@@ -258,9 +272,7 @@ export default function AdminPage() {
         <div className="absolute -top-8 -right-8 w-40 h-40 rounded-full bg-teal-500/10 blur-2xl pointer-events-none" />
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 flex-wrap relative">
           <div className="flex items-center gap-3">
-            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-teal-500 text-white shadow-md">
-              <ShieldCheck className="h-4 w-4" />
-            </div>
+            <DallahLogo size={34} />
             <h1 className="text-base font-bold tracking-tight md:text-lg text-white" data-testid="text-admin-title">{t.title}</h1>
           </div>
 

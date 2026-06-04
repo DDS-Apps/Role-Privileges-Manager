@@ -5,7 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, ShieldCheck, Eye, EyeOff, LogIn } from "lucide-react";
+import { Loader2, Eye, EyeOff, LogIn } from "lucide-react";
+import { DallahLogo } from "@/components/ui/dallah-logo";
 
 export default function LoginPage() {
   const [, navigate] = useLocation();
@@ -50,9 +51,7 @@ export default function LoginPage() {
         <div className="absolute -bottom-24 -right-24 w-96 h-96 rounded-full bg-teal-400/10 blur-3xl pointer-events-none" />
 
         <div className="relative z-10 flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-teal-500 flex items-center justify-center shadow-lg">
-            <ShieldCheck className="h-6 w-6 text-white" />
-          </div>
+          <DallahLogo size={42} />
           <div>
             <p className="font-bold text-lg leading-tight">RPM System</p>
             <p className="text-teal-300 text-xs">Role & Privileges Manager</p>
@@ -79,9 +78,7 @@ export default function LoginPage() {
 
           {/* Mobile logo */}
           <div className="flex items-center gap-2 mb-8 lg:hidden">
-            <div className="w-8 h-8 rounded-lg bg-teal-500 flex items-center justify-center">
-              <ShieldCheck className="h-5 w-5 text-white" />
-            </div>
+            <DallahLogo size={32} />
             <span className="font-bold text-slate-800 dark:text-slate-100">RPM System</span>
           </div>
 

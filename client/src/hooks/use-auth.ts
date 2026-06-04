@@ -12,6 +12,7 @@ export interface AuthUser {
   name: string;
   email: string;
   isAdmin: boolean;
+  isLineManager?: boolean;   // true when logged in as an employee (not a contact)
   companies: AuthCompany[];
   selectedCompanyId: string | null;
 }

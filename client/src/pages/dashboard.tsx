@@ -2,8 +2,9 @@ import { useState, useMemo } from "react";
 import { useBootstrapData, useCreateRequest, useRequests } from "@/hooks/use-app-data";
 import { useAuth, useLogout } from "@/hooks/use-auth";
 import {
-  Loader2, Globe, ShieldCheck, Plus, Settings, LogOut
+  Loader2, Globe, Plus, Settings, LogOut
 } from "lucide-react";
+import { DallahLogo } from "@/components/ui/dallah-logo";
 import { Link, useLocation } from "wouter";
 import type { Employee, Company, Privilege, PrivilegeRequest, RequestStatus } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
@@ -246,7 +247,7 @@ export default function DashboardPage() {
         managerId: actingUser?.id || actingUserId,
         managerUserId: authUser?.userId || undefined,
         employeeId: selectedEmployeeId,
-        companyId: selectedCompanyId,
+        companyId: selectedEmployee?.legalCompanyId || selectedCompanyId,
         module: requestData.module,
         function: requestData.function,
         rolesSelected: requestData.rolesSelected,
@@ -291,9 +292,7 @@ export default function DashboardPage() {
         <div className="mx-auto h-full max-w-7xl flex items-center justify-between gap-4 relative">
           {/* Left: App Icon + Title */}
           <div className="flex items-center gap-3">
-            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-teal-500 text-white shadow-md">
-              <ShieldCheck className="h-4 w-4" />
-            </div>
+            <DallahLogo size={34} />
             <h1 className="text-sm font-bold tracking-tight md:text-base text-white hidden sm:block" data-testid="text-app-title">
               {t.title}
             </h1>
@@ -320,7 +319,9 @@ export default function DashboardPage() {
               requests={requests}
               employees={data.employees}
               companies={data.companies}
+              privileges={data.privileges}
               managerId={actingUser?.id || actingUserId}
+              authUser={authUser ?? null}
             />
 
             {/* Language Toggle */}
@@ -522,7 +523,7 @@ export default function DashboardPage() {
               {t.privileges}
             </h2>
             <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-12 text-center">
-              <ShieldCheck className="h-12 w-12 mx-auto mb-3 text-slate-300 dark:text-slate-600" />
+              <DallahLogo size={48} className="mx-auto mb-3 opacity-20" />
               <h3 className="text-base font-medium text-slate-600 dark:text-slate-400 mb-1">
                 {t.selectEmployeeFirst}
               </h3>

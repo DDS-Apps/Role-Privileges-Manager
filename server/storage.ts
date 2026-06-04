@@ -41,8 +41,9 @@ export interface IStorage {
   
   // Request CRUD
   createRequest(input: CreateRequestInput): Promise<PrivilegeRequest>;
-  getRequests(filters?: { managerId?: string; employeeId?: string; status?: RequestStatus }): Promise<PrivilegeRequest[]>;
+  getRequests(filters?: { managerId?: string; employeeId?: string; status?: RequestStatus; targetCompanyIds?: string[] }): Promise<PrivilegeRequest[]>;
   updateRequestStatus(requestId: string, status: RequestStatus, adminComments: string | null, adminId: string): Promise<PrivilegeRequest>;
+  getGMsForCompany(companyId: string): Promise<Contact[]>;
   
   // Employee Termination
   terminateEmployee(employeeId: string, adminId: string): Promise<void>;
@@ -650,6 +651,46 @@ export class JsonStorage implements IStorage {
     };
 
     this.data.requests.push(request);
+
+    // ── Auto-approve if the submitter is a GM of the employee's legal company ──
+    const employeeLegalCompanyId = employee.legalCompanyId;
+    const submitterContact =
+      this.data.contacts.find(c => c.userId === input.managerId) ||
+      this.data.contacts.find(c => c.id === input.managerId) ||
+      (input.managerUserId ? this.data.contacts.find(c => c.userId === input.managerUserId || c.id === input.managerUserId) : undefined);
+
+    const isGMofEmployeeCompany = submitterContact?.companies.some(
+      cc => cc.companyId === employeeLegalCompanyId && cc.role === "GM"
+    );
+
+    if (isGMofEmployeeCompany) {
+      request.status = "active";
+      request.adminComments = "Auto-approved by GM";
+      request.updatedAt = new Date().toISOString();
+
+      // Apply the privileges to assignments
+      const functionPrivileges = this.data.privileges
+        .filter(p => p.module === request.module && p.function === request.function)
+        .map(p => p.id);
+
+      const existingIdx = this.data.assignments.findIndex(
+        a => a.companyId === request.companyId && a.employeeId === request.employeeId
+      );
+      if (existingIdx >= 0) {
+        const withoutFunc = this.data.assignments[existingIdx].privilegeIds.filter(
+          id => !functionPrivileges.includes(id)
+        );
+        this.data.assignments[existingIdx].privilegeIds = [...withoutFunc, ...request.rolesSelected];
+      } else {
+        this.data.assignments.push({
+          companyId: request.companyId,
+          employeeId: request.employeeId,
+          privilegeIds: request.rolesSelected,
+        });
+      }
+      this.data.assignments = this.data.assignments.filter(a => a.privilegeIds.length > 0);
+    }
+
     await this.saveData();
 
     // Send email notification (fire-and-forget — never blocks the response)
@@ -681,11 +722,11 @@ export class JsonStorage implements IStorage {
     return request;
   }
 
-  async getRequests(filters?: { managerId?: string; employeeId?: string; status?: RequestStatus }): Promise<PrivilegeRequest[]> {
+  async getRequests(filters?: { managerId?: string; employeeId?: string; status?: RequestStatus; targetCompanyIds?: string[] }): Promise<PrivilegeRequest[]> {
     await this.initialized;
-    
+
     let requests = [...this.data.requests];
-    
+
     if (filters?.managerId) {
       requests = requests.filter(r => r.managerId === filters.managerId);
     }
@@ -694,6 +735,14 @@ export class JsonStorage implements IStorage {
     }
     if (filters?.status) {
       requests = requests.filter(r => r.status === filters.status);
+    }
+    // Filter by target employee's legal company (for GM-scoped views)
+    if (filters?.targetCompanyIds?.length) {
+      const ids = filters.targetCompanyIds;
+      requests = requests.filter(r => {
+        const emp = this.data.employees.find(e => e.id === r.employeeId);
+        return emp && ids.includes(emp.legalCompanyId);
+      });
     }
     
     return requests.sort((a, b) => 
@@ -709,15 +758,7 @@ export class JsonStorage implements IStorage {
   ): Promise<PrivilegeRequest> {
     await this.initialized;
 
-    // Verify admin — check employees OR contacts
-    const adminEmp = this.data.employees.find(e => e.id === adminId && e.isAdmin);
-    const adminContact = this.data.contacts.find(c => c.id === adminId && c.isAdmin);
-    if (!adminEmp && !adminContact) {
-      throw new Error("Only admins can approve/reject requests");
-    }
-    const adminName = adminEmp?.name || adminContact?.name || adminId;
-
-    // Find request
+    // Find request first (needed for GM authorization check)
     const requestIdx = this.data.requests.findIndex(r => r.id === requestId);
     if (requestIdx < 0) {
       throw new Error("Request not found");
@@ -727,6 +768,34 @@ export class JsonStorage implements IStorage {
     if (request.status !== "pending") {
       throw new Error("Only pending requests can be updated");
     }
+
+    // Authorization: system admin OR GM of the target employee's legal company
+    const targetEmployee = this.data.employees.find(e => e.id === request.employeeId);
+    const targetCompanyId = targetEmployee?.legalCompanyId;
+
+    // Block: requester cannot self-approve their own request
+    if (adminId === request.managerId || adminId === request.managerUserId) {
+      throw new Error("The requester cannot approve or reject their own request");
+    }
+
+    const isSystemAdmin =
+      this.data.employees.find(e => e.id === adminId && e.isAdmin) ||
+      this.data.contacts.find(c => c.id === adminId && c.isAdmin);
+
+    // GM of target employee's company can approve — NOT GM of requester's company
+    // (unless they happen to be the same company)
+    const isGMofTargetCompany = targetCompanyId && this.data.contacts.some(c =>
+      c.id === adminId &&
+      c.companies.some(cc => cc.companyId === targetCompanyId && cc.role === "GM")
+    );
+
+    if (!isSystemAdmin && !isGMofTargetCompany) {
+      throw new Error("Only the GM of the employee's company can approve or reject this request");
+    }
+
+    const adminEmp = this.data.employees.find(e => e.id === adminId);
+    const adminContact = this.data.contacts.find(c => c.id === adminId);
+    const adminName = adminEmp?.name || adminContact?.name || adminId;
 
     // Update request
     request.status = status;
@@ -863,6 +932,13 @@ export class JsonStorage implements IStorage {
     if (idx < 0) throw new Error("Contact not found");
     this.data.contacts.splice(idx, 1);
     await this.saveData();
+  }
+
+  async getGMsForCompany(companyId: string): Promise<Contact[]> {
+    await this.initialized;
+    return this.data.contacts.filter(c =>
+      c.companies.some(cc => cc.companyId === companyId && cc.role === "GM")
+    );
   }
 }
 

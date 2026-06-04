@@ -241,5 +241,104 @@
     "companyId": "002",
     "targetEmployeeId": "E008",
     "details": "Adnan Alqahtani requested HR/Performance Management privileges for Khalid Saleh in شركة دله الرقمية (4 roles)"
+  },
+  {
+    "id": "9f3cf997-69d8-4af5-be06-4c52a16a8053",
+    "timestamp": "2026-06-02T06:25:05.537Z",
+    "managerUserId": "E001",
+    "actionType": "REQUEST_REJECTED",
+    "companyId": "022",
+    "targetEmployeeId": "9280",
+    "details": "Mohammed Nawar rejected SCM/Order Management request for Ibrahim Mohammed Shaker in شركة دله لتعليم قيادة السيارات"
+  },
+  {
+    "id": "970fd078-f510-4f4c-ab41-292e39840960",
+    "timestamp": "2026-06-02T17:44:23.995Z",
+    "managerUserId": "84294",
+    "actionType": "REQUEST_CREATED",
+    "companyId": "002",
+    "targetEmployeeId": "80281",
+    "details": "Jameel Ashraf requested SCM/Buyer / Purchasing Agent privileges for Waleed Hassan Alahdal in شركة دله الرقمية (4 roles)"
+  },
+  {
+    "id": "5a3e7348-6d80-403b-a745-5b8dbd5e4520",
+    "timestamp": "2026-06-02T17:53:02.995Z",
+    "managerUserId": "84294",
+    "actionType": "REQUEST_CREATED",
+    "companyId": "002",
+    "targetEmployeeId": "80281",
+    "details": "Jameel Ashraf requested HR/Learning privileges for Waleed Hassan Alahdal in شركة دله الرقمية (5 roles)"
+  },
+  {
+    "id": "349f6396-acf1-4dea-a62b-33988481f418",
+    "timestamp": "2026-06-03T06:21:06.976Z",
+    "managerUserId": "84294",
+    "actionType": "REQUEST_CREATED",
+    "companyId": "002",
+    "targetEmployeeId": "85090",
+    "details": "Jameel Ashraf requested Finance/Accounting and Reporting privileges for Abdullah Mohammed Bukhari in شركة دله الرقمية (9 roles)"
+  },
+  {
+    "id": "efc01120-eefb-4772-841f-1ad4cb331a6b",
+    "timestamp": "2026-06-03T07:43:04.089Z",
+    "managerUserId": "80281",
+    "actionType": "REQUEST_CREATED",
+    "companyId": "002",
+    "targetEmployeeId": "85090",
+    "details": "Waleed Hassan Alahdal requested SCM/Order Entry Specialist privileges for Abdullah Mohammed Bukhari in شركة دله الرقمية (4 roles)"
+  },
+  {
+    "id": "4d72956f-c299-43d3-8e0d-013c7957c951",
+    "timestamp": "2026-06-03T07:53:47.771Z",
+    "managerUserId": "84294",
+    "actionType": "REQUEST_CREATED",
+    "companyId": "001",
+    "targetEmployeeId": "80431",
+    "details": "Jameel Ashraf requested SCM/Maintenance Technician privileges for Abdul Malik Hamid Allam in شركة دله البركة القابضة (4 roles)"
+  },
+  {
+    "id": "ad8dcd2e-fb29-4b32-9ae8-dad1a6044d12",
+    "timestamp": "2026-06-03T09:02:43.452Z",
+    "managerUserId": "9065",
+    "actionType": "REQUEST_CREATED",
+    "companyId": "001",
+    "targetEmployeeId": "80431",
+    "details": "Abdulrhman Khalid Murad requested SCM/Requisitioner privileges for Abdul Malik Hamid Allam in شركة دله البركة القابضة (3 roles)"
+  },
+  {
+    "id": "77592aad-9c10-484d-92b3-f3d96f59d3c2",
+    "timestamp": "2026-06-03T09:14:58.469Z",
+    "managerUserId": "9065",
+    "actionType": "REQUEST_CREATED",
+    "companyId": "001",
+    "targetEmployeeId": "80431",
+    "details": "Abdulrhman Khalid Murad requested SCM/Receiving Clerk privileges for Abdul Malik Hamid Allam in شركة دله البركة القابضة (4 roles)"
+  },
+  {
+    "id": "2206dfcc-5aa7-414b-9bb9-d6de83523652",
+    "timestamp": "2026-06-03T09:18:04.586Z",
+    "managerUserId": "84711",
+    "actionType": "REQUEST_CREATED",
+    "companyId": "002",
+    "targetEmployeeId": "8963",
+    "details": "Mohamed Ahmed Soultan requested HR/Payroll privileges for Mohammed Fawzi Elshafie in شركة دله الرقمية (5 roles)"
+  },
+  {
+    "id": "b42d5453-922b-413d-9b74-1189cecd6fba",
+    "timestamp": "2026-06-03T09:20:25.280Z",
+    "managerUserId": "84294",
+    "actionType": "REQUEST_CREATED",
+    "companyId": "001",
+    "targetEmployeeId": "84632",
+    "details": "Jameel Ashraf requested HR/Learning privileges for Nouf Mohammed Binthabit in شركة دله البركة القابضة (5 roles)"
+  },
+  {
+    "id": "87b5b96d-56f8-476e-967a-65302ef77f34",
+    "timestamp": "2026-06-03T10:38:13.077Z",
+    "managerUserId": "84294",
+    "actionType": "REQUEST_CREATED",
+    "companyId": "002",
+    "targetEmployeeId": "84711",
+    "details": "Jameel Ashraf requested SCM/Buyer / Purchasing Agent privileges for Mohamed Ahmed Soultan in شركة دله الرقمية (4 roles)"
   }
 ]

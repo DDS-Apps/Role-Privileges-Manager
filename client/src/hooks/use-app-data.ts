@@ -65,11 +65,12 @@ export function useUploadCatalog() {
 }
 
 // Request hooks
-export function useRequests(filters?: { managerId?: string; employeeId?: string; status?: RequestStatus }) {
+export function useRequests(filters?: { managerId?: string; employeeId?: string; status?: RequestStatus; targetCompanyIds?: string[] }) {
   const params = new URLSearchParams();
   if (filters?.managerId) params.append("managerId", filters.managerId);
   if (filters?.employeeId) params.append("employeeId", filters.employeeId);
   if (filters?.status) params.append("status", filters.status);
+  if (filters?.targetCompanyIds?.length) params.append("targetCompanyIds", filters.targetCompanyIds.join(","));
   
   const queryString = params.toString();
   const url = `/api/requests${queryString ? `?${queryString}` : ""}`;
