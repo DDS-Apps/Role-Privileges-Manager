@@ -1,5 +1,5 @@
-import { useState, useMemo } from "react";
-import { Bell, CheckCircle2, Clock, XCircle, Check, X, Loader2, MessageSquare } from "lucide-react";
+import { useState, useMemo, useEffect, useCallback } from "react";
+import { Bell, CheckCircle2, Clock, XCircle, Check, X, Loader2, MessageSquare, Trash2 } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,8 @@ import { useUpdateRequest } from "@/hooks/use-app-data";
 import { useToast } from "@/hooks/use-toast";
 import type { PrivilegeRequest, Employee, Company, Privilege } from "@shared/schema";
 import type { AuthUser } from "@/hooks/use-auth";
+import { getRequestTypeLabel, formatRevokeExecutionState } from "@/lib/request-utils";
+import { cn } from "@/lib/utils";
 
 interface NotificationBellProps {
   requests: PrivilegeRequest[];
@@ -27,12 +29,85 @@ const STATUS_ICON = {
 
 const STATUS_ORDER = { pending: 0, active: 1, rejected: 2 };
 
+function buildOwnerIds(
+  actingEmployeeId: string,
+  authId: string | undefined,
+  authUserId: string | undefined,
+): Set<string> {
+  return new Set(
+    [actingEmployeeId, authId, authUserId].filter((id): id is string => Boolean(id)),
+  );
+}
+
+function isRequestOwnedByUser(
+  request: PrivilegeRequest,
+  ownerIds: Set<string>,
+): boolean {
+  return (
+    ownerIds.has(request.managerId) ||
+    (request.managerUserId != null && ownerIds.has(request.managerUserId))
+  );
+}
+
+function dismissedStorageKey(userKey: string) {
+  return `rpm-dismissed-notifications:${userKey}`;
+}
+
+function loadDismissedIds(userKey: string): Set<string> {
+  try {
+    const raw = localStorage.getItem(dismissedStorageKey(userKey));
+    if (!raw) return new Set();
+    const parsed = JSON.parse(raw) as string[];
+    return new Set(Array.isArray(parsed) ? parsed : []);
+  } catch {
+    return new Set();
+  }
+}
+
+function saveDismissedIds(userKey: string, ids: Set<string>) {
+  localStorage.setItem(dismissedStorageKey(userKey), JSON.stringify(Array.from(ids)));
+}
+
 export function NotificationBell({ requests, employees, companies, privileges, managerId, authUser }: NotificationBellProps) {
   const [open, setOpen]                   = useState(false);
   const [approvalReq, setApprovalReq]     = useState<PrivilegeRequest | null>(null);
   const [comment, setComment]             = useState("");
+  const [dismissedIds, setDismissedIds]   = useState<Set<string>>(new Set());
   const updateRequest                     = useUpdateRequest();
   const { toast }                         = useToast();
+
+  const userKey = authUser?.id || authUser?.userId || "anonymous";
+
+  useEffect(() => {
+    setDismissedIds(loadDismissedIds(userKey));
+  }, [userKey]);
+
+  const dismissNotification = useCallback(
+    (requestId: string) => {
+      setDismissedIds((prev) => {
+        const next = new Set(prev);
+        next.add(requestId);
+        saveDismissedIds(userKey, next);
+        return next;
+      });
+      if (approvalReq?.id === requestId) {
+        setApprovalReq(null);
+        setComment("");
+      }
+    },
+    [userKey, approvalReq?.id],
+  );
+
+  const dismissAllVisible = useCallback((ids: string[]) => {
+    setDismissedIds((prev) => {
+      const next = new Set(prev);
+      ids.forEach((id) => next.add(id));
+      saveDismissedIds(userKey, next);
+      return next;
+    });
+    setApprovalReq(null);
+    setComment("");
+  }, [userKey]);
 
   // GM companies for the logged-in user
   const gmCompanyIds = useMemo(() =>
@@ -45,30 +120,67 @@ export function NotificationBell({ requests, employees, companies, privileges, m
   // - pending status
   // - NOT submitted by this user (no self-approval)
   // - employee is in a company where this user is GM (or system admin sees all)
-  const toApprove = useMemo(() => {
-    if (!isApprover) return [];
-    return requests.filter(r => {
-      if (r.status !== "pending") return false;
-      // Cannot approve own request
-      if (r.managerId === managerId || r.managerUserId === authUser?.userId) return false;
-      if (authUser?.isAdmin) return true;
-      const emp = employees.find(e => e.id === r.employeeId);
-      return emp && gmCompanyIds.includes(emp.legalCompanyId);
-    }).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-  }, [requests, isApprover, authUser, employees, gmCompanyIds, managerId]);
-
-  // My submitted requests
-  const myRequests = useMemo(() =>
-    [...requests]
-      .filter(r => r.managerId === managerId)
-      .sort((a, b) => {
-        const d = STATUS_ORDER[a.status] - STATUS_ORDER[b.status];
-        return d !== 0 ? d : new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-      }),
-    [requests, managerId]
+  const ownerIds = useMemo(
+    () => buildOwnerIds(managerId, authUser?.id, authUser?.userId),
+    [managerId, authUser?.id, authUser?.userId],
   );
 
-  const badgeCount = toApprove.length || myRequests.filter(r => r.status === "pending").length;
+  const accessibleCompanyIds = useMemo(
+    () => new Set(authUser?.companies.map((c) => c.companyId) ?? []),
+    [authUser],
+  );
+
+  const toApprove = useMemo(() => {
+    if (!isApprover) return [];
+    return requests
+      .filter((r) => {
+        if (r.status !== "pending") return false;
+        if (isRequestOwnedByUser(r, ownerIds)) return false;
+        if (authUser?.isAdmin) return accessibleCompanyIds.has(r.companyId);
+        const emp = employees.find((e) => e.id === r.employeeId);
+        return Boolean(emp && gmCompanyIds.includes(emp.legalCompanyId));
+      })
+      .sort(
+        (a, b) =>
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+      );
+  }, [
+    requests,
+    isApprover,
+    authUser,
+    employees,
+    gmCompanyIds,
+    ownerIds,
+    accessibleCompanyIds,
+  ]);
+
+  const visibleToApprove = useMemo(
+    () => toApprove.filter((r) => !dismissedIds.has(r.id)),
+    [toApprove, dismissedIds],
+  );
+
+  // My submitted requests
+  const myRequests = useMemo(
+    () =>
+      [...requests]
+        .filter((r) => isRequestOwnedByUser(r, ownerIds))
+        .sort((a, b) => {
+          const d = STATUS_ORDER[a.status] - STATUS_ORDER[b.status];
+          return d !== 0
+            ? d
+            : new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+        }),
+    [requests, ownerIds],
+  );
+
+  const visibleMyRequests = useMemo(
+    () => myRequests.filter((r) => !dismissedIds.has(r.id)),
+    [myRequests, dismissedIds],
+  );
+
+  const badgeCount =
+    visibleToApprove.length ||
+    visibleMyRequests.filter((r) => r.status === "pending").length;
 
   const getEmployeeName = (id: string) => employees.find(e => e.id === id)?.name || id;
   const getCompanyName  = (id: string) => companies.find(c => c.id === id)?.name || id;
@@ -113,12 +225,29 @@ export function NotificationBell({ requests, employees, companies, privileges, m
     }
   };
 
-  const RequestRow = ({ req, showApproveHint }: { req: PrivilegeRequest; showApproveHint?: boolean }) => {
+  const RequestRow = ({
+    req,
+    showApproveHint,
+    onDismiss,
+  }: {
+    req: PrivilegeRequest;
+    showApproveHint?: boolean;
+    onDismiss: (id: string) => void;
+  }) => {
     const clickable = req.status === "pending" && showApproveHint;
+    const isRevoke = (req.requestType ?? "grant") === "revoke";
+    const typeLabel = getRequestTypeLabel(req, { grant: "Grant", delete: "Delete" });
+    const executionState = formatRevokeExecutionState(req, {
+      scheduled: "Scheduled",
+      revoked: "Revoked",
+      reinstated: "Reinstated",
+      revokedUntil: "Revoked until {date}",
+      noEndDate: "No end date",
+    });
     return (
       <div
         onClick={() => { if (clickable) { setOpen(false); setTimeout(() => { setApprovalReq(req); setComment(""); }, 150); } }}
-        className={`px-4 py-3 transition-colors ${
+        className={`group px-4 py-3 transition-colors ${
           req.status === "pending" ? "border-l-2 border-amber-400" :
           req.status === "active"  ? "border-l-2 border-teal-500" : "border-l-2 border-rose-400"
         } ${clickable ? "cursor-pointer hover:bg-amber-50 dark:hover:bg-amber-900/10" : "hover:bg-slate-50 dark:hover:bg-slate-800/50"}`}
@@ -132,14 +261,40 @@ export function NotificationBell({ requests, employees, companies, privileges, m
               </span>
               <span className="text-xs text-slate-400 font-mono shrink-0">{req.employeeId}</span>
             </div>
+            <div className="ml-5 flex flex-wrap items-center gap-1.5">
+              <span
+                className={cn(
+                  "inline-flex rounded-full px-1.5 py-0.5 text-[10px] font-semibold uppercase",
+                  isRevoke ? "bg-rose-100 text-rose-800" : "bg-teal-100 text-teal-800",
+                )}
+              >
+                {typeLabel}
+              </span>
+              {executionState && (
+                <span className="text-[10px] font-medium text-slate-500">{executionState}</span>
+              )}
+            </div>
             <p className="text-xs text-slate-500 dark:text-slate-400 ml-5">{req.module} · {req.function}</p>
             <p className="text-xs text-teal-600 dark:text-teal-400 ml-5 truncate" dir="rtl">{getCompanyName(req.companyId)}</p>
           </div>
-          <div className="text-right shrink-0">
+          <div className="flex shrink-0 flex-col items-end gap-1">
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onDismiss(req.id);
+              }}
+              className="rounded p-1 text-slate-400 transition-colors hover:bg-slate-200 hover:text-rose-600 dark:hover:bg-slate-700"
+              title="Dismiss notification"
+              aria-label="Dismiss notification"
+              data-testid={`dismiss-notification-${req.id}`}
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </button>
             <StatusBadge status={req.status} size="sm" />
-            <p className="text-xs text-slate-400 mt-1">{formatDate(req.createdAt)}</p>
+            <p className="text-xs text-slate-400">{formatDate(req.createdAt)}</p>
             {clickable && (
-              <p className="text-[10px] text-amber-600 font-medium mt-0.5">Tap to review →</p>
+              <p className="text-[10px] font-medium text-amber-600">Tap to review →</p>
             )}
           </div>
         </div>
@@ -178,11 +333,26 @@ export function NotificationBell({ requests, employees, companies, privileges, m
               <Bell className="h-4 w-4 text-teal-400" />
               <span className="font-semibold text-sm">Notifications</span>
             </div>
-            <div className="flex gap-2 text-xs">
-              {toApprove.length > 0 && (
-                <span className="px-1.5 py-0.5 rounded-full font-medium bg-amber-400/20 text-amber-300">
-                  {toApprove.length} to approve
+            <div className="flex items-center gap-2 text-xs">
+              {visibleToApprove.length > 0 && (
+                <span className="rounded-full bg-amber-400/20 px-1.5 py-0.5 font-medium text-amber-300">
+                  {visibleToApprove.length} to approve
                 </span>
+              )}
+              {(visibleToApprove.length > 0 || visibleMyRequests.length > 0) && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    dismissAllVisible([
+                      ...visibleToApprove.map((r) => r.id),
+                      ...visibleMyRequests.map((r) => r.id),
+                    ])
+                  }
+                  className="rounded px-1.5 py-0.5 text-[10px] font-medium text-white/70 transition hover:bg-white/10 hover:text-white"
+                  data-testid="button-dismiss-all-notifications"
+                >
+                  Clear all
+                </button>
               )}
             </div>
           </div>
@@ -190,32 +360,32 @@ export function NotificationBell({ requests, employees, companies, privileges, m
           <div className="max-h-[460px] overflow-y-auto divide-y divide-slate-100 dark:divide-slate-700 bg-white dark:bg-slate-800">
 
             {/* ── To Approve section (GMs/admins) ──────────────────────── */}
-            {toApprove.length > 0 && (
+            {visibleToApprove.length > 0 && (
               <>
                 <div className="px-4 py-2 bg-amber-50 dark:bg-amber-900/20">
                   <p className="text-xs font-semibold text-amber-700 dark:text-amber-300 flex items-center gap-1.5">
-                    <Clock className="h-3 w-3" /> Pending your approval ({toApprove.length})
+                    <Clock className="h-3 w-3" /> Pending your approval ({visibleToApprove.length})
                   </p>
                 </div>
-                {toApprove.map(req => (
-                  <RequestRow key={req.id} req={req} showApproveHint />
+                {visibleToApprove.map(req => (
+                  <RequestRow key={req.id} req={req} showApproveHint onDismiss={dismissNotification} />
                 ))}
               </>
             )}
 
             {/* ── My Requests section ──────────────────────────────────── */}
-            {myRequests.length > 0 && (
+            {visibleMyRequests.length > 0 && (
               <>
                 <div className="px-4 py-2 bg-slate-50 dark:bg-slate-900">
-                  <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">My submitted requests ({myRequests.length})</p>
+                  <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">My submitted requests ({visibleMyRequests.length})</p>
                 </div>
-                {myRequests.map(req => (
-                  <RequestRow key={req.id} req={req} showApproveHint={false} />
+                {visibleMyRequests.map(req => (
+                  <RequestRow key={req.id} req={req} showApproveHint={false} onDismiss={dismissNotification} />
                 ))}
               </>
             )}
 
-            {toApprove.length === 0 && myRequests.length === 0 && (
+            {visibleToApprove.length === 0 && visibleMyRequests.length === 0 && (
               <div className="flex flex-col items-center justify-center py-10 text-slate-400">
                 <Bell className="h-8 w-8 mb-2 opacity-30" />
                 <p className="text-sm">No notifications</p>
@@ -232,7 +402,9 @@ export function NotificationBell({ requests, employees, companies, privileges, m
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <Clock className="h-5 w-5 text-amber-500" />
-                Review Request
+                {(approvalReq.requestType ?? "grant") === "revoke"
+                  ? "Review Delete Request"
+                  : "Review Request"}
               </DialogTitle>
             </DialogHeader>
 
@@ -253,13 +425,22 @@ export function NotificationBell({ requests, employees, companies, privileges, m
               </div>
 
               <div className="bg-slate-50 dark:bg-slate-800 rounded-xl p-3 text-sm">
-                <p className="text-xs text-slate-400 mb-1">Module / Function</p>
+                <p className="text-xs text-slate-400 mb-1">
+                  {(approvalReq.requestType ?? "grant") === "revoke" ? "Effective period" : "Module / Function"}
+                </p>
                 <p className="font-semibold text-slate-900 dark:text-slate-100">{approvalReq.module} · {approvalReq.function}</p>
-                <p className="text-xs text-slate-500 mt-0.5">{approvalReq.startDate}{approvalReq.endDate ? ` → ${approvalReq.endDate}` : " (no end date)"}</p>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  {(approvalReq.requestType ?? "grant") === "revoke" ? "Remove from" : "Start"} {approvalReq.startDate}
+                  {approvalReq.endDate
+                    ? (approvalReq.requestType === "revoke" ? ` · Reinstate after ${approvalReq.endDate}` : ` → ${approvalReq.endDate}`)
+                    : " (no end date)"}
+                </p>
               </div>
 
               <div className="bg-slate-50 dark:bg-slate-800 rounded-xl p-3">
-                <p className="text-xs text-slate-400 mb-2">Roles ({approvalReq.rolesSelected.length})</p>
+                <p className="text-xs text-slate-400 mb-2">
+                  {(approvalReq.requestType ?? "grant") === "revoke" ? "Roles to remove" : "Roles"} ({approvalReq.rolesSelected.length})
+                </p>
                 <div className="flex flex-wrap gap-1.5">
                   {approvalReq.rolesSelected.map(id => {
                     const priv = privileges.find(p => p.id === id);

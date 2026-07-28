@@ -44,6 +44,7 @@ export interface Employee {
 // REQUEST STATUS
 // ============================================
 export type RequestStatus = "pending" | "active" | "rejected";
+export type RequestType = "grant" | "revoke";
 
 // ============================================
 // PRIVILEGE REQUESTS (Manager creates, Admin approves)
@@ -58,10 +59,13 @@ export interface PrivilegeRequest {
   module: string;
   function: string;
   rolesSelected: string[];     // Array of privilege IDs
+  requestType: RequestType;    // grant (default) or revoke (delete privilege)
   startDate: string;           // ISO date string
   endDate: string | null;      // ISO date string or null for no end
   status: RequestStatus;
   adminComments: string | null;
+  executedAt: string | null;   // when revoke removal was applied
+  reinstatedAt: string | null; // when roles were restored after endDate
   createdAt: string;
   updatedAt: string;
 }
@@ -157,6 +161,7 @@ export const createRequestSchema = z.object({
   module: z.string(),
   function: z.string(),
   rolesSelected: z.array(z.string()).min(1, "At least one role must be selected"),
+  requestType: z.enum(["grant", "revoke"]).default("grant"),
   startDate: z.string(),
   endDate: z.string().nullable(),
 });

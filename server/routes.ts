@@ -32,6 +32,10 @@ function requireAdmin(req: Request, res: Response, next: () => void) {
   next();
 }
 
+function getSessionActorId(req: Request): string {
+  return req.session.contactId || req.session.employeeId || "";
+}
+
 export async function registerRoutes(
   httpServer: Server,
   app: Express
@@ -163,7 +167,7 @@ export async function registerRoutes(
   });
 
   // ── Contacts CRUD (admin only) ─────────────────────────────────────────────
-  app.get("/api/contacts", requireAdmin as any, async (_req, res) => {
+  app.get("/api/contacts", requireAuth as any, requireAdmin as any, async (_req, res) => {
     try {
       const contacts = await storage.getContacts();
       res.json(contacts);
@@ -172,7 +176,7 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/contacts", requireAdmin as any, async (req, res) => {
+  app.post("/api/contacts", requireAuth as any, requireAdmin as any, async (req, res) => {
     try {
       const contact = await storage.createContact(req.body);
       res.json(contact);
@@ -181,7 +185,7 @@ export async function registerRoutes(
     }
   });
 
-  app.put("/api/contacts/:id", requireAdmin as any, async (req, res) => {
+  app.put("/api/contacts/:id", requireAuth as any, requireAdmin as any, async (req, res) => {
     try {
       const contact = await storage.updateContact(req.params.id, req.body);
       res.json(contact);
@@ -190,7 +194,7 @@ export async function registerRoutes(
     }
   });
 
-  app.delete("/api/contacts/:id", requireAdmin as any, async (req, res) => {
+  app.delete("/api/contacts/:id", requireAuth as any, requireAdmin as any, async (req, res) => {
     try {
       await storage.deleteContact(req.params.id);
       res.json({ ok: true });
@@ -200,7 +204,7 @@ export async function registerRoutes(
   });
 
   // Bootstrap - get all data
-  app.get(api.bootstrap.get.path, async (req, res) => {
+  app.get(api.bootstrap.get.path, requireAuth as any, async (req, res) => {
     try {
       const data = await storage.getBootstrapData();
       res.json(data);
@@ -211,7 +215,7 @@ export async function registerRoutes(
   });
 
   // Apply Assignments (direct add/remove)
-  app.post(api.assignments.apply.path, async (req, res) => {
+  app.post(api.assignments.apply.path, requireAuth as any, async (req, res) => {
     try {
       const { actorId, companyId, targetEmployeeId, privilegeIds } = applyAssignmentsSchema.parse(req.body);
       
@@ -235,7 +239,7 @@ export async function registerRoutes(
   });
 
   // Upload Catalog
-  app.post(api.catalog.upload.path, async (req, res) => {
+  app.post(api.catalog.upload.path, requireAuth as any, async (req, res) => {
     try {
       const { actorId, catalog } = uploadCatalogSchema.parse(req.body);
       
@@ -258,7 +262,7 @@ export async function registerRoutes(
   });
 
   // Get Audit Log
-  app.get(api.audit.list.path, async (req, res) => {
+  app.get(api.audit.list.path, requireAuth as any, async (req, res) => {
     try {
       const auditLog = await storage.getAuditLog();
       res.json(auditLog);
@@ -269,7 +273,7 @@ export async function registerRoutes(
   });
 
   // Export Employee Privileges to Excel
-  app.get(api.export.employee.path, async (req, res) => {
+  app.get(api.export.employee.path, requireAuth as any, async (req, res) => {
     try {
       const { employeeId, scope, companyId } = req.query;
       
@@ -338,7 +342,7 @@ export async function registerRoutes(
   // ============================================
 
   // Create Request
-  app.post(api.requests.create.path, async (req, res) => {
+  app.post(api.requests.create.path, requireAuth as any, async (req, res) => {
     try {
       const input = createRequestSchema.parse(req.body);
       const request = await storage.createRequest(input);
@@ -356,7 +360,7 @@ export async function registerRoutes(
   });
 
   // List Requests
-  app.get(api.requests.list.path, async (req, res) => {
+  app.get(api.requests.list.path, requireAuth as any, async (req, res) => {
     try {
       const { managerId, employeeId, status, targetCompanyIds } = req.query;
       const requests = await storage.getRequests({
@@ -373,15 +377,14 @@ export async function registerRoutes(
   });
 
   // Update Request (Approve/Reject)
-  app.patch("/api/requests/:requestId", async (req, res) => {
+  app.patch("/api/requests/:requestId", requireAuth as any, async (req, res) => {
     try {
       const { requestId } = req.params;
-      // Support both session-based and query-param adminId (backward compat)
-      const adminId = (req.query.adminId as string) || req.session.contactId || "";
+      const adminId = getSessionActorId(req) || (req.query.adminId as string) || "";
       const input = updateRequestSchema.parse(req.body);
 
       if (!adminId) {
-        return res.status(400).json({ message: "adminId required" });
+        return res.status(401).json({ message: "Unauthorized" });
       }
 
       const request = await storage.updateRequestStatus(
@@ -410,16 +413,16 @@ export async function registerRoutes(
   // EMPLOYEE TERMINATION
   // ============================================
 
-  app.post("/api/employees/:employeeId/terminate", async (req, res) => {
+  app.post("/api/employees/:employeeId/terminate", requireAuth as any, requireAdmin as any, async (req, res) => {
     try {
       const { employeeId } = req.params;
-      const { adminId } = req.query;
+      const adminId = getSessionActorId(req) || (req.query.adminId as string);
       
       if (!adminId) {
-        return res.status(400).json({ message: "adminId query parameter is required" });
+        return res.status(401).json({ message: "Unauthorized" });
       }
 
-      await storage.terminateEmployee(employeeId, adminId as string);
+      await storage.terminateEmployee(employeeId, adminId);
       res.json({ success: true });
     } catch (err) {
       if (err instanceof Error) {

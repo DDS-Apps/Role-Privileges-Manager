@@ -21,7 +21,7 @@ export function useAuth() {
   return useQuery<AuthUser | null>({
     queryKey: ["/api/auth/me"],
     queryFn: async () => {
-      const res = await fetch("/api/auth/me");
+      const res = await fetch("/api/auth/me", { credentials: "include" });
       if (res.status === 401) return null;
       if (!res.ok) throw new Error("Auth check failed");
       return res.json();
@@ -39,6 +39,7 @@ export function useLogin() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
+        credentials: "include",
       });
       if (!res.ok) {
         const err = await res.json();
@@ -60,6 +61,7 @@ export function useSelectCompany() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ companyId }),
+        credentials: "include",
       });
       if (!res.ok) throw new Error("Failed to select company");
       return res.json();
@@ -74,7 +76,7 @@ export function useLogout() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async () => {
-      await fetch("/api/auth/logout", { method: "POST" });
+      await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
     },
     onSuccess: () => {
       queryClient.setQueryData(["/api/auth/me"], null);

@@ -29214,7 +29214,12 @@
       "privilegeIds": [
         "P_SCM_REQ_01",
         "P_SCM_REQ_02",
-        "P_SCM_REQ_03"
+        "P_SCM_REQ_03",
+        "P_HR_PAY_02",
+        "P_HR_PAY_01",
+        "P_HR_PAY_04",
+        "P_HR_PAY_03",
+        "P_HR_PAY_05"
       ]
     },
     {
@@ -29296,7 +29301,12 @@
         "P_HR_EMPLOYEE_SELF_SERVIC_01",
         "P_SCM_REQ_01",
         "P_SCM_REQ_02",
-        "P_SCM_REQ_03"
+        "P_SCM_REQ_03",
+        "P_HR_PAY_02",
+        "P_HR_PAY_01",
+        "P_HR_PAY_04",
+        "P_HR_PAY_03",
+        "P_HR_PAY_05"
       ]
     },
     {
@@ -31091,10 +31101,10 @@
       ],
       "startDate": "2026-06-03",
       "endDate": null,
-      "status": "pending",
+      "status": "rejected",
       "adminComments": null,
       "createdAt": "2026-06-03T09:18:04.577Z",
-      "updatedAt": "2026-06-03T09:18:04.577Z"
+      "updatedAt": "2026-06-04T09:25:17.301Z"
     },
     {
       "id": "e8ddd510-93ed-412d-bc9b-77610c5061d9",
@@ -31140,6 +31150,52 @@
       "adminComments": "Auto-approved by GM",
       "createdAt": "2026-06-03T10:38:13.049Z",
       "updatedAt": "2026-06-03T10:38:13.050Z"
+    },
+    {
+      "id": "7937f810-a296-4643-ab30-41b94e4383f2",
+      "managerId": "84294",
+      "managerUserId": "84294",
+      "managerLegalCompanyId": "002",
+      "employeeId": "81287",
+      "companyId": "002",
+      "module": "HR",
+      "function": "Payroll",
+      "rolesSelected": [
+        "P_HR_PAY_02",
+        "P_HR_PAY_01",
+        "P_HR_PAY_04",
+        "P_HR_PAY_03",
+        "P_HR_PAY_05"
+      ],
+      "startDate": "2026-06-12",
+      "endDate": null,
+      "status": "active",
+      "adminComments": "Auto-approved by GM",
+      "createdAt": "2026-06-04T09:21:28.753Z",
+      "updatedAt": "2026-06-04T09:21:28.753Z"
+    },
+    {
+      "id": "cc81c145-c277-462a-b8dc-7a917325b92d",
+      "managerId": "84294",
+      "managerUserId": "84294",
+      "managerLegalCompanyId": "002",
+      "employeeId": "80281",
+      "companyId": "002",
+      "module": "HR",
+      "function": "Payroll",
+      "rolesSelected": [
+        "P_HR_PAY_02",
+        "P_HR_PAY_01",
+        "P_HR_PAY_04",
+        "P_HR_PAY_03",
+        "P_HR_PAY_05"
+      ],
+      "startDate": "2026-06-04",
+      "endDate": null,
+      "status": "active",
+      "adminComments": "Auto-approved by GM",
+      "createdAt": "2026-06-04T11:04:43.321Z",
+      "updatedAt": "2026-06-04T11:04:43.322Z"
     }
   ],
   "contacts": [

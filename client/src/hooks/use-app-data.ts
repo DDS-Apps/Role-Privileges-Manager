@@ -15,6 +15,7 @@ async function apiRequest(method: string, url: string, body?: unknown) {
     method,
     headers: body ? { "Content-Type": "application/json" } : undefined,
     body: body ? JSON.stringify(body) : undefined,
+    credentials: "include",
   });
   return res;
 }
@@ -23,7 +24,7 @@ export function useBootstrapData() {
   return useQuery<BootstrapResponse>({
     queryKey: ["/api/bootstrap"],
     queryFn: async () => {
-      const res = await fetch("/api/bootstrap");
+      const res = await fetch("/api/bootstrap", { credentials: "include" });
       if (!res.ok) throw new Error("Failed to fetch data");
       return res.json();
     },
@@ -78,7 +79,7 @@ export function useRequests(filters?: { managerId?: string; employeeId?: string;
   return useQuery<PrivilegeRequest[]>({
     queryKey: ["/api/requests", filters],
     queryFn: async () => {
-      const res = await fetch(url);
+      const res = await fetch(url, { credentials: "include" });
       if (!res.ok) throw new Error("Failed to fetch requests");
       return res.json();
     },

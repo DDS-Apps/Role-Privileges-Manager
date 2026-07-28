@@ -34,14 +34,16 @@ export function AccessSearchCard({
   const [companyOnly, setCompanyOnly] = useState(false);
 
   const modules = useMemo(() => {
-    return [...new Set(privileges.map(p => p.module))].sort();
+    return Array.from(new Set(privileges.map(p => p.module))).sort();
   }, [privileges]);
 
   const functions = useMemo(() => {
     if (!selectedModule) return [];
-    return [...new Set(
-      privileges.filter(p => p.module === selectedModule).map(p => p.function)
-    )].sort();
+    return Array.from(
+      new Set(
+        privileges.filter(p => p.module === selectedModule).map(p => p.function)
+      )
+    ).sort();
   }, [privileges, selectedModule]);
 
   // Privilege IDs matching selected module + function

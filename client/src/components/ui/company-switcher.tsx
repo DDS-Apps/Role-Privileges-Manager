@@ -7,9 +7,14 @@ import type { AuthCompany } from "@/hooks/use-auth";
 interface CompanySwitcherProps {
   companies: AuthCompany[];
   selectedCompanyId: string | null;
+  stacked?: boolean;
 }
 
-export function CompanySwitcher({ companies, selectedCompanyId }: CompanySwitcherProps) {
+export function CompanySwitcher({
+  companies,
+  selectedCompanyId,
+  stacked = false,
+}: CompanySwitcherProps) {
   const [open, setOpen] = useState(false);
   const selectCompany = useSelectCompany();
 
@@ -28,12 +33,39 @@ export function CompanySwitcher({ companies, selectedCompanyId }: CompanySwitche
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <button className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium text-white/90 hover:bg-white/20 transition-colors max-w-[220px]">
-          <Building2 className="h-3.5 w-3.5 shrink-0 text-teal-400" />
-          <span className="truncate" dir="rtl">
-            {current?.name ?? "Select Company"}
-          </span>
-          <ChevronDown className="h-3 w-3 shrink-0 text-white/60" />
+        <button
+          type="button"
+          className={
+            stacked
+              ? "flex max-w-[280px] items-center gap-2.5 rounded-lg px-1 py-0.5 text-left transition-colors hover:bg-white/10"
+              : "flex max-w-[220px] items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium text-white/90 transition-colors hover:bg-white/20"
+          }
+        >
+          <Building2
+            className={
+              stacked
+                ? "h-5 w-5 shrink-0 text-white/50"
+                : "h-3.5 w-3.5 shrink-0 text-teal-400"
+            }
+          />
+          {stacked ? (
+            <span className="min-w-0 flex-1">
+              <span
+                className="block truncate text-sm font-semibold text-white"
+                dir="auto"
+              >
+                {current?.name ?? "Select Company"}
+              </span>
+              <span className="block text-xs text-white/55">
+                ID: {selectedCompanyId ?? "—"}
+              </span>
+            </span>
+          ) : (
+            <span className="truncate" dir="auto">
+              {current?.name ?? "Select Company"}
+            </span>
+          )}
+          <ChevronDown className="h-3.5 w-3.5 shrink-0 text-white/60" />
         </button>
       </PopoverTrigger>
 

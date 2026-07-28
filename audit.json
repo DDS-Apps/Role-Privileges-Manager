@@ -340,5 +340,32 @@
     "companyId": "002",
     "targetEmployeeId": "84711",
     "details": "Jameel Ashraf requested SCM/Buyer / Purchasing Agent privileges for Mohamed Ahmed Soultan in شركة دله الرقمية (4 roles)"
+  },
+  {
+    "id": "17b0e35a-10c0-435f-9f9d-c9c586ebe547",
+    "timestamp": "2026-06-04T09:21:28.765Z",
+    "managerUserId": "84294",
+    "actionType": "REQUEST_CREATED",
+    "companyId": "002",
+    "targetEmployeeId": "81287",
+    "details": "Jameel Ashraf requested HR/Payroll privileges for Adnan Hussein Alomari in شركة دله الرقمية (5 roles)"
+  },
+  {
+    "id": "1fdde9da-827d-47c9-bb20-a43bd7423235",
+    "timestamp": "2026-06-04T09:25:17.309Z",
+    "managerUserId": "C013",
+    "actionType": "REQUEST_REJECTED",
+    "companyId": "002",
+    "targetEmployeeId": "8963",
+    "details": "Jameel Ashraf rejected HR/Payroll request for Mohammed Fawzi Elshafie in شركة دله الرقمية"
+  },
+  {
+    "id": "86c886dd-f82e-460b-ad19-cf2681a6abfd",
+    "timestamp": "2026-06-04T11:04:43.330Z",
+    "managerUserId": "84294",
+    "actionType": "REQUEST_CREATED",
+    "companyId": "002",
+    "targetEmployeeId": "80281",
+    "details": "Jameel Ashraf requested HR/Payroll privileges for Waleed Hassan Alahdal in شركة دله الرقمية (5 roles)"
   }
 ]

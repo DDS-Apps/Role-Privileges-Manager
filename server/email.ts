@@ -34,14 +34,16 @@ export async function sendRequestSubmittedEmail(params: {
   startDate: string;
   endDate: string | null;
   requestId: string;
+  requestType?: "grant" | "revoke";
 }) {
   const {
     managerName, managerUserId, employeeName, employeeId,
     companyName, module, functionName, rolesCount,
-    startDate, endDate, requestId,
+    startDate, endDate, requestId, requestType = "grant",
   } = params;
 
-  const subject = `[RPM] New Privilege Request — ${employeeName} | ${module} / ${functionName}`;
+  const isRevoke = requestType === "revoke";
+  const subject = `[RPM] ${isRevoke ? "Delete Privilege Request" : "New Privilege Request"} — ${employeeName} | ${module} / ${functionName}`;
 
   const html = `
 <!DOCTYPE html>
@@ -67,12 +69,14 @@ export async function sendRequestSubmittedEmail(params: {
 <body>
   <div class="wrapper">
     <div class="header">
-      <h1>🛡 New Privilege Request</h1>
+      <h1>${isRevoke ? "🗑 Delete Privilege Request" : "🛡 New Privilege Request"}</h1>
       <p>Role & Privileges Manager — Dallah AlBarakah Group</p>
     </div>
     <div class="body">
       <p style="color:#475569;font-size:14px;margin-top:0">
-        A new privilege request has been submitted and is awaiting admin approval.
+        ${isRevoke
+          ? "A privilege deletion request has been submitted and is awaiting admin approval."
+          : "A new privilege request has been submitted and is awaiting admin approval."}
       </p>
 
       <div class="label">Submitted By</div>
@@ -99,7 +103,7 @@ export async function sendRequestSubmittedEmail(params: {
       </div>
 
       <div class="row">
-        <div class="label">Roles Requested</div>
+        <div class="label">Roles ${isRevoke ? "to Remove" : "Requested"}</div>
         <div class="value">${rolesCount} role${rolesCount !== 1 ? "s" : ""}</div>
       </div>
 
@@ -125,7 +129,7 @@ export async function sendRequestSubmittedEmail(params: {
 </html>`;
 
   const text = [
-    "New Privilege Request — RPM System",
+    `${isRevoke ? "Delete Privilege Request" : "New Privilege Request"} — RPM System`,
     "",
     `Submitted by : ${managerName}${managerUserId ? ` (${managerUserId})` : ""}`,
     `Employee     : ${employeeName} (${employeeId})`,

@@ -20,6 +20,7 @@ async function apiJson(method: string, url: string, body?: unknown) {
     method,
     headers: body ? { "Content-Type": "application/json" } : undefined,
     body: body ? JSON.stringify(body) : undefined,
+    credentials: "include",
   });
   if (!res.ok) { const e = await res.json(); throw new Error(e.message || "Request failed"); }
   return res.json();

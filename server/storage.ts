@@ -342,6 +342,22 @@ export class JsonStorage implements IStorage {
         e001.isAdmin = true;
         needsSave = true;
       }
+
+      // Backfill revoke scheduling fields on existing requests
+      for (const req of this.data.requests) {
+        if (!req.requestType) {
+          req.requestType = "grant";
+          needsSave = true;
+        }
+        if (req.executedAt === undefined) {
+          req.executedAt = null;
+          needsSave = true;
+        }
+        if (req.reinstatedAt === undefined) {
+          req.reinstatedAt = null;
+          needsSave = true;
+        }
+      }
       
       if (needsSave) {
         await this.saveData();
@@ -393,12 +409,179 @@ export class JsonStorage implements IStorage {
     await this.saveAudit();
   }
 
+  private todayDateString(): string {
+    return new Date().toISOString().split("T")[0];
+  }
+
+  private getAssignmentPrivilegeIds(companyId: string, employeeId: string): string[] {
+    const assignment = this.data.assignments.find(
+      a => a.companyId === companyId && a.employeeId === employeeId,
+    );
+    return assignment?.privilegeIds ?? [];
+  }
+
+  private async removePrivilegesFromAssignment(
+    actorId: string,
+    companyId: string,
+    employeeId: string,
+    privilegeIds: string[],
+  ): Promise<void> {
+    if (privilegeIds.length === 0) return;
+
+    const company = this.data.companies.find(c => c.id === companyId);
+    const target = this.data.employees.find(e => e.id === employeeId);
+    const existingIdx = this.data.assignments.findIndex(
+      a => a.companyId === companyId && a.employeeId === employeeId,
+    );
+    if (existingIdx < 0) return;
+
+    const before = this.data.assignments[existingIdx].privilegeIds;
+    const removeSet = new Set(privilegeIds);
+    const after = before.filter(id => !removeSet.has(id));
+    const removed = before.filter(id => removeSet.has(id));
+
+    this.data.assignments[existingIdx].privilegeIds = after;
+    this.data.assignments = this.data.assignments.filter(a => a.privilegeIds.length > 0);
+
+    for (const privId of removed) {
+      const priv = this.data.privileges.find(p => p.id === privId);
+      await this.addAuditEntry(
+        actorId,
+        "REMOVE_ROLE",
+        `Removed ${priv?.module}/${priv?.function}/${priv?.role} from ${target?.name} in ${company?.name}`,
+        companyId,
+        employeeId,
+      );
+    }
+  }
+
+  private async addPrivilegesToAssignment(
+    actorId: string,
+    companyId: string,
+    employeeId: string,
+    privilegeIds: string[],
+  ): Promise<void> {
+    if (privilegeIds.length === 0) return;
+
+    const company = this.data.companies.find(c => c.id === companyId);
+    const target = this.data.employees.find(e => e.id === employeeId);
+    const existingIdx = this.data.assignments.findIndex(
+      a => a.companyId === companyId && a.employeeId === employeeId,
+    );
+
+    const before = existingIdx >= 0 ? this.data.assignments[existingIdx].privilegeIds : [];
+    const merged = Array.from(new Set([...before, ...privilegeIds]));
+    const added = privilegeIds.filter(id => !before.includes(id));
+
+    if (existingIdx >= 0) {
+      this.data.assignments[existingIdx].privilegeIds = merged;
+    } else {
+      this.data.assignments.push({ companyId, employeeId, privilegeIds: merged });
+    }
+
+    for (const privId of added) {
+      const priv = this.data.privileges.find(p => p.id === privId);
+      await this.addAuditEntry(
+        actorId,
+        "ADD_ROLE",
+        `Reinstated ${priv?.module}/${priv?.function}/${priv?.role} for ${target?.name} in ${company?.name}`,
+        companyId,
+        employeeId,
+      );
+    }
+  }
+
+  private applyGrantRequest(request: PrivilegeRequest): void {
+    const functionPrivileges = this.data.privileges
+      .filter(p => p.module === request.module && p.function === request.function)
+      .map(p => p.id);
+
+    const existingIdx = this.data.assignments.findIndex(
+      a => a.companyId === request.companyId && a.employeeId === request.employeeId,
+    );
+    if (existingIdx >= 0) {
+      const withoutFunc = this.data.assignments[existingIdx].privilegeIds.filter(
+        id => !functionPrivileges.includes(id),
+      );
+      this.data.assignments[existingIdx].privilegeIds = [...withoutFunc, ...request.rolesSelected];
+    } else {
+      this.data.assignments.push({
+        companyId: request.companyId,
+        employeeId: request.employeeId,
+        privilegeIds: request.rolesSelected,
+      });
+    }
+    this.data.assignments = this.data.assignments.filter(a => a.privilegeIds.length > 0);
+  }
+
+  private async executeRevokeRequest(request: PrivilegeRequest, actorId: string): Promise<void> {
+    const today = this.todayDateString();
+    if (request.startDate > today) return;
+    if (request.executedAt) return;
+
+    await this.removePrivilegesFromAssignment(
+      actorId,
+      request.companyId,
+      request.employeeId,
+      request.rolesSelected,
+    );
+    request.executedAt = new Date().toISOString();
+    request.updatedAt = request.executedAt;
+  }
+
+  private async processScheduledRequests(): Promise<void> {
+    const today = this.todayDateString();
+    let changed = false;
+
+    for (const request of this.data.requests) {
+      if (request.requestType !== "revoke" || request.status !== "active") continue;
+
+      if (!request.executedAt && request.startDate <= today) {
+        const assigned = this.getAssignmentPrivilegeIds(request.companyId, request.employeeId);
+        const toRemove = request.rolesSelected.filter(id => assigned.includes(id));
+        if (toRemove.length > 0) {
+          await this.removePrivilegesFromAssignment(
+            request.managerId,
+            request.companyId,
+            request.employeeId,
+            toRemove,
+          );
+        }
+        request.executedAt = new Date().toISOString();
+        request.updatedAt = request.executedAt;
+        changed = true;
+      }
+
+      if (
+        request.executedAt &&
+        request.endDate &&
+        request.endDate <= today &&
+        !request.reinstatedAt
+      ) {
+        await this.addPrivilegesToAssignment(
+          request.managerId,
+          request.companyId,
+          request.employeeId,
+          request.rolesSelected,
+        );
+        request.reinstatedAt = new Date().toISOString();
+        request.updatedAt = request.reinstatedAt;
+        changed = true;
+      }
+    }
+
+    if (changed) {
+      await this.saveData();
+    }
+  }
+
   // ============================================
   // PUBLIC METHODS
   // ============================================
 
   async getBootstrapData(): Promise<BootstrapResponse> {
     await this.initialized;
+    await this.processScheduledRequests();
     return {
       ...this.data,
       auditLog: this.auditLog,
@@ -631,6 +814,16 @@ export class JsonStorage implements IStorage {
       }
     }
 
+    const requestType = input.requestType ?? "grant";
+
+    if (requestType === "revoke") {
+      const assigned = this.getAssignmentPrivilegeIds(input.companyId, input.employeeId);
+      const notAssigned = input.rolesSelected.filter(id => !assigned.includes(id));
+      if (notAssigned.length > 0) {
+        throw new Error(`Cannot revoke privileges that are not currently assigned: ${notAssigned.join(", ")}`);
+      }
+    }
+
     const now = new Date().toISOString();
     const request: PrivilegeRequest = {
       id: randomUUID(),
@@ -642,10 +835,13 @@ export class JsonStorage implements IStorage {
       module: input.module,
       function: input.function,
       rolesSelected: input.rolesSelected,
+      requestType,
       startDate: input.startDate,
       endDate: input.endDate,
       status: "pending",
       adminComments: null,
+      executedAt: null,
+      reinstatedAt: null,
       createdAt: now,
       updatedAt: now,
     };
@@ -668,30 +864,15 @@ export class JsonStorage implements IStorage {
       request.adminComments = "Auto-approved by GM";
       request.updatedAt = new Date().toISOString();
 
-      // Apply the privileges to assignments
-      const functionPrivileges = this.data.privileges
-        .filter(p => p.module === request.module && p.function === request.function)
-        .map(p => p.id);
-
-      const existingIdx = this.data.assignments.findIndex(
-        a => a.companyId === request.companyId && a.employeeId === request.employeeId
-      );
-      if (existingIdx >= 0) {
-        const withoutFunc = this.data.assignments[existingIdx].privilegeIds.filter(
-          id => !functionPrivileges.includes(id)
-        );
-        this.data.assignments[existingIdx].privilegeIds = [...withoutFunc, ...request.rolesSelected];
+      if (requestType === "grant") {
+        this.applyGrantRequest(request);
       } else {
-        this.data.assignments.push({
-          companyId: request.companyId,
-          employeeId: request.employeeId,
-          privilegeIds: request.rolesSelected,
-        });
+        await this.executeRevokeRequest(request, input.managerId);
       }
-      this.data.assignments = this.data.assignments.filter(a => a.privilegeIds.length > 0);
     }
 
     await this.saveData();
+    await this.processScheduledRequests();
 
     // Send email notification (fire-and-forget — never blocks the response)
     const notifCompany = this.data.companies.find(c => c.id === input.companyId);
@@ -708,13 +889,14 @@ export class JsonStorage implements IStorage {
       startDate: input.startDate,
       endDate: input.endDate,
       requestId: request.id,
+      requestType,
     });
 
-    // Log audit entry
+    const actionLabel = requestType === "revoke" ? "delete" : "grant";
     await this.addAuditEntry(
       input.managerId,
       "REQUEST_CREATED",
-      `${manager.name} requested ${input.module}/${input.function} privileges for ${employee.name} in ${company.name} (${input.rolesSelected.length} roles)`,
+      `${manager.name} requested ${actionLabel} of ${input.module}/${input.function} privileges for ${employee.name} in ${company.name} (${input.rolesSelected.length} roles, effective ${input.startDate}${input.endDate ? ` to ${input.endDate}` : ""})`,
       input.companyId,
       input.employeeId
     );
@@ -728,7 +910,10 @@ export class JsonStorage implements IStorage {
     let requests = [...this.data.requests];
 
     if (filters?.managerId) {
-      requests = requests.filter(r => r.managerId === filters.managerId);
+      const managerId = filters.managerId;
+      requests = requests.filter(
+        r => r.managerId === managerId || r.managerUserId === managerId,
+      );
     }
     if (filters?.employeeId) {
       requests = requests.filter(r => r.employeeId === filters.employeeId);
@@ -806,36 +991,16 @@ export class JsonStorage implements IStorage {
 
     // If approved, apply the roles to assignments
     if (status === "active") {
-      // Get current assignment for this employee/company
-      let assignment = this.data.assignments.find(
-        a => a.companyId === request.companyId && a.employeeId === request.employeeId
-      );
-
-      // Get all current privileges for this employee in this company for this function
-      const functionPrivileges = this.data.privileges
-        .filter(p => p.module === request.module && p.function === request.function)
-        .map(p => p.id);
-
-      if (assignment) {
-        // Remove all existing privileges for this function
-        const withoutFunction = assignment.privilegeIds.filter(id => !functionPrivileges.includes(id));
-        // Add the newly selected roles
-        assignment.privilegeIds = [...withoutFunction, ...request.rolesSelected];
+      const requestType = request.requestType ?? "grant";
+      if (requestType === "grant") {
+        this.applyGrantRequest(request);
       } else {
-        // Create new assignment
-        assignment = {
-          companyId: request.companyId,
-          employeeId: request.employeeId,
-          privilegeIds: request.rolesSelected,
-        };
-        this.data.assignments.push(assignment);
+        await this.executeRevokeRequest(request, adminId);
       }
-
-      // Clean up empty assignments
-      this.data.assignments = this.data.assignments.filter(a => a.privilegeIds.length > 0);
     }
 
     await this.saveData();
+    await this.processScheduledRequests();
 
     // Log audit entry
     const employee = this.data.employees.find(e => e.id === request.employeeId);
@@ -844,7 +1009,7 @@ export class JsonStorage implements IStorage {
     await this.addAuditEntry(
       adminId,
       status === "active" ? "REQUEST_APPROVED" : "REQUEST_REJECTED",
-      `${adminName} ${status === "active" ? "approved" : "rejected"} ${request.module}/${request.function} request for ${employee?.name} in ${company?.name}${adminComments ? ` - Comment: ${adminComments}` : ""}`,
+      `${adminName} ${status === "active" ? "approved" : "rejected"} ${request.requestType === "revoke" ? "delete" : "grant"} request for ${request.module}/${request.function} — ${employee?.name} in ${company?.name}${adminComments ? ` - Comment: ${adminComments}` : ""}`,
       request.companyId,
       request.employeeId
     );

@@ -15,8 +15,8 @@ const statusConfig = {
     className: 'bg-amber-50 text-amber-800 border border-amber-200 dark:bg-amber-950/50 dark:text-amber-200 dark:border-amber-800',
   },
   active: {
-    label: 'Active',
-    labelAr: 'نشط',
+    label: 'Approved',
+    labelAr: 'معتمد',
     icon: CheckCircle2,
     className: 'bg-teal-50 text-teal-800 border border-teal-200 dark:bg-teal-950/50 dark:text-teal-200 dark:border-teal-800',
   },

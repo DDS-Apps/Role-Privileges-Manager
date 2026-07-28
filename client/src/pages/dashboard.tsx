@@ -1,238 +1,458 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { useBootstrapData, useCreateRequest, useRequests } from "@/hooks/use-app-data";
 import { useAuth, useLogout } from "@/hooks/use-auth";
 import {
-  Loader2, Globe, Plus, Settings, LogOut
+  Loader2, Globe, Settings, LogOut, Building2,
 } from "lucide-react";
 import { DallahLogo } from "@/components/ui/dallah-logo";
 import { Link, useLocation } from "wouter";
-import type { Employee, Company, Privilege, PrivilegeRequest, RequestStatus } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { NotificationBell } from "@/components/ui/notification-bell";
 import { CompanySwitcher } from "@/components/ui/company-switcher";
-import { ContextCard } from "@/components/ui/context-card";
-import { EmployeeSelector } from "@/components/ui/employee-selector";
-import { AccessSearchCard } from "@/components/ui/access-search-card";
+import { CompanyAccessOverview } from "@/components/ui/company-access-overview";
 import { NewRequestModal } from "@/components/ui/new-request-modal";
+import { DeletePrivilegeModal } from "@/components/ui/delete-privilege-modal";
 import { RequestsTable } from "@/components/ui/requests-table";
-import { PrivilegesPanel } from "@/components/ui/privileges-panel";
+import type { PrivilegeRequest, RequestStatus } from "@shared/schema";
 
 type Language = "en" | "ar";
 
 const DICT = {
   en: {
     title: "Business Users Roles and Privileges",
-    actAs: "Act as Manager",
-    company: "Company",
-    employee: "Employee",
-    search: "Search by ID or name...",
-    privileges: "Privileges",
+    managerDetails: "Your session",
+    company: "Working company",
+    employeeDetails: "Selected employee",
+    privileges: "Privileges & requests",
     module: "Module",
     function: "Function",
     role: "Role",
-    assigned: "assigned",
-    cancel: "Cancel",
-    managerDetails: "Manager Details",
-    legalCompany: "Legal Company",
-    noAccess: "No companies accessible",
-    selectModule: "Select Module",
-    selectFunction: "Select Function",
-    noPrivileges: "No privileges assigned",
-    employeeDetails: "Employee Details",
-    selectModuleFirst: "Select a module to see functions",
-    selectFunctionFirst: "Select a function to see roles",
-    selectEmployee: "Select Employee",
-    noLegalEmployees: "No employees under this manager",
-    rolesAssigned: "roles assigned",
-    all: "All",
-    selectAll: "Select All",
-    unselectAll: "Unselect All",
-    companyEmployees: "Company Employees",
-    allEmployees: "All Employees",
-    submitRequest: "Submit Request",
-    submitting: "Submitting...",
-    startDate: "Start Date",
-    endDate: "End Date (Optional)",
-    myRequests: "My Requests",
+    legalCompany: "Legal company",
+    lineManager: "Line manager",
+    department: "Department",
+    position: "Position",
     pending: "Pending",
-    active: "Active",
+    active: "Approved",
     rejected: "Rejected",
     noRequests: "No requests found",
     requestCreated: "Request submitted successfully",
     adminPanel: "Admin Panel",
     noEndDate: "No end date",
-    newRequest: "New Request",
-    privilegeRequests: "Privilege Requests",
-    currentPrivilege: "Current Active Privileges",
-    moduleFunction: "Module & Function",
-    requestedRoles: "Requested Roles",
+    userId: "User ID",
+    created: "Created",
+    newRequest: "New request",
+    searchEmployee: "Search by ID or name...",
+    selectEmployee: "Select an employee",
+    externalEmployee: "External employee",
+    privilegeRequests: "Privilege requests",
+    currentPrivilege: "Active privileges (all companies)",
+    moduleFunction: "Module & function",
+    requestedRoles: "Requested roles",
     status: "Status",
-    adminComment: "Admin Comments",
+    adminComment: "Admin comments",
     roles: "Roles",
-    selectEmployeeFirst: "Select an employee to view their privileges and requests",
+    noPrivileges: "No privileges assigned",
+    rolesAssigned: "roles assigned",
+    submitRequest: "Submit request",
+    submitting: "Submitting...",
+    startDate: "Start date",
+    endDate: "End date (optional)",
+    cancel: "Cancel",
+    submittedBy: "Submitted by",
+    commentOptional: "Comment (optional)",
+    addComment: "Add a comment...",
+    approve: "Approve",
+    reject: "Reject",
+    requestApproved: "Request approved",
+    requestRejected: "Request rejected",
+    approvalFailed: "Action failed",
+    selectAll: "Select all",
+    unselectAll: "Unselect all",
+    accessOverviewTitle: "Company access overview",
+    accessOverviewSubtitle: "All privileges granted in",
+    accessSearch: "Search by ID, name, module, role...",
+    allModules: "All modules",
+    clearModules: "Clear",
+    modulesSelected: "{count} modules",
+    allFunctions: "All functions",
+    internal: "Company employees",
+    external: "External users",
+    all: "All",
+    employee: "Employee",
+    employeeId: "ID",
+    type: "Type",
+    accessCompany: "Access company",
+    noAccess: "No access",
+    noResults: "No matching records",
+    showing: "Showing",
+    of: "of",
+    rows: "rows",
+    selectCompany: "Select a company to view access",
+    internalBadge: "Internal",
+    externalBadge: "External",
+    companyUnit: "Company",
+    companiesUnit: "Companies",
+    modulesCol: "Modules (own company)",
+    companyCol: "Company",
+    externalCol: "External Access",
+    externalAccessTitle: "External company access",
+    privilegesCol: "Privileges",
+    otherCompanyAccess: "also has roles outside",
+    deletePrivilege: "Delete privilege",
+    submitDeleteRequest: "Submit delete request",
+    deleteRequestCreated: "Delete request submitted successfully",
+    effectiveFrom: "Effective from",
+    reinstateAfter: "Reinstate after (optional)",
+    dateHelper: "Privileges are removed on the effective date. If a reinstate date is set, roles are restored automatically after that date.",
+    noAssignedPrivileges: "No assigned privileges for this employee",
+    grant: "Grant",
+    delete: "Delete",
+    scheduled: "Scheduled",
+    revoked: "Revoked",
+    reinstated: "Reinstated",
+    revokedUntil: "Revoked until {date}",
+    actions: "Actions",
+    currentPrivileges: "Current privileges",
+    noCurrentPrivileges: "No privileges assigned in this company",
+    alreadyAssigned: "Already assigned",
   },
   ar: {
     title: "أدوار وامتيازات مستخدمي الأعمال",
-    actAs: "تصرف كمدير",
-    company: "الشركة",
-    employee: "الموظف",
-    search: "ابحث بالرقم أو الاسم...",
-    privileges: "الامتيازات",
+    managerDetails: "جلستك الحالية",
+    company: "الشركة العاملة",
+    employeeDetails: "الموظف المحدد",
+    privileges: "الامتيازات والطلبات",
     module: "الوحدة",
     function: "الوظيفة",
     role: "الدور",
-    assigned: "مخصص",
-    cancel: "إلغاء",
-    managerDetails: "تفاصيل المدير",
     legalCompany: "الشركة القانونية",
-    noAccess: "لا توجد شركات متاحة",
-    selectModule: "اختر الوحدة",
-    selectFunction: "اختر الوظيفة",
-    noPrivileges: "لا توجد امتيازات مخصصة",
-    employeeDetails: "تفاصيل الموظف",
-    selectModuleFirst: "اختر وحدة لرؤية الوظائف",
-    selectFunctionFirst: "اختر وظيفة لرؤية الأدوار",
-    selectEmployee: "اختر موظف",
-    noLegalEmployees: "لا يوجد موظفين تحت هذا المدير",
-    rolesAssigned: "أدوار مخصصة",
-    all: "الكل",
-    selectAll: "تحديد الكل",
-    unselectAll: "إلغاء تحديد الكل",
-    companyEmployees: "موظفي الشركة",
-    allEmployees: "جميع الموظفين",
-    submitRequest: "تقديم الطلب",
-    submitting: "جاري التقديم...",
-    startDate: "تاريخ البدء",
-    endDate: "تاريخ الانتهاء (اختياري)",
-    myRequests: "طلباتي",
+    lineManager: "المدير المباشر",
+    department: "القسم",
+    position: "المسمى",
     pending: "قيد الانتظار",
-    active: "نشط",
+    active: "معتمد",
     rejected: "مرفوض",
     noRequests: "لم يتم العثور على طلبات",
     requestCreated: "تم تقديم الطلب بنجاح",
     adminPanel: "لوحة الإدارة",
     noEndDate: "لا يوجد تاريخ انتهاء",
+    userId: "رقم المستخدم",
+    created: "تاريخ الإنشاء",
     newRequest: "طلب جديد",
+    searchEmployee: "بحث بالرقم أو الاسم...",
+    selectEmployee: "اختر موظفاً",
+    externalEmployee: "موظف خارجي",
     privilegeRequests: "طلبات الامتيازات",
-    currentPrivilege: "الامتيازات النشطة الحالية",
+    currentPrivilege: "الامتيازات النشطة (جميع الشركات)",
     moduleFunction: "الوحدة والوظيفة",
     requestedRoles: "الأدوار المطلوبة",
     status: "الحالة",
     adminComment: "تعليقات المسؤول",
     roles: "الأدوار",
-    selectEmployeeFirst: "اختر موظف لعرض امتيازاته وطلباته",
-  }
+    noPrivileges: "لا توجد امتيازات",
+    rolesAssigned: "أدوار مخصصة",
+    submitRequest: "تقديم الطلب",
+    submitting: "جاري التقديم...",
+    startDate: "تاريخ البدء",
+    endDate: "تاريخ الانتهاء (اختياري)",
+    cancel: "إلغاء",
+    submittedBy: "قدمه",
+    commentOptional: "تعليق (اختياري)",
+    addComment: "أضف تعليقاً...",
+    approve: "اعتماد",
+    reject: "رفض",
+    requestApproved: "تم اعتماد الطلب",
+    requestRejected: "تم رفض الطلب",
+    approvalFailed: "فشل الإجراء",
+    selectAll: "تحديد الكل",
+    unselectAll: "إلغاء التحديد",
+    accessOverviewTitle: "نظرة عامة على وصول الشركة",
+    accessOverviewSubtitle: "جميع الامتيازات الممنوحة في",
+    accessSearch: "بحث بالرقم، الاسم، الوحدة، الدور...",
+    allModules: "كل الوحدات",
+    clearModules: "مسح",
+    modulesSelected: "{count} وحدات",
+    allFunctions: "كل الوظائف",
+    internal: "موظفو الشركة",
+    external: "مستخدمون خارجيون",
+    all: "الكل",
+    employee: "الموظف",
+    employeeId: "الرقم",
+    type: "النوع",
+    accessCompany: "شركة الوصول",
+    noAccess: "بدون وصول",
+    noResults: "لا توجد سجلات",
+    showing: "عرض",
+    of: "من",
+    rows: "صف",
+    selectCompany: "اختر شركة لعرض الوصول",
+    internalBadge: "داخلي",
+    externalBadge: "خارجي",
+    companyUnit: "شركة",
+    companiesUnit: "شركات",
+    modulesCol: "الوحدات (الشركة الأم)",
+    companyCol: "الشركة",
+    externalCol: "الوصول الخارجي",
+    externalAccessTitle: "وصول الشركات الخارجية",
+    privilegesCol: "الامتيازات",
+    otherCompanyAccess: "لديه أيضاً أدوار خارج",
+    deletePrivilege: "حذف امتياز",
+    submitDeleteRequest: "تقديم طلب الحذف",
+    deleteRequestCreated: "تم تقديم طلب الحذف بنجاح",
+    effectiveFrom: "ساري من",
+    reinstateAfter: "إعادة بعد (اختياري)",
+    dateHelper: "تُزال الامتيازات في تاريخ السريان. إذا حُدد تاريخ الإعادة، تُستعاد الأدوار تلقائياً بعد ذلك.",
+    noAssignedPrivileges: "لا توجد امتيازات مخصصة لهذا الموظف",
+    grant: "منح",
+    delete: "حذف",
+    scheduled: "مجدول",
+    revoked: "ملغى",
+    reinstated: "مُستعاد",
+    revokedUntil: "ملغى حتى {date}",
+    actions: "إجراءات",
+    currentPrivileges: "الامتيازات الحالية",
+    noCurrentPrivileges: "لا توجد امتيازات مخصصة في هذه الشركة",
+    alreadyAssigned: "مُخصص مسبقاً",
+  },
 };
+
+function getInitials(name: string) {
+  return name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((w) => w[0])
+    .join("")
+    .toUpperCase();
+}
+
+function buildOwnerIds(
+  actingEmployeeId: string | undefined,
+  authId: string,
+  authUserId: string | undefined,
+): Set<string> {
+  return new Set(
+    [actingEmployeeId, authId, authUserId].filter((id): id is string => Boolean(id)),
+  );
+}
+
+function isRequestOwnedByUser(
+  request: PrivilegeRequest,
+  ownerIds: Set<string>,
+): boolean {
+  return (
+    ownerIds.has(request.managerId) ||
+    (request.managerUserId != null && ownerIds.has(request.managerUserId))
+  );
+}
+
+function isPendingForUserApproval(
+  request: PrivilegeRequest,
+  ownerIds: Set<string>,
+  options: {
+    isAdmin: boolean;
+    accessibleCompanyIds: Set<string>;
+    gmLegalCompanyIds: string[];
+    employees: { id: string; legalCompanyId: string }[];
+  },
+): boolean {
+  if (request.status !== "pending") return false;
+  if (isRequestOwnedByUser(request, ownerIds)) return false;
+
+  if (options.isAdmin) {
+    return options.accessibleCompanyIds.has(request.companyId);
+  }
+
+  const employee = options.employees.find((e) => e.id === request.employeeId);
+  return Boolean(
+    employee && options.gmLegalCompanyIds.includes(employee.legalCompanyId),
+  );
+}
 
 export default function DashboardPage() {
   const [language, setLanguage] = useState<Language>("en");
   const [selectedEmployeeId, setSelectedEmployeeId] = useState("");
-  const [companyEmployeesOnly, setCompanyEmployeesOnly] = useState(true);
   const [requestTab, setRequestTab] = useState<RequestStatus>("pending");
   const [showNewRequestModal, setShowNewRequestModal] = useState(false);
+  const [newRequestRequireEmployeePick, setNewRequestRequireEmployeePick] =
+    useState(false);
+  const [newRequestEmployeeId, setNewRequestEmployeeId] = useState("");
+  const [showDeletePrivilegeModal, setShowDeletePrivilegeModal] = useState(false);
+  const [deletePrivilegeRequireEmployeePick, setDeletePrivilegeRequireEmployeePick] =
+    useState(false);
+  const [deletePrivilegeEmployeeId, setDeletePrivilegeEmployeeId] = useState("");
+  const [deletePrivilegeInitialModule, setDeletePrivilegeInitialModule] = useState("");
+  const [deletePrivilegeInitialFunction, setDeletePrivilegeInitialFunction] = useState("");
 
   const { data: authUser } = useAuth();
   const logout = useLogout();
   const [, navigate] = useLocation();
   const actingUserId = authUser?.id || "";
-  const selectedCompanyId = authUser?.selectedCompanyId || "";
+  const selectedCompanyId = authUser?.selectedCompanyId ?? "";
 
   const { data, isLoading, error } = useBootstrapData();
   const { data: requests = [] } = useRequests();
   const createRequest = useCreateRequest();
   const { toast } = useToast();
 
+  const t = DICT[language];
+
+  useEffect(() => {
+    setSelectedEmployeeId("");
+  }, [selectedCompanyId]);
+
+  useEffect(() => {
+    document.documentElement.dir = language === "ar" ? "rtl" : "ltr";
+  }, [language]);
+
+  const toggleLanguage = () => {
+    setLanguage((prev) => (prev === "en" ? "ar" : "en"));
+  };
+
+  const actingUser = useMemo(() => {
+    if (!data) return undefined;
+    return (
+      data.employees.find((e) => authUser?.userId && e.id === authUser.userId) ||
+      data.employees.find(
+        (e) =>
+          authUser?.email &&
+          e.email.toLowerCase() === authUser.email.toLowerCase(),
+      ) ||
+      data.employees.find((e) => e.id === actingUserId)
+    );
+  }, [data, actingUserId, authUser]);
+
+  const managerSelectedCompany = useMemo(() => {
+    return data?.companies.find((c) => c.id === selectedCompanyId);
+  }, [data, selectedCompanyId]);
+
+  const openNewRequestForEmployee = (employeeId: string) => {
+    setSelectedEmployeeId(employeeId);
+    setNewRequestEmployeeId(employeeId);
+    setNewRequestRequireEmployeePick(false);
+    setShowNewRequestModal(true);
+  };
+
+  const openNewRequestFromToolbar = () => {
+    setNewRequestRequireEmployeePick(true);
+    setNewRequestEmployeeId(selectedEmployeeId);
+    setShowNewRequestModal(true);
+  };
+
+  const closeNewRequestModal = () => {
+    setShowNewRequestModal(false);
+    setNewRequestRequireEmployeePick(false);
+  };
+
+  const openDeletePrivilegeForEmployee = (
+    employeeId: string,
+    module = "",
+    functionName = "",
+  ) => {
+    setSelectedEmployeeId(employeeId);
+    setDeletePrivilegeEmployeeId(employeeId);
+    setDeletePrivilegeRequireEmployeePick(false);
+    setDeletePrivilegeInitialModule(module);
+    setDeletePrivilegeInitialFunction(functionName);
+    setShowDeletePrivilegeModal(true);
+  };
+
+  const openDeletePrivilegeFromToolbar = () => {
+    setDeletePrivilegeRequireEmployeePick(true);
+    setDeletePrivilegeEmployeeId(selectedEmployeeId);
+    setDeletePrivilegeInitialModule("");
+    setDeletePrivilegeInitialFunction("");
+    setShowDeletePrivilegeModal(true);
+  };
+
+  const closeDeletePrivilegeModal = () => {
+    setShowDeletePrivilegeModal(false);
+    setDeletePrivilegeRequireEmployeePick(false);
+    setDeletePrivilegeInitialModule("");
+    setDeletePrivilegeInitialFunction("");
+  };
+
+  const managerId = actingUser?.id || actingUserId;
+
+  const gmLegalCompanyIds = useMemo(() => {
+    if (!authUser) return [];
+    return authUser.companies
+      .filter((c) => c.role === "GM")
+      .map((c) => c.companyId);
+  }, [authUser]);
+
+  const accessibleCompanyIds = useMemo(() => {
+    return new Set(authUser?.companies.map((c) => c.companyId) ?? []);
+  }, [authUser]);
+
+  const managerRequests = useMemo(() => {
+    if (!data) return [];
+    const ownerIds = buildOwnerIds(actingUser?.id, actingUserId, authUser?.userId);
+    const approvalOptions = {
+      isAdmin: Boolean(authUser?.isAdmin),
+      accessibleCompanyIds,
+      gmLegalCompanyIds,
+      employees: data.employees,
+    };
+
+    return requests.filter((r) => {
+      // All requests you submitted (any company, any status)
+      if (isRequestOwnedByUser(r, ownerIds)) return true;
+      // Pending requests waiting for you to approve (admin / GM)
+      return isPendingForUserApproval(r, ownerIds, approvalOptions);
+    });
+  }, [
+    requests,
+    data,
+    actingUser?.id,
+    actingUserId,
+    authUser?.userId,
+    authUser?.isAdmin,
+    gmLegalCompanyIds,
+    accessibleCompanyIds,
+  ]);
+
+  const requestOwnerIds = useMemo(
+    () => buildOwnerIds(actingUser?.id, actingUserId, authUser?.userId),
+    [actingUser?.id, actingUserId, authUser?.userId],
+  );
+
+  const requestApprovalOptions = useMemo(
+    () =>
+      data
+        ? {
+            isAdmin: Boolean(authUser?.isAdmin),
+            accessibleCompanyIds,
+            gmLegalCompanyIds,
+            employees: data.employees,
+          }
+        : null,
+    [data, authUser?.isAdmin, accessibleCompanyIds, gmLegalCompanyIds],
+  );
+
+  const canApproveRequest = useCallback(
+    (request: PrivilegeRequest) => {
+      if (!requestApprovalOptions) return false;
+      return isPendingForUserApproval(
+        request,
+        requestOwnerIds,
+        requestApprovalOptions,
+      );
+    },
+    [requestApprovalOptions, requestOwnerIds],
+  );
+
+  const pendingRequests = managerRequests.filter((r) => r.status === "pending");
+  const activeRequests = managerRequests.filter((r) => r.status === "active");
+  const rejectedRequests = managerRequests.filter((r) => r.status === "rejected");
+
   const handleLogout = async () => {
     await logout.mutateAsync();
     navigate("/login");
   };
 
-  const t = DICT[language];
-
-  const toggleLanguage = () => {
-    const newLang = language === "en" ? "ar" : "en";
-    setLanguage(newLang);
-    document.documentElement.dir = newLang === "ar" ? "rtl" : "ltr";
-  };
-
-  // Managers list for "Act as" dropdown
-  const managers = useMemo(() => {
-    return data?.employees.filter(e => e.isManager) || [];
-  }, [data]);
-
-  // Current acting manager — try SAP userId first, then email, then contact id
-  const actingUser = useMemo(() => {
-    return (
-      data?.employees.find(e => authUser?.userId && e.id === authUser.userId) ||
-      data?.employees.find(e => authUser?.email && e.email.toLowerCase() === authUser.email.toLowerCase()) ||
-      data?.employees.find(e => e.id === actingUserId)
-    );
-  }, [data, actingUserId, authUser]);
-
-  // Manager's currently selected working company (changes when switching via header)
-  const managerSelectedCompany = useMemo(() => {
-    return data?.companies.find(c => c.id === selectedCompanyId);
-  }, [data, selectedCompanyId]);
-
-  // Selected employee
-  const selectedEmployee = useMemo(() => {
-    return data?.employees.find(e => e.id === selectedEmployeeId);
-  }, [data, selectedEmployeeId]);
-
-  // Employee's legal company
-  const employeeLegalCompany = useMemo(() => {
-    return data?.companies.find(c => c.id === selectedEmployee?.legalCompanyId);
-  }, [data, selectedEmployee]);
-
-  // Employee's line manager name
-  const employeeLineManager = useMemo(() => {
-    if (!selectedEmployee?.managerId) return undefined;
-    return data?.employees.find(e => e.id === selectedEmployee.managerId)?.name;
-  }, [data, selectedEmployee]);
-
-  // All employees — EmployeeSelector handles company filtering internally
-  const availableEmployees = useMemo(() => {
-    return data?.employees || [];
-  }, [data]);
-
-  // Get all companies for the request modal
-  const allCompanies = useMemo(() => {
-    return data?.companies || [];
-  }, [data]);
-
-  // Get assignments for selected employee across all companies
-  const employeeAssignmentsWithCompanies = useMemo(() => {
-    if (!data || !selectedEmployeeId) return [];
-    return data.assignments
-      .filter(a => a.employeeId === selectedEmployeeId)
-      .map(a => ({
-        company: data.companies.find(c => c.id === a.companyId)!,
-        privilegeIds: a.privilegeIds,
-      }))
-      .filter(a => a.company && a.privilegeIds.length > 0);
-  }, [data, selectedEmployeeId]);
-
-  // Filter requests for selected employee
-  const employeeRequests = useMemo(() => {
-    return requests.filter(r => r.employeeId === selectedEmployeeId);
-  }, [requests, selectedEmployeeId]);
-
-  const pendingRequests = employeeRequests.filter(r => r.status === "pending");
-  const activeRequests = employeeRequests.filter(r => r.status === "active");
-  const rejectedRequests = employeeRequests.filter(r => r.status === "rejected");
-
-  const currentTabRequests = useMemo(() => {
-    switch (requestTab) {
-      case "pending": return pendingRequests;
-      case "active": return activeRequests;
-      case "rejected": return rejectedRequests;
-      default: return pendingRequests;
-    }
-  }, [requestTab, pendingRequests, activeRequests, rejectedRequests]);
-
-  // Handle new request submission
   const handleSubmitRequest = async (requestData: {
     module: string;
     function: string;
@@ -240,43 +460,117 @@ export default function DashboardPage() {
     startDate: string;
     endDate: string | null;
   }) => {
-    if (!selectedEmployeeId) return;
+    const employeeId = newRequestRequireEmployeePick
+      ? newRequestEmployeeId
+      : selectedEmployeeId;
+    if (!employeeId || !selectedCompanyId) return;
 
     try {
       await createRequest.mutateAsync({
         managerId: actingUser?.id || actingUserId,
         managerUserId: authUser?.userId || undefined,
-        employeeId: selectedEmployeeId,
-        companyId: selectedEmployee?.legalCompanyId || selectedCompanyId,
+        employeeId,
+        companyId: selectedCompanyId,
         module: requestData.module,
         function: requestData.function,
         rolesSelected: requestData.rolesSelected,
+        requestType: "grant",
         startDate: requestData.startDate,
         endDate: requestData.endDate,
       });
       toast({ title: t.requestCreated });
-      setShowNewRequestModal(false);
+      closeNewRequestModal();
+      setSelectedEmployeeId(employeeId);
     } catch (err) {
-      toast({ 
-        title: "Failed to submit request", 
+      toast({
+        title: "Failed to submit request",
         description: err instanceof Error ? err.message : "Unknown error",
-        variant: "destructive" 
+        variant: "destructive",
       });
     }
   };
 
+  const handleSubmitDeleteRequest = async (requestData: {
+    module: string;
+    function: string;
+    rolesSelected: string[];
+    startDate: string;
+    endDate: string | null;
+  }) => {
+    const employeeId = deletePrivilegeRequireEmployeePick
+      ? deletePrivilegeEmployeeId
+      : deletePrivilegeEmployeeId || selectedEmployeeId;
+    if (!employeeId || !selectedCompanyId) return;
+
+    try {
+      await createRequest.mutateAsync({
+        managerId: actingUser?.id || actingUserId,
+        managerUserId: authUser?.userId || undefined,
+        employeeId,
+        companyId: selectedCompanyId,
+        module: requestData.module,
+        function: requestData.function,
+        rolesSelected: requestData.rolesSelected,
+        requestType: "revoke",
+        startDate: requestData.startDate,
+        endDate: requestData.endDate,
+      });
+      toast({ title: t.deleteRequestCreated });
+      closeDeletePrivilegeModal();
+      setSelectedEmployeeId(employeeId);
+    } catch (err) {
+      toast({
+        title: "Failed to submit delete request",
+        description: err instanceof Error ? err.message : "Unknown error",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const requestTableLabels = {
+    moduleFunction: t.moduleFunction,
+    requestedRoles: t.requestedRoles,
+    startDate: t.startDate,
+    endDate: t.endDate,
+    status: t.status,
+    noRequests: t.noRequests,
+    adminComment: t.adminComment,
+    noEndDate: t.noEndDate,
+    employee: t.employee,
+    userId: t.userId,
+    company: t.companyCol,
+    created: t.created,
+    submittedBy: t.submittedBy,
+    grant: t.grant,
+    delete: t.delete,
+    scheduled: t.scheduled,
+    revoked: t.revoked,
+    reinstated: t.reinstated,
+    revokedUntil: t.revokedUntil,
+    effectiveFrom: t.effectiveFrom,
+    reinstateAfter: t.reinstateAfter,
+    commentOptional: t.commentOptional,
+    addComment: t.addComment,
+    approve: t.approve,
+    reject: t.reject,
+    cancel: t.cancel,
+    requestApproved: t.requestApproved,
+    requestRejected: t.requestRejected,
+    approvalFailed: t.approvalFailed,
+  };
+
   if (isLoading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-background">
-        <Loader2 className="h-10 w-10 animate-spin text-primary" />
+      <div className="flex min-h-screen items-center justify-center bg-[#ECF1F6]">
+        <Loader2 className="h-10 w-10 animate-spin text-teal-600" />
       </div>
     );
   }
 
   if (error || !data) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-background text-destructive">
-        <div className="rounded-2xl bg-destructive/5 p-8 text-center border border-destructive/20">
+      <div className="flex min-h-screen items-center justify-center bg-[#ECF1F6] text-destructive">
+        <div className="rounded-2xl border border-destructive/20 bg-white p-8 text-center shadow-sm">
           <h2 className="text-xl font-bold">Failed to load data</h2>
         </div>
       </div>
@@ -284,37 +578,63 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 font-sans">
-      {/* Zone A: Sticky Top Header (Slim 56px) */}
-      <header className="sticky top-0 z-50 h-14 bg-gradient-to-br from-slate-900 via-slate-800 to-teal-900 px-4 shadow-lg overflow-hidden">
-        {/* Teal glow decoration */}
-        <div className="absolute -top-8 -right-8 w-40 h-40 rounded-full bg-teal-500/10 blur-2xl pointer-events-none" />
-        <div className="mx-auto h-full max-w-7xl flex items-center justify-between gap-4 relative">
-          {/* Left: App Icon + Title */}
-          <div className="flex items-center gap-3">
-            <DallahLogo size={34} />
-            <h1 className="text-sm font-bold tracking-tight md:text-base text-white hidden sm:block" data-testid="text-app-title">
+    <div className="min-h-screen bg-[#ECF1F6] font-sans">
+      <header className="sticky top-0 z-50 border-b border-white/10 bg-gradient-to-r from-[#0F2A4D] via-[#1F4F6B] to-[#218C9C] shadow-md">
+        <div className="mx-auto flex min-h-[4.25rem] max-w-[1600px] items-center justify-between gap-3 px-4 py-2 md:gap-4 md:px-6">
+          <div className="flex min-w-0 shrink-0 items-center gap-2 md:gap-3">
+            <DallahLogo size={32} />
+            <h1
+              className="hidden truncate text-sm font-semibold text-white sm:block md:text-base"
+              data-testid="text-app-title"
+            >
               {t.title}
             </h1>
           </div>
 
-          {/* Right: Controls */}
-          <div className="flex items-center gap-3">
-            {/* Logged-in user badge */}
-            <div className="flex items-center gap-2 bg-white/15 backdrop-blur-sm rounded-full pl-2 pr-3 py-1.5 border border-white/20">
-              <div className="h-6 w-6 rounded-full bg-gradient-to-br from-white/30 to-white/10 flex items-center justify-center text-white text-xs font-bold">
-                {(authUser?.name || actingUser?.name || "?").charAt(0)}
+          <div className="flex min-w-0 shrink-0 items-center gap-2 md:gap-3">
+            <div className="hidden items-center gap-3 overflow-hidden sm:flex md:gap-4">
+              <div className="flex min-w-0 items-center gap-2.5">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-sky-400/90 text-sm font-bold text-white">
+                  {getInitials(authUser?.name || actingUser?.name || "?")}
+                </div>
+                <div className="min-w-0">
+                  <p className="max-w-[140px] truncate text-sm font-semibold text-white md:max-w-[180px]">
+                    {authUser?.name || actingUser?.name}
+                  </p>
+                  <p className="max-w-[140px] truncate text-xs text-white/55 md:max-w-[180px]">
+                    {actingUser?.title || "—"}
+                  </p>
+                </div>
               </div>
-              <span className="text-white text-sm font-medium">{authUser?.name || actingUser?.name}</span>
+
+              <div className="h-10 w-px shrink-0 bg-white/25" aria-hidden />
+
+              <div className="flex min-w-0 items-center">
+                {(authUser?.companies?.length ?? 0) > 1 ? (
+                  <CompanySwitcher
+                    companies={authUser?.companies || []}
+                    selectedCompanyId={selectedCompanyId}
+                    stacked
+                  />
+                ) : (
+                  <div className="flex min-w-0 items-center gap-2.5">
+                    <Building2 className="h-5 w-5 shrink-0 text-white/50" />
+                    <div className="min-w-0">
+                      <p
+                        className="max-w-[160px] truncate text-sm font-semibold text-white md:max-w-[220px]"
+                        dir="auto"
+                      >
+                        {managerSelectedCompany?.name || "—"}
+                      </p>
+                      <p className="text-xs text-white/55">
+                        ID: {selectedCompanyId || "—"}
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
 
-            {/* Company Switcher — only shown when user has multiple companies */}
-            <CompanySwitcher
-              companies={authUser?.companies || []}
-              selectedCompanyId={selectedCompanyId}
-            />
-
-            {/* Notification Bell */}
             <NotificationBell
               requests={requests}
               employees={data.employees}
@@ -324,223 +644,191 @@ export default function DashboardPage() {
               authUser={authUser ?? null}
             />
 
-            {/* Language Toggle */}
             <button
+              type="button"
               onClick={toggleLanguage}
-              className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium text-white/90 hover:bg-white/20 transition-colors"
-              data-testid="button-language-toggle"
+              className="rounded-lg px-2.5 py-1.5 text-sm font-medium text-white/90 transition hover:bg-white/15"
             >
-              <Globe className="h-3.5 w-3.5" />
+              <Globe className="mr-1 inline h-3.5 w-3.5" />
               {language.toUpperCase()}
             </button>
 
-            {/* Admin Panel Link */}
             {(actingUser?.isAdmin || authUser?.isAdmin) && (
               <Link href="/admin">
                 <Button
                   variant="outline"
                   size="sm"
-                  className="border-white/30 text-white hover:bg-white/20 bg-transparent"
+                  className="hidden border-white/30 bg-transparent text-white hover:bg-white/15 sm:inline-flex"
                   data-testid="link-admin-panel"
                 >
-                  <Settings className="h-3.5 w-3.5 mr-1.5" />
+                  <Settings className="mr-1.5 h-3.5 w-3.5" />
                   {t.adminPanel}
                 </Button>
               </Link>
             )}
 
-            {/* Logout */}
             <button
+              type="button"
               onClick={handleLogout}
-              className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium text-white/80 hover:text-white hover:bg-white/20 transition-colors"
+              className="rounded-lg p-2 text-white/80 transition hover:bg-white/15 hover:text-white"
               title="Sign out"
             >
-              <LogOut className="h-3.5 w-3.5" />
+              <LogOut className="h-4 w-4" />
             </button>
           </div>
         </div>
       </header>
 
-      <main className="mx-auto max-w-7xl p-4 md:p-6 space-y-8">
-        {/* Section: Account Details */}
+      <main className="mx-auto max-w-[1600px] space-y-6 p-4 md:p-6">
+        {/* Access overview table */}
+        <CompanyAccessOverview
+          privileges={data.privileges}
+          assignments={data.assignments}
+          employees={data.employees}
+          companies={data.companies}
+          companyId={selectedCompanyId}
+          selectedEmployeeId={selectedEmployeeId}
+          onSelectEmployee={setSelectedEmployeeId}
+          onNewRequest={openNewRequestForEmployee}
+          onNewRequestFromToolbar={openNewRequestFromToolbar}
+          onDeletePrivilege={openDeletePrivilegeForEmployee}
+          onDeletePrivilegeFromToolbar={openDeletePrivilegeFromToolbar}
+          language={language}
+          t={{
+            title: t.accessOverviewTitle,
+            subtitle: t.accessOverviewSubtitle,
+            search: t.accessSearch,
+            module: t.module,
+            function: t.function,
+            role: t.role,
+            modulesCol: t.modulesCol,
+            companyCol: t.companyCol,
+            externalCol: t.externalCol,
+            externalAccessTitle: t.externalAccessTitle,
+            privilegesCol: t.privilegesCol,
+            otherCompanyAccess: t.otherCompanyAccess,
+            allModules: t.allModules,
+            clearModules: t.clearModules,
+            modulesSelected: t.modulesSelected,
+            allFunctions: t.allFunctions,
+            internal: t.internal,
+            external: t.external,
+            all: t.all,
+            employee: t.employee,
+            employeeId: t.employeeId,
+            position: t.position,
+            department: t.department,
+            lineManager: t.lineManager,
+            type: t.type,
+            legalCompany: t.legalCompany,
+            accessCompany: t.accessCompany,
+            noAccess: t.noAccess,
+            noResults: t.noResults,
+            showing: t.showing,
+            of: t.of,
+            rows: t.rows,
+            selectCompany: t.selectCompany,
+            internalBadge: t.internalBadge,
+            externalBadge: t.externalBadge,
+            company: t.companyUnit,
+            companies: t.companiesUnit,
+            newRequest: t.newRequest,
+            deletePrivilege: t.deletePrivilege,
+            actions: t.actions,
+          }}
+        />
+
+        {/* Privilege requests */}
         <section>
-          <h2 className="flex items-center gap-2 text-lg font-bold text-slate-900 dark:text-slate-100 mb-4">
-            <span className="w-1 h-6 bg-teal-600 rounded-full"></span>
-            {t.managerDetails}
-          </h2>
-          <div className="flex flex-col gap-4">
-            {/* 1. Manager Context Card */}
-            <ContextCard
-              type="manager"
-              name={authUser?.name || actingUser?.name}
-              title={actingUser?.title}
-              company={managerSelectedCompany?.name}
-              isHighlighted={true}
-            />
-
-            {/* 2. Access Search Card */}
-            <AccessSearchCard
-              privileges={data.privileges}
-              assignments={data.assignments}
-              employees={data.employees}
-              companies={data.companies}
-              companyId={selectedCompanyId}
-              onSelectEmployee={setSelectedEmployeeId}
-            />
-
-            {/* 3. Employee Selector */}
-            <EmployeeSelector
-              employees={availableEmployees}
-              companies={data.companies}
-              selectedEmployeeId={selectedEmployeeId}
-              onSelect={setSelectedEmployeeId}
-              managerLegalCompanyId={selectedCompanyId}
-              companyEmployeesOnly={companyEmployeesOnly}
-              onToggleCompanyEmployees={setCompanyEmployeesOnly}
-              t={{
-                companyEmployees: t.companyEmployees,
-                allEmployees: t.allEmployees,
-                selectEmployee: t.selectEmployee,
-                search: t.search,
-              }}
-            />
+          <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+            <div className="border-b border-slate-100 bg-slate-50 px-4 py-3">
+              <h2 className="text-sm font-semibold text-slate-900">
+                {t.privilegeRequests}
+                <span className="ml-2 font-normal text-slate-500">
+                  ({managerRequests.length})
+                </span>
+              </h2>
+            </div>
+            <div className="p-4">
+              <Tabs
+                value={requestTab}
+                onValueChange={(v) => setRequestTab(v as RequestStatus)}
+              >
+                <TabsList className="mb-4 h-auto flex-wrap gap-1 bg-slate-100">
+                  <TabsTrigger value="pending" className="text-xs" data-testid="tab-pending">
+                    {t.pending}
+                    <span className="ml-1.5 rounded-full bg-amber-100 px-1.5 py-0.5 text-xs text-amber-800">
+                      {pendingRequests.length}
+                    </span>
+                  </TabsTrigger>
+                  <TabsTrigger value="active" className="text-xs" data-testid="tab-active">
+                    {t.active}
+                    <span className="ml-1.5 rounded-full bg-teal-100 px-1.5 py-0.5 text-xs text-teal-800">
+                      {activeRequests.length}
+                    </span>
+                  </TabsTrigger>
+                  <TabsTrigger value="rejected" className="text-xs" data-testid="tab-rejected">
+                    {t.rejected}
+                    <span className="ml-1.5 rounded-full bg-rose-100 px-1.5 py-0.5 text-xs text-rose-800">
+                      {rejectedRequests.length}
+                    </span>
+                  </TabsTrigger>
+                </TabsList>
+                <TabsContent value="pending">
+                  <RequestsTable
+                    requests={pendingRequests}
+                    privileges={data.privileges}
+                    companies={data.companies}
+                    employees={data.employees}
+                    adminId={authUser?.id || ""}
+                    canApproveRequest={canApproveRequest}
+                    t={requestTableLabels}
+                  />
+                </TabsContent>
+                <TabsContent value="active">
+                  <RequestsTable
+                    requests={activeRequests}
+                    privileges={data.privileges}
+                    companies={data.companies}
+                    employees={data.employees}
+                    t={requestTableLabels}
+                  />
+                </TabsContent>
+                <TabsContent value="rejected">
+                  <RequestsTable
+                    requests={rejectedRequests}
+                    privileges={data.privileges}
+                    companies={data.companies}
+                    employees={data.employees}
+                    t={requestTableLabels}
+                  />
+                </TabsContent>
+              </Tabs>
+            </div>
           </div>
         </section>
-
-        {/* Section: Employee Details */}
-        <section>
-          <h2 className="flex items-center gap-2 text-lg font-bold text-slate-900 dark:text-slate-100 mb-4">
-            <span className="w-1 h-6 bg-teal-600 rounded-full"></span>
-            {t.employeeDetails}
-          </h2>
-          <ContextCard
-            type="employee"
-            name={selectedEmployee?.name}
-            title={selectedEmployee?.title}
-            department={selectedEmployee?.department}
-            lineManager={employeeLineManager}
-            company={employeeLegalCompany?.name}
-            placeholder={t.selectEmployeeFirst}
-          />
-        </section>
-
-        {/* Section: Privileges Overview - Only show when employee is selected */}
-        {selectedEmployee && (
-          <section>
-            <h2 className="flex items-center gap-2 text-lg font-bold text-slate-900 dark:text-slate-100 mb-4">
-              <span className="w-1 h-6 bg-teal-600 rounded-full"></span>
-              {t.privileges}
-            </h2>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Current Privileges (50%) */}
-              <PrivilegesPanel
-                allPrivileges={data.privileges}
-                companyAssignments={employeeAssignmentsWithCompanies}
-                activeRequests={activeRequests}
-                t={{
-                  currentPrivilege: t.currentPrivilege,
-                  noPrivileges: t.noPrivileges,
-                  rolesAssigned: t.rolesAssigned,
-                  noEndDate: t.noEndDate,
-                }}
-              />
-
-              {/* Privilege Requests (50%) */}
-              <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl overflow-hidden shadow-xl hover:shadow-2xl transition-shadow">
-                {/* Card Header with New Request Button */}
-                <div className="px-4 py-3 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 flex items-center justify-between gap-2 flex-wrap">
-                  <h3 className="font-semibold text-slate-900 dark:text-slate-100 text-sm" data-testid="text-requests-title">
-                    {t.privilegeRequests}
-                    <span className="ml-2 text-xs font-normal text-slate-500">
-                      ({employeeRequests.length})
-                    </span>
-                  </h3>
-                  <Button 
-                    onClick={() => setShowNewRequestModal(true)}
-                    size="sm"
-                    className="gap-1.5 h-8"
-                    data-testid="button-new-request"
-                  >
-                    <Plus className="h-3.5 w-3.5" />
-                    {t.newRequest}
-                  </Button>
-                </div>
-
-                {/* Card Body with Tabs */}
-                <div className="p-4">
-                  <Tabs value={requestTab} onValueChange={(v) => setRequestTab(v as RequestStatus)}>
-                    <TabsList className="mb-4 flex-wrap h-auto gap-1 bg-slate-100 dark:bg-slate-800">
-                      <TabsTrigger value="pending" data-testid="tab-pending" className="text-xs">
-                        {t.pending}
-                        <span className="ml-1.5 px-1.5 py-0.5 rounded-full bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 text-xs">
-                          {pendingRequests.length}
-                        </span>
-                      </TabsTrigger>
-                      <TabsTrigger value="active" data-testid="tab-active" className="text-xs">
-                        {t.active}
-                        <span className="ml-1.5 px-1.5 py-0.5 rounded-full bg-teal-100 dark:bg-teal-900/40 text-teal-700 dark:text-teal-300 text-xs">
-                          {activeRequests.length}
-                        </span>
-                      </TabsTrigger>
-                      <TabsTrigger value="rejected" data-testid="tab-rejected" className="text-xs">
-                        {t.rejected}
-                        <span className="ml-1.5 px-1.5 py-0.5 rounded-full bg-rose-100 dark:bg-rose-900/40 text-rose-700 dark:text-rose-300 text-xs">
-                          {rejectedRequests.length}
-                        </span>
-                      </TabsTrigger>
-                    </TabsList>
-
-                    <TabsContent value={requestTab}>
-                      <RequestsTable
-                        requests={currentTabRequests}
-                        privileges={data.privileges}
-                        companies={data.companies}
-                        t={{
-                          moduleFunction: t.moduleFunction,
-                          requestedRoles: t.requestedRoles,
-                          startDate: t.startDate,
-                          endDate: t.endDate,
-                          status: t.status,
-                          noRequests: t.noRequests,
-                          adminComment: t.adminComment,
-                          roles: t.roles,
-                          noEndDate: t.noEndDate,
-                        }}
-                      />
-                    </TabsContent>
-                  </Tabs>
-                </div>
-              </div>
-            </div>
-          </section>
-        )}
-
-        {/* Empty State when no employee selected */}
-        {!selectedEmployee && (
-          <section>
-            <h2 className="flex items-center gap-2 text-lg font-bold text-slate-900 dark:text-slate-100 mb-4">
-              <span className="w-1 h-6 bg-teal-600 rounded-full"></span>
-              {t.privileges}
-            </h2>
-            <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-12 text-center">
-              <DallahLogo size={48} className="mx-auto mb-3 opacity-20" />
-              <h3 className="text-base font-medium text-slate-600 dark:text-slate-400 mb-1">
-                {t.selectEmployeeFirst}
-              </h3>
-            </div>
-          </section>
-        )}
       </main>
 
-      {/* New Request Modal */}
       <NewRequestModal
         open={showNewRequestModal}
-        onClose={() => setShowNewRequestModal(false)}
+        onClose={closeNewRequestModal}
         onSubmit={handleSubmitRequest}
         privileges={data.privileges}
+        assignments={data.assignments}
+        employees={[...data.employees].sort((a, b) => a.name.localeCompare(b.name))}
+        companyId={selectedCompanyId}
+        companies={data.companies}
+        employeeId={newRequestEmployeeId}
+        requireEmployeeSearch={newRequestRequireEmployeePick}
+        onEmployeeIdChange={setNewRequestEmployeeId}
         isSubmitting={createRequest.isPending}
         t={{
           newRequest: t.newRequest,
+          employee: t.employee,
+          searchEmployee: t.searchEmployee,
+          selectEmployee: t.selectEmployee,
+          externalEmployee: t.externalEmployee,
+          externalBadge: t.externalBadge,
           module: t.module,
           function: t.function,
           role: t.role,
@@ -551,8 +839,51 @@ export default function DashboardPage() {
           cancel: t.cancel,
           selectAll: t.selectAll,
           unselectAll: t.unselectAll,
+          currentPrivileges: t.currentPrivileges,
+          noCurrentPrivileges: t.noCurrentPrivileges,
+          alreadyAssigned: t.alreadyAssigned,
+        }}
+      />
+
+      <DeletePrivilegeModal
+        open={showDeletePrivilegeModal}
+        onClose={closeDeletePrivilegeModal}
+        onSubmit={handleSubmitDeleteRequest}
+        privileges={data.privileges}
+        assignments={data.assignments}
+        employees={[...data.employees].sort((a, b) => a.name.localeCompare(b.name))}
+        companyId={selectedCompanyId}
+        companies={data.companies}
+        employeeId={deletePrivilegeEmployeeId}
+        requireEmployeeSearch={deletePrivilegeRequireEmployeePick}
+        onEmployeeIdChange={setDeletePrivilegeEmployeeId}
+        initialModule={deletePrivilegeInitialModule}
+        initialFunction={deletePrivilegeInitialFunction}
+        isSubmitting={createRequest.isPending}
+        t={{
+          deletePrivilege: t.deletePrivilege,
+          employee: t.employee,
+          searchEmployee: t.searchEmployee,
+          selectEmployee: t.selectEmployee,
+          externalEmployee: t.externalEmployee,
+          externalBadge: t.externalBadge,
+          module: t.module,
+          function: t.function,
+          role: t.role,
+          effectiveFrom: t.effectiveFrom,
+          reinstateAfter: t.reinstateAfter,
+          dateHelper: t.dateHelper,
+          submitDeleteRequest: t.submitDeleteRequest,
+          submitting: t.submitting,
+          cancel: t.cancel,
+          selectAll: t.selectAll,
+          unselectAll: t.unselectAll,
+          noAssignedPrivileges: t.noAssignedPrivileges,
+          currentPrivileges: t.currentPrivileges,
+          noCurrentPrivileges: t.noCurrentPrivileges,
         }}
       />
     </div>
   );
 }
+

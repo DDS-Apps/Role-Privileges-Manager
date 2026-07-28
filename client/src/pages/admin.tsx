@@ -29,6 +29,8 @@ import {
 } from "@/components/ui/select";
 import type { PrivilegeRequest, RequestStatus } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
+import { getRequestTypeLabel, formatRevokeExecutionState } from "@/lib/request-utils";
+import { cn } from "@/lib/utils";
 
 type Language = "en" | "ar";
 
@@ -40,7 +42,7 @@ const DICT = {
     employeeTermination: "Employee Termination",
     all: "All",
     pending: "Pending",
-    active: "Active",
+    active: "Approved",
     rejected: "Rejected",
     employee: "Employee",
     manager: "Manager",
@@ -68,6 +70,12 @@ const DICT = {
     terminating: "Terminating...",
     noEndDate: "No end date",
     loading: "Loading...",
+    grant: "Grant",
+    delete: "Delete",
+    scheduled: "Scheduled",
+    revoked: "Revoked",
+    reinstated: "Reinstated",
+    revokedUntil: "Revoked until {date}",
   },
   ar: {
     title: "لوحة الإدارة",
@@ -76,7 +84,7 @@ const DICT = {
     employeeTermination: "إنهاء خدمة الموظف",
     all: "الكل",
     pending: "معلق",
-    active: "نشط",
+    active: "معتمد",
     rejected: "مرفوض",
     employee: "الموظف",
     manager: "المدير",
@@ -104,6 +112,12 @@ const DICT = {
     terminating: "جاري الإنهاء...",
     noEndDate: "لا يوجد تاريخ انتهاء",
     loading: "جاري التحميل...",
+    grant: "منح",
+    delete: "حذف",
+    scheduled: "مجدول",
+    revoked: "ملغى",
+    reinstated: "مُستعاد",
+    revokedUntil: "ملغى حتى {date}",
   }
 };
 
@@ -347,6 +361,18 @@ export default function AdminPage() {
                         {filteredRequests.map((request) => {
                           const isExpanded = expandedRequestId === request.id;
                           const privileges = getPrivilegeDetails(request.rolesSelected);
+                          const isRevoke = (request.requestType ?? "grant") === "revoke";
+                          const typeLabel = getRequestTypeLabel(request, {
+                            grant: t.grant,
+                            delete: t.delete,
+                          });
+                          const executionState = formatRevokeExecutionState(request, {
+                            scheduled: t.scheduled,
+                            revoked: t.revoked,
+                            reinstated: t.reinstated,
+                            revokedUntil: t.revokedUntil,
+                            noEndDate: t.noEndDate,
+                          });
                           
                           return (
                             <>
@@ -376,7 +402,28 @@ export default function AdminPage() {
                                     {getCompanyName(request.companyId)}
                                   </span>
                                 </td>
-                                <td className="py-3 px-3">{request.module} / {request.function}</td>
+                                <td className="py-3 px-3">
+                                  <div className="flex flex-col gap-1">
+                                    <div className="flex flex-wrap items-center gap-1.5">
+                                      <span
+                                        className={cn(
+                                          "inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase",
+                                          isRevoke
+                                            ? "bg-rose-100 text-rose-800"
+                                            : "bg-teal-100 text-teal-800",
+                                        )}
+                                      >
+                                        {typeLabel}
+                                      </span>
+                                      {executionState && (
+                                        <span className="text-[10px] font-medium text-slate-500">
+                                          {executionState}
+                                        </span>
+                                      )}
+                                    </div>
+                                    <span>{request.module} / {request.function}</span>
+                                  </div>
+                                </td>
                                 <td className="py-3 px-3">{request.rolesSelected.length}</td>
                                 <td className="py-3 px-3">{formatDate(request.startDate)}</td>
                                 <td className="py-3 px-3">{request.endDate ? formatDate(request.endDate) : t.noEndDate}</td>
