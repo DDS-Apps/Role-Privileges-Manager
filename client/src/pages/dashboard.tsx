@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect, useCallback } from "react";
 import { useBootstrapData, useCreateRequest, useRequests } from "@/hooks/use-app-data";
 import { useAuth, useLogout } from "@/hooks/use-auth";
 import {
-  Loader2, Globe, Settings, LogOut, Building2,
+  Loader2, Globe, Settings, LogOut,
 } from "lucide-react";
 import { DallahLogo } from "@/components/ui/dallah-logo";
 import { Link, useLocation } from "wouter";
@@ -10,7 +10,6 @@ import { useToast } from "@/hooks/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { NotificationBell } from "@/components/ui/notification-bell";
-import { CompanySwitcher } from "@/components/ui/company-switcher";
 import { CompanyAccessOverview } from "@/components/ui/company-access-overview";
 import { NewRequestModal } from "@/components/ui/new-request-modal";
 import { DeletePrivilegeModal } from "@/components/ui/delete-privilege-modal";
@@ -43,6 +42,7 @@ const DICT = {
     userId: "User ID",
     created: "Created",
     newRequest: "New request",
+    newPrivilege: "New Privilege",
     searchEmployee: "Search by ID or name...",
     selectEmployee: "Select an employee",
     externalEmployee: "External employee",
@@ -79,6 +79,7 @@ const DICT = {
     allFunctions: "All functions",
     internal: "Company employees",
     external: "External users",
+    externalUsersSummary: "Users with External Access",
     all: "All",
     employee: "Employee",
     employeeId: "ID",
@@ -90,13 +91,13 @@ const DICT = {
     of: "of",
     rows: "rows",
     selectCompany: "Select a company to view access",
-    internalBadge: "Internal",
-    externalBadge: "External",
+    internalBadge: "Own",
+    externalBadge: "Other",
     companyUnit: "Company",
     companiesUnit: "Companies",
     modulesCol: "Modules (own company)",
     companyCol: "Company",
-    externalCol: "External Access",
+    externalCol: "Other Company",
     externalAccessTitle: "External company access",
     privilegesCol: "Privileges",
     otherCompanyAccess: "also has roles outside",
@@ -141,6 +142,7 @@ const DICT = {
     userId: "رقم المستخدم",
     created: "تاريخ الإنشاء",
     newRequest: "طلب جديد",
+    newPrivilege: "امتياز جديد",
     searchEmployee: "بحث بالرقم أو الاسم...",
     selectEmployee: "اختر موظفاً",
     externalEmployee: "موظف خارجي",
@@ -177,6 +179,7 @@ const DICT = {
     allFunctions: "كل الوظائف",
     internal: "موظفو الشركة",
     external: "مستخدمون خارجيون",
+    externalUsersSummary: "مستخدمون بوصول خارجي",
     all: "الكل",
     employee: "الموظف",
     employeeId: "الرقم",
@@ -188,13 +191,13 @@ const DICT = {
     of: "من",
     rows: "صف",
     selectCompany: "اختر شركة لعرض الوصول",
-    internalBadge: "داخلي",
-    externalBadge: "خارجي",
+    internalBadge: "ذاتية",
+    externalBadge: "أخرى",
     companyUnit: "شركة",
     companiesUnit: "شركات",
     modulesCol: "الوحدات (الشركة الأم)",
     companyCol: "الشركة",
-    externalCol: "الوصول الخارجي",
+    externalCol: "شركة أخرى",
     externalAccessTitle: "وصول الشركات الخارجية",
     privilegesCol: "الامتيازات",
     otherCompanyAccess: "لديه أيضاً أدوار خارج",
@@ -323,10 +326,6 @@ export default function DashboardPage() {
       data.employees.find((e) => e.id === actingUserId)
     );
   }, [data, actingUserId, authUser]);
-
-  const managerSelectedCompany = useMemo(() => {
-    return data?.companies.find((c) => c.id === selectedCompanyId);
-  }, [data, selectedCompanyId]);
 
   const openNewRequestForEmployee = (employeeId: string) => {
     setSelectedEmployeeId(employeeId);
@@ -607,32 +606,6 @@ export default function DashboardPage() {
                 </div>
               </div>
 
-              <div className="h-10 w-px shrink-0 bg-white/25" aria-hidden />
-
-              <div className="flex min-w-0 items-center">
-                {(authUser?.companies?.length ?? 0) > 1 ? (
-                  <CompanySwitcher
-                    companies={authUser?.companies || []}
-                    selectedCompanyId={selectedCompanyId}
-                    stacked
-                  />
-                ) : (
-                  <div className="flex min-w-0 items-center gap-2.5">
-                    <Building2 className="h-5 w-5 shrink-0 text-white/50" />
-                    <div className="min-w-0">
-                      <p
-                        className="max-w-[160px] truncate text-sm font-semibold text-white md:max-w-[220px]"
-                        dir="auto"
-                      >
-                        {managerSelectedCompany?.name || "—"}
-                      </p>
-                      <p className="text-xs text-white/55">
-                        ID: {selectedCompanyId || "—"}
-                      </p>
-                    </div>
-                  </div>
-                )}
-              </div>
             </div>
 
             <NotificationBell
@@ -687,6 +660,7 @@ export default function DashboardPage() {
           employees={data.employees}
           companies={data.companies}
           companyId={selectedCompanyId}
+          authCompanies={authUser?.companies ?? []}
           selectedEmployeeId={selectedEmployeeId}
           onSelectEmployee={setSelectedEmployeeId}
           onNewRequest={openNewRequestForEmployee}
@@ -713,6 +687,7 @@ export default function DashboardPage() {
             allFunctions: t.allFunctions,
             internal: t.internal,
             external: t.external,
+            externalUsersSummary: t.externalUsersSummary,
             all: t.all,
             employee: t.employee,
             employeeId: t.employeeId,
@@ -733,6 +708,7 @@ export default function DashboardPage() {
             company: t.companyUnit,
             companies: t.companiesUnit,
             newRequest: t.newRequest,
+            newPrivilege: t.newPrivilege,
             deletePrivilege: t.deletePrivilege,
             actions: t.actions,
           }}

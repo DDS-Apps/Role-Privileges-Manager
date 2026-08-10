@@ -36,6 +36,8 @@ import {
 } from "@/components/ui/table";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import type { Employee, Privilege, Assignment, Company } from "@shared/schema";
+import type { AuthCompany } from "@/hooks/use-auth";
+import { CompanySwitcher } from "@/components/ui/company-switcher";
 import { cn } from "@/lib/utils";
 
 export type AccessRowType =
@@ -114,6 +116,7 @@ interface CompanyAccessOverviewProps {
   employees: Employee[];
   companies: Company[];
   companyId: string;
+  authCompanies?: AuthCompany[];
   selectedEmployeeId?: string;
   onSelectEmployee: (id: string) => void;
   onNewRequest: (employeeId: string) => void;
@@ -139,6 +142,7 @@ interface CompanyAccessOverviewProps {
     allFunctions: string;
     internal: string;
     external: string;
+    externalUsersSummary: string;
     all: string;
     employee: string;
     employeeId: string;
@@ -160,6 +164,7 @@ interface CompanyAccessOverviewProps {
     companies: string;
     otherCompanyAccess: string;
     newRequest: string;
+    newPrivilege: string;
     deletePrivilege: string;
     actions: string;
   };
@@ -505,16 +510,13 @@ function TypeBadge({
 }) {
   if (rowType === "external") {
     return (
-      <Badge className="border-0 bg-orange-100 font-normal capitalize text-orange-800 hover:bg-orange-100">
+      <Badge className="border-0 bg-orange-100 font-normal text-orange-800 hover:bg-orange-100">
         {t.externalBadge}
       </Badge>
     );
   }
-  if (rowType === "no_access") {
-    return <Badge variant="secondary">{t.noAccess}</Badge>;
-  }
   return (
-    <Badge className="border-0 bg-sky-100 font-normal capitalize text-sky-800 hover:bg-sky-100">
+    <Badge className="border-0 bg-sky-100 font-normal text-sky-800 hover:bg-sky-100">
       {t.internalBadge}
     </Badge>
   );
@@ -534,6 +536,7 @@ export function CompanyAccessOverview({
   employees,
   companies,
   companyId,
+  authCompanies = [],
   selectedEmployeeId,
   onSelectEmployee,
   onNewRequest,
@@ -793,9 +796,17 @@ export function CompanyAccessOverview({
             <h2 className="text-lg font-semibold text-slate-900">{t.title}</h2>
             <p className="mt-0.5 text-sm text-slate-500">
               {t.subtitle}{" "}
-              <span className="font-medium text-slate-800" dir="auto">
-                {companyName}
-              </span>
+              {authCompanies.length > 1 ? (
+                <CompanySwitcher
+                  companies={authCompanies}
+                  selectedCompanyId={companyId}
+                  variant="inline"
+                />
+              ) : (
+                <span className="font-medium text-slate-800" dir="auto">
+                  {companyName}
+                </span>
+              )}
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -805,7 +816,7 @@ export function CompanyAccessOverview({
             </Badge>
             <Badge className="gap-1 border-0 bg-orange-50 font-normal text-orange-800">
               <UserRound className="h-3.5 w-3.5" />
-              {stats.externalEmployees} {t.external}
+              {stats.externalEmployees} {t.externalUsersSummary}
             </Badge>
           </div>
         </div>
@@ -919,7 +930,7 @@ export function CompanyAccessOverview({
                     {t.employee}
                   </TableHead>
                   <TableHead className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    {t.type}
+                    {t.companyCol}
                   </TableHead>
                   <TableHead className="min-w-[140px] text-xs font-semibold uppercase tracking-wide text-slate-500">
                     {t.modulesCol}
@@ -1294,8 +1305,8 @@ function EmployeeTree({
               className="h-8 w-8 border-[#218C9C]/30 bg-white text-[#218C9C] hover:bg-teal-50"
               onClick={onNewRequest}
               data-testid={`button-new-request-${empKey}`}
-              aria-label={t.newRequest}
-              title={t.newRequest}
+              aria-label={t.newPrivilege}
+              title={t.newPrivilege}
             >
               <Plus className="h-4 w-4" />
             </Button>

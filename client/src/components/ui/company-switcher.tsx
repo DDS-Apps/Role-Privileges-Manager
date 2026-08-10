@@ -7,12 +7,14 @@ import type { AuthCompany } from "@/hooks/use-auth";
 interface CompanySwitcherProps {
   companies: AuthCompany[];
   selectedCompanyId: string | null;
+  variant?: "banner" | "inline";
   stacked?: boolean;
 }
 
 export function CompanySwitcher({
   companies,
   selectedCompanyId,
+  variant = "banner",
   stacked = false,
 }: CompanySwitcherProps) {
   const [open, setOpen] = useState(false);
@@ -21,6 +23,7 @@ export function CompanySwitcher({
   if (!companies || companies.length <= 1) return null;
 
   const current = companies.find(c => c.companyId === selectedCompanyId);
+  const isInline = variant === "inline";
 
   const handleSelect = async (companyId: string) => {
     if (companyId === selectedCompanyId) { setOpen(false); return; }
@@ -36,19 +39,24 @@ export function CompanySwitcher({
         <button
           type="button"
           className={
-            stacked
-              ? "flex max-w-[280px] items-center gap-2.5 rounded-lg px-1 py-0.5 text-left transition-colors hover:bg-white/10"
-              : "flex max-w-[220px] items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium text-white/90 transition-colors hover:bg-white/20"
+            isInline
+              ? "inline-flex max-w-full items-center gap-1 rounded-md px-1 py-0.5 text-left font-medium text-slate-800 transition-colors hover:bg-slate-100 hover:text-teal-800"
+              : stacked
+                ? "flex max-w-[280px] items-center gap-2.5 rounded-lg px-1 py-0.5 text-left transition-colors hover:bg-white/10"
+                : "flex max-w-[220px] items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium text-white/90 transition-colors hover:bg-white/20"
           }
+          data-testid="company-switcher-trigger"
         >
-          <Building2
-            className={
-              stacked
-                ? "h-5 w-5 shrink-0 text-white/50"
-                : "h-3.5 w-3.5 shrink-0 text-teal-400"
-            }
-          />
-          {stacked ? (
+          {!isInline && (
+            <Building2
+              className={
+                stacked
+                  ? "h-5 w-5 shrink-0 text-white/50"
+                  : "h-3.5 w-3.5 shrink-0 text-teal-400"
+              }
+            />
+          )}
+          {stacked && !isInline ? (
             <span className="min-w-0 flex-1">
               <span
                 className="block truncate text-sm font-semibold text-white"
@@ -65,12 +73,18 @@ export function CompanySwitcher({
               {current?.name ?? "Select Company"}
             </span>
           )}
-          <ChevronDown className="h-3.5 w-3.5 shrink-0 text-white/60" />
+          <ChevronDown
+            className={
+              isInline
+                ? "h-3.5 w-3.5 shrink-0 text-slate-500"
+                : "h-3.5 w-3.5 shrink-0 text-white/60"
+            }
+          />
         </button>
       </PopoverTrigger>
 
       <PopoverContent
-        align="end"
+        align={isInline ? "start" : "end"}
         sideOffset={8}
         className="w-80 p-0 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 overflow-hidden bg-white dark:bg-slate-800"
       >
