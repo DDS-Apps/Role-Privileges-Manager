@@ -87,17 +87,60 @@ function CompanyRows({
 interface FormValues {
   userId: string; name: string; email: string;
   isAdmin: boolean; companies: ContactCompany[];
+  managedModules: string[];
 }
 
-const EMPTY: FormValues = { userId: "", name: "", email: "", isAdmin: false, companies: [] };
+const EMPTY: FormValues = { userId: "", name: "", email: "", isAdmin: false, companies: [], managedModules: [] };
+
+function ModuleMultiSelect({
+  value,
+  onChange,
+  allModules,
+}: {
+  value: string[];
+  onChange: (v: string[]) => void;
+  allModules: string[];
+}) {
+  const toggle = (module: string) => {
+    onChange(
+      value.includes(module)
+        ? value.filter((m) => m !== module)
+        : [...value, module],
+    );
+  };
+
+  if (allModules.length === 0) {
+    return <p className="text-xs text-slate-400">No modules in catalog yet.</p>;
+  }
+
+  return (
+    <div className="flex flex-wrap gap-2">
+      {allModules.map((module) => (
+        <label
+          key={module}
+          className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 px-2 py-1 text-xs cursor-pointer hover:bg-slate-50 dark:border-slate-600 dark:hover:bg-slate-700/50"
+        >
+          <input
+            type="checkbox"
+            checked={value.includes(module)}
+            onChange={() => toggle(module)}
+            className="accent-teal-600"
+          />
+          {module}
+        </label>
+      ))}
+    </div>
+  );
+}
 
 function ContactDialog({
-  open, onClose, initial, allCompanies, onSave, saving,
+  open, onClose, initial, allCompanies, allModules, onSave, saving,
 }: {
   open: boolean;
   onClose: () => void;
   initial: FormValues | null;
   allCompanies: { id: string; name: string }[];
+  allModules: string[];
   onSave: (v: FormValues) => void;
   saving: boolean;
 }) {
@@ -135,6 +178,18 @@ function ContactDialog({
             <CompanyRows value={form.companies} onChange={v => f({ companies: v })} allCompanies={allCompanies} />
           </div>
 
+          <div>
+            <Label className="text-xs font-medium mb-2 block">Managed Modules</Label>
+            <p className="text-[11px] text-slate-400 mb-2">
+              Department heads see only employees with privileges in these modules. GMs and admins see all modules.
+            </p>
+            <ModuleMultiSelect
+              value={form.managedModules}
+              onChange={(v) => f({ managedModules: v })}
+              allModules={allModules}
+            />
+          </div>
+
           <label className="flex items-center gap-2 cursor-pointer">
             <input type="checkbox" checked={form.isAdmin} onChange={e => f({ isAdmin: e.target.checked })}
               className="w-4 h-4 accent-teal-600" />
@@ -168,6 +223,10 @@ export default function AdminContactsPage() {
   const [deleteTarget, setDeleteTarget] = useState<Contact | null>(null);
 
   const allCompanies = useMemo(() => bootstrap?.companies || [], [bootstrap]);
+  const allModules = useMemo(() => {
+    const modules = new Set((bootstrap?.privileges || []).map((p) => p.module));
+    return Array.from(modules).sort((a, b) => a.localeCompare(b));
+  }, [bootstrap]);
 
   // Mutations
   const createM = useMutation({
@@ -222,6 +281,7 @@ export default function AdminContactsPage() {
       email: editTarget.email,
       isAdmin: editTarget.isAdmin,
       companies: editTarget.companies,
+      managedModules: editTarget.managedModules ?? [],
     };
   }, [editTarget]);
 
@@ -284,6 +344,7 @@ export default function AdminContactsPage() {
                   <th className="text-left px-4 py-3 font-medium text-slate-500 text-xs uppercase tracking-wide">Email</th>
                   <th className="text-left px-4 py-3 font-medium text-slate-500 text-xs uppercase tracking-wide">ID</th>
                   <th className="text-left px-4 py-3 font-medium text-slate-500 text-xs uppercase tracking-wide">Companies</th>
+                  <th className="text-left px-4 py-3 font-medium text-slate-500 text-xs uppercase tracking-wide">Modules</th>
                   <th className="text-left px-4 py-3 font-medium text-slate-500 text-xs uppercase tracking-wide">Admin</th>
                   <th className="px-4 py-3" />
                 </tr>
@@ -318,6 +379,19 @@ export default function AdminContactsPage() {
                       </div>
                     </td>
                     <td className="px-4 py-3">
+                      {c.managedModules?.length ? (
+                        <div className="flex flex-wrap gap-1">
+                          {c.managedModules.map((m) => (
+                            <span key={m} className="px-1.5 py-0.5 rounded bg-teal-50 dark:bg-teal-900/30 text-xs text-teal-700 dark:text-teal-300">
+                              {m}
+                            </span>
+                          ))}
+                        </div>
+                      ) : (
+                        <span className="text-xs text-slate-400">All (GM/Admin)</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3">
                       {c.isAdmin && <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-teal-50 dark:bg-teal-900/30 text-teal-700 dark:text-teal-300 text-xs font-medium"><ShieldCheck className="h-3 w-3" /> Admin</span>}
                     </td>
                     <td className="px-4 py-3">
@@ -346,6 +420,7 @@ export default function AdminContactsPage() {
         onClose={() => setEditTarget(null)}
         initial={dialogInitial}
         allCompanies={allCompanies}
+        allModules={allModules}
         onSave={handleSave}
         saving={createM.isPending || updateM.isPending}
       />

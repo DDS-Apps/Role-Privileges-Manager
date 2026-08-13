@@ -2,9 +2,13 @@ import type { Express, Request, Response } from "express";
 import type { Server } from "http";
 import { storage } from "./storage";
 import { api } from "@shared/routes";
-import { applyAssignmentsSchema, uploadCatalogSchema, createRequestSchema, updateRequestSchema, RequestStatus } from "@shared/schema";
+import { applyAssignmentsSchema, uploadCatalogSchema, createRequestSchema, updateRequestSchema, RequestStatus, type ViewerContext } from "@shared/schema";
 import { z } from "zod";
 import * as XLSX from "xlsx";
+import {
+  resolveViewerFromContact,
+  resolveViewerFromEmployee,
+} from "./viewer-context.js";
 
 // Extend session with auth data
 declare module "express-session" {
@@ -34,6 +38,31 @@ function requireAdmin(req: Request, res: Response, next: () => void) {
 
 function getSessionActorId(req: Request): string {
   return req.session.contactId || req.session.employeeId || "";
+}
+
+function authScopeFromViewer(viewer: ViewerContext) {
+  return {
+    managedModules: viewer.managedModules,
+    isUnrestrictedViewer: viewer.managedModules === null,
+  };
+}
+
+async function resolveSessionViewer(req: Request): Promise<ViewerContext | null> {
+  const raw = await storage.getBootstrapData();
+  if (req.session.contactId) {
+    const contact = raw.contacts.find((c) => c.id === req.session.contactId);
+    if (contact) return resolveViewerFromContact(contact);
+  }
+  if (req.session.employeeId) {
+    const employee = raw.employees.find((e) => e.id === req.session.employeeId);
+    if (employee) {
+      const contact = raw.contacts.find(
+        (c) => c.email.toLowerCase() === employee.email.toLowerCase(),
+      );
+      return resolveViewerFromEmployee(employee, contact);
+    }
+  }
+  return null;
 }
 
 export async function registerRoutes(
@@ -76,6 +105,7 @@ export async function registerRoutes(
           isAdmin: contact.isAdmin,
           companies,
           selectedCompanyId: req.session.selectedCompanyId || null,
+          ...authScopeFromViewer(resolveViewerFromContact(contact)),
         });
       }
 
@@ -100,6 +130,8 @@ export async function registerRoutes(
         isLineManager: true,
         companies: [{ companyId: employee.legalCompanyId, role: "Manager", name: empCompanyName }],
         selectedCompanyId: employee.legalCompanyId,
+        managedModules: null,
+        isUnrestrictedViewer: true,
       });
     } catch (err) {
       console.error("Login error:", err);
@@ -140,6 +172,8 @@ export async function registerRoutes(
           isLineManager: true,
           companies: [{ companyId: emp.legalCompanyId, role: "Manager", name: empCompanyName }],
           selectedCompanyId: req.session.selectedCompanyId || emp.legalCompanyId,
+          managedModules: null,
+          isUnrestrictedViewer: true,
         });
       }
 
@@ -160,6 +194,7 @@ export async function registerRoutes(
         isAdmin: c.isAdmin,
         companies,
         selectedCompanyId: req.session.selectedCompanyId || null,
+        ...authScopeFromViewer(resolveViewerFromContact(c)),
       });
     } catch {
       res.status(500).json({ message: "Failed to get session" });
@@ -206,7 +241,8 @@ export async function registerRoutes(
   // Bootstrap - get all data
   app.get(api.bootstrap.get.path, requireAuth as any, async (req, res) => {
     try {
-      const data = await storage.getBootstrapData();
+      const viewer = await resolveSessionViewer(req);
+      const data = await storage.getBootstrapData(viewer);
       res.json(data);
     } catch (err) {
       console.error("Bootstrap error:", err);
@@ -363,11 +399,13 @@ export async function registerRoutes(
   app.get(api.requests.list.path, requireAuth as any, async (req, res) => {
     try {
       const { managerId, employeeId, status, targetCompanyIds } = req.query;
+      const viewer = await resolveSessionViewer(req);
       const requests = await storage.getRequests({
         managerId: managerId as string | undefined,
         employeeId: employeeId as string | undefined,
         status: status as RequestStatus | undefined,
         targetCompanyIds: targetCompanyIds ? (targetCompanyIds as string).split(",") : undefined,
+        managedModules: viewer?.managedModules ?? null,
       });
       res.json(requests);
     } catch (err) {

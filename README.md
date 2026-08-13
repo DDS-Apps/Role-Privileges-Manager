@@ -41,8 +41,8 @@ Open `http://localhost:5000` (or the port set by `PORT`). MVP login uses any reg
 
 1. Manager logs in and selects a working company.
 2. Manager selects an employee and submits a **privilege request** (`POST /api/requests`).
-3. Request stays `pending` unless the submitter is GM of the employee’s legal company (auto-approved).
-4. Admin or GM approves/rejects (`PATCH /api/requests/:id`) — active requests update assignments.
+3. Request stays `pending` unless the submitter is GM of the employee’s legal company (auto-approved for internal grants only).
+4. Admin or GM approves/rejects (`PATCH /api/requests/:id`) — active requests update assignments. **External grants** (employee’s legal company ≠ access company) require two GM approvals: requester’s company GM (step 1), then employee’s legal company GM (step 2).
 5. All actions are recorded in `audit.json`.
 
 Legacy direct assignment: `POST /api/assignments/apply` (still available for managers).
@@ -50,7 +50,8 @@ Legacy direct assignment: `POST /api/assignments/apply` (still available for man
 ### Authorization
 
 - **Manager → employee:** same `legalCompanyId` and `employee.managerId === managerId`.
-- **Approval:** system admin, or GM of the target employee’s legal company; requester cannot approve own request.
+- **Approval:** system admin, or GM of the target employee’s legal company (internal grants); external grants use a two-step GM chain (requester company → employee legal company). Requester cannot approve own request.
+- **Module visibility:** GMs and system admins see all modules. Other contacts are scoped by `managedModules` on their contact record — assign via **Admin → Contacts** (multi-select). Bootstrap data and requests are filtered server-side for scoped viewers.
 
 ## Environment
 

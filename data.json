@@ -31104,7 +31104,11 @@
       "status": "rejected",
       "adminComments": null,
       "createdAt": "2026-06-03T09:18:04.577Z",
-      "updatedAt": "2026-06-04T09:25:17.301Z"
+      "updatedAt": "2026-06-04T09:25:17.301Z",
+      "requestType": "grant",
+      "executedAt": null,
+      "reinstatedAt": null,
+      "approvalStage": "none"
     },
     {
       "id": "e8ddd510-93ed-412d-bc9b-77610c5061d9",
@@ -31127,7 +31131,11 @@
       "status": "pending",
       "adminComments": null,
       "createdAt": "2026-06-03T09:20:25.272Z",
-      "updatedAt": "2026-06-03T09:20:25.272Z"
+      "updatedAt": "2026-06-03T09:20:25.272Z",
+      "requestType": "grant",
+      "executedAt": null,
+      "reinstatedAt": null,
+      "approvalStage": "none"
     },
     {
       "id": "caea24e1-ed5a-4026-88dd-7e734049707a",
@@ -31149,7 +31157,11 @@
       "status": "active",
       "adminComments": "Auto-approved by GM",
       "createdAt": "2026-06-03T10:38:13.049Z",
-      "updatedAt": "2026-06-03T10:38:13.050Z"
+      "updatedAt": "2026-06-03T10:38:13.050Z",
+      "requestType": "grant",
+      "executedAt": null,
+      "reinstatedAt": null,
+      "approvalStage": "none"
     },
     {
       "id": "7937f810-a296-4643-ab30-41b94e4383f2",
@@ -31172,7 +31184,11 @@
       "status": "active",
       "adminComments": "Auto-approved by GM",
       "createdAt": "2026-06-04T09:21:28.753Z",
-      "updatedAt": "2026-06-04T09:21:28.753Z"
+      "updatedAt": "2026-06-04T09:21:28.753Z",
+      "requestType": "grant",
+      "executedAt": null,
+      "reinstatedAt": null,
+      "approvalStage": "none"
     },
     {
       "id": "cc81c145-c277-462a-b8dc-7a917325b92d",
@@ -31195,7 +31211,11 @@
       "status": "active",
       "adminComments": "Auto-approved by GM",
       "createdAt": "2026-06-04T11:04:43.321Z",
-      "updatedAt": "2026-06-04T11:04:43.322Z"
+      "updatedAt": "2026-06-04T11:04:43.322Z",
+      "requestType": "grant",
+      "executedAt": null,
+      "reinstatedAt": null,
+      "approvalStage": "none"
     }
   ],
   "contacts": [
@@ -31214,7 +31234,8 @@
           "companyId": "058",
           "role": "GM"
         }
-      ]
+      ],
+      "managedModules": []
     },
     {
       "id": "C002",
@@ -31231,6 +31252,9 @@
           "companyId": "058",
           "role": "2nd"
         }
+      ],
+      "managedModules": [
+        "HR"
       ]
     },
     {
@@ -31248,7 +31272,8 @@
           "companyId": "058",
           "role": "3rd"
         }
-      ]
+      ],
+      "managedModules": []
     },
     {
       "id": "C004",
@@ -31269,7 +31294,8 @@
           "companyId": "012",
           "role": "GM"
         }
-      ]
+      ],
+      "managedModules": []
     },
     {
       "id": "C005",
@@ -31286,6 +31312,9 @@
           "companyId": "260",
           "role": "2nd"
         }
+      ],
+      "managedModules": [
+        "Finance"
       ]
     },
     {
@@ -31299,7 +31328,8 @@
           "companyId": "079",
           "role": "GM"
         }
-      ]
+      ],
+      "managedModules": []
     },
     {
       "id": "C007",
@@ -31312,7 +31342,8 @@
           "companyId": "079",
           "role": "2nd"
         }
-      ]
+      ],
+      "managedModules": []
     },
     {
       "id": "C008",
@@ -31325,7 +31356,8 @@
           "companyId": "079",
           "role": "3rd"
         }
-      ]
+      ],
+      "managedModules": []
     },
     {
       "id": "C009",
@@ -31338,7 +31370,8 @@
           "companyId": "321",
           "role": "GM"
         }
-      ]
+      ],
+      "managedModules": []
     },
     {
       "id": "C010",
@@ -31351,7 +31384,8 @@
           "companyId": "321",
           "role": "2nd"
         }
-      ]
+      ],
+      "managedModules": []
     },
     {
       "id": "C011",
@@ -31364,7 +31398,8 @@
           "companyId": "167",
           "role": "GM"
         }
-      ]
+      ],
+      "managedModules": []
     },
     {
       "id": "C012",
@@ -31377,7 +31412,8 @@
           "companyId": "167",
           "role": "2nd"
         }
-      ]
+      ],
+      "managedModules": []
     },
     {
       "id": "C013",
@@ -31390,7 +31426,8 @@
           "companyId": "002",
           "role": "GM"
         }
-      ]
+      ],
+      "managedModules": []
     },
     {
       "id": "C014",
@@ -31403,7 +31440,8 @@
           "companyId": "002",
           "role": "2nd"
         }
-      ]
+      ],
+      "managedModules": []
     },
     {
       "id": "C015",
@@ -31416,7 +31454,8 @@
           "companyId": "002",
           "role": "2nd"
         }
-      ]
+      ],
+      "managedModules": []
     },
     {
       "id": "C016",
@@ -31429,7 +31468,8 @@
           "companyId": "002",
           "role": "Admin"
         }
-      ]
+      ],
+      "managedModules": []
     },
     {
       "id": "C017",
@@ -31442,7 +31482,8 @@
           "companyId": "002",
           "role": "Admin"
         }
-      ]
+      ],
+      "managedModules": []
     },
     {
       "id": "C018",
@@ -31459,7 +31500,8 @@
           "companyId": "069",
           "role": "GM"
         }
-      ]
+      ],
+      "managedModules": []
     },
     {
       "id": "C019",
@@ -31472,7 +31514,8 @@
           "companyId": "009",
           "role": "2nd"
         }
-      ]
+      ],
+      "managedModules": []
     },
     {
       "id": "C020",
@@ -31485,7 +31528,8 @@
           "companyId": "276",
           "role": "GM"
         }
-      ]
+      ],
+      "managedModules": []
     },
     {
       "id": "C021",
@@ -31498,7 +31542,8 @@
           "companyId": "276",
           "role": "2nd"
         }
-      ]
+      ],
+      "managedModules": []
     },
     {
       "id": "C022",
@@ -31511,7 +31556,8 @@
           "companyId": "276",
           "role": "3rd"
         }
-      ]
+      ],
+      "managedModules": []
     },
     {
       "id": "C023",
@@ -31524,7 +31570,8 @@
           "companyId": "276",
           "role": "4th"
         }
-      ]
+      ],
+      "managedModules": []
     },
     {
       "id": "C024",
@@ -31537,7 +31584,8 @@
           "companyId": "077",
           "role": "GM"
         }
-      ]
+      ],
+      "managedModules": []
     },
     {
       "id": "C025",
@@ -31554,7 +31602,8 @@
           "companyId": "261",
           "role": "2nd"
         }
-      ]
+      ],
+      "managedModules": []
     },
     {
       "id": "C026",
@@ -31575,7 +31624,8 @@
           "companyId": "066",
           "role": "GM"
         }
-      ]
+      ],
+      "managedModules": []
     },
     {
       "id": "C027",
@@ -31604,7 +31654,8 @@
           "companyId": "053",
           "role": "GM"
         }
-      ]
+      ],
+      "managedModules": []
     },
     {
       "id": "C028",
@@ -31621,7 +31672,8 @@
           "companyId": "061",
           "role": "2nd"
         }
-      ]
+      ],
+      "managedModules": []
     },
     {
       "id": "C029",
@@ -31642,7 +31694,8 @@
           "companyId": "053",
           "role": "3rd"
         }
-      ]
+      ],
+      "managedModules": []
     },
     {
       "id": "C030",
@@ -31655,7 +31708,8 @@
           "companyId": "001",
           "role": "GM"
         }
-      ]
+      ],
+      "managedModules": []
     },
     {
       "id": "C031",
@@ -31668,7 +31722,8 @@
           "companyId": "001",
           "role": "Admin"
         }
-      ]
+      ],
+      "managedModules": []
     },
     {
       "id": "C032",
@@ -31681,7 +31736,8 @@
           "companyId": "050",
           "role": "GM"
         }
-      ]
+      ],
+      "managedModules": []
     },
     {
       "id": "C033",
@@ -31694,7 +31750,8 @@
           "companyId": "050",
           "role": "2nd"
         }
-      ]
+      ],
+      "managedModules": []
     },
     {
       "id": "C034",
@@ -31707,7 +31764,8 @@
           "companyId": "030",
           "role": "2nd"
         }
-      ]
+      ],
+      "managedModules": []
     },
     {
       "id": "C035",
@@ -31720,7 +31778,8 @@
           "companyId": "045",
           "role": "2nd"
         }
-      ]
+      ],
+      "managedModules": []
     },
     {
       "id": "C036",
@@ -31733,7 +31792,8 @@
           "companyId": "045",
           "role": "3rd"
         }
-      ]
+      ],
+      "managedModules": []
     },
     {
       "id": "C037",
@@ -31746,7 +31806,8 @@
           "companyId": "069",
           "role": "2nd"
         }
-      ]
+      ],
+      "managedModules": []
     },
     {
       "id": "C038",
@@ -31759,7 +31820,8 @@
           "companyId": "069",
           "role": "3rd"
         }
-      ]
+      ],
+      "managedModules": []
     },
     {
       "id": "C039",
@@ -31772,7 +31834,8 @@
           "companyId": "028",
           "role": "GM"
         }
-      ]
+      ],
+      "managedModules": []
     },
     {
       "id": "C040",
@@ -31785,7 +31848,8 @@
           "companyId": "028",
           "role": "2nd"
         }
-      ]
+      ],
+      "managedModules": []
     },
     {
       "id": "C041",
@@ -31798,7 +31862,8 @@
           "companyId": "022",
           "role": "GM"
         }
-      ]
+      ],
+      "managedModules": []
     },
     {
       "id": "C042",
@@ -31811,7 +31876,8 @@
           "companyId": "022",
           "role": "2nd"
         }
-      ]
+      ],
+      "managedModules": []
     },
     {
       "id": "C043",
@@ -31824,7 +31890,8 @@
           "companyId": "022",
           "role": "3rd"
         }
-      ]
+      ],
+      "managedModules": []
     },
     {
       "id": "C044",
@@ -31837,7 +31904,8 @@
           "companyId": "054",
           "role": "GM"
         }
-      ]
+      ],
+      "managedModules": []
     },
     {
       "id": "C045",
@@ -31850,7 +31918,8 @@
           "companyId": "054",
           "role": "2nd"
         }
-      ]
+      ],
+      "managedModules": []
     },
     {
       "id": "C046",
@@ -31863,7 +31932,8 @@
           "companyId": "021",
           "role": "GM"
         }
-      ]
+      ],
+      "managedModules": []
     },
     {
       "id": "C047",
@@ -31876,7 +31946,8 @@
           "companyId": "021",
           "role": "2nd"
         }
-      ]
+      ],
+      "managedModules": []
     },
     {
       "id": "C048",
@@ -31893,7 +31964,8 @@
           "companyId": "020",
           "role": "GM"
         }
-      ]
+      ],
+      "managedModules": []
     },
     {
       "id": "C049",
@@ -31906,7 +31978,8 @@
           "companyId": "046",
           "role": "2nd"
         }
-      ]
+      ],
+      "managedModules": []
     },
     {
       "id": "C050",
@@ -31919,7 +31992,8 @@
           "companyId": "046",
           "role": "3rd"
         }
-      ]
+      ],
+      "managedModules": []
     },
     {
       "id": "C051",
@@ -31932,7 +32006,8 @@
           "companyId": "066",
           "role": "2nd"
         }
-      ]
+      ],
+      "managedModules": []
     },
     {
       "id": "C052",
@@ -31945,7 +32020,8 @@
           "companyId": "261",
           "role": "GM"
         }
-      ]
+      ],
+      "managedModules": []
     },
     {
       "id": "C053",
@@ -31958,7 +32034,8 @@
           "companyId": "020",
           "role": "2nd"
         }
-      ]
+      ],
+      "managedModules": []
     },
     {
       "id": "C054",
@@ -31971,7 +32048,8 @@
           "companyId": "012",
           "role": "2nd"
         }
-      ]
+      ],
+      "managedModules": []
     },
     {
       "id": "C055",
@@ -31988,7 +32066,8 @@
           "companyId": "186",
           "role": "GM"
         }
-      ]
+      ],
+      "managedModules": []
     },
     {
       "id": "C056",
@@ -32001,7 +32080,8 @@
           "companyId": "010",
           "role": "2nd"
         }
-      ]
+      ],
+      "managedModules": []
     },
     {
       "id": "C057",
@@ -32018,7 +32098,8 @@
           "companyId": "186",
           "role": "2nd"
         }
-      ]
+      ],
+      "managedModules": []
     },
     {
       "id": "C058",
@@ -32031,7 +32112,8 @@
           "companyId": "053",
           "role": "2nd"
         }
-      ]
+      ],
+      "managedModules": []
     },
     {
       "id": "C059",
@@ -32044,7 +32126,8 @@
           "companyId": "322",
           "role": "GM"
         }
-      ]
+      ],
+      "managedModules": []
     },
     {
       "id": "C060",
@@ -32057,7 +32140,8 @@
           "companyId": "322",
           "role": "2nd"
         }
-      ]
+      ],
+      "managedModules": []
     },
     {
       "id": "C061",
@@ -32070,7 +32154,8 @@
           "companyId": "322",
           "role": "3rd"
         }
-      ]
+      ],
+      "managedModules": []
     },
     {
       "id": "C062",
@@ -32099,7 +32184,8 @@
           "companyId": "012B",
           "role": "Admin"
         }
-      ]
+      ],
+      "managedModules": []
     }
   ]
 }

@@ -12,13 +12,16 @@ import {
   AuditActionType,
   CreateRequestInput,
   RequestStatus,
+  ApprovalStage,
+  ViewerContext,
 } from "@shared/schema";
 import fs from "fs/promises";
 import path from "path";
 import { randomUUID } from "crypto";
+import { isContactGMOfCompany } from "./viewer-context.js";
 
 export interface IStorage {
-  getBootstrapData(): Promise<BootstrapResponse>;
+  getBootstrapData(viewer?: ViewerContext | null): Promise<BootstrapResponse>;
   
   // Assignments (kept for internal use during approval)
   applyAssignments(
@@ -41,7 +44,7 @@ export interface IStorage {
   
   // Request CRUD
   createRequest(input: CreateRequestInput): Promise<PrivilegeRequest>;
-  getRequests(filters?: { managerId?: string; employeeId?: string; status?: RequestStatus; targetCompanyIds?: string[] }): Promise<PrivilegeRequest[]>;
+  getRequests(filters?: { managerId?: string; employeeId?: string; status?: RequestStatus; targetCompanyIds?: string[]; managedModules?: string[] | null }): Promise<PrivilegeRequest[]>;
   updateRequestStatus(requestId: string, status: RequestStatus, adminComments: string | null, adminId: string): Promise<PrivilegeRequest>;
   getGMsForCompany(companyId: string): Promise<Contact[]>;
   
@@ -357,8 +360,19 @@ export class JsonStorage implements IStorage {
           req.reinstatedAt = null;
           needsSave = true;
         }
+        if (!req.approvalStage) {
+          req.approvalStage = "none";
+          needsSave = true;
+        }
       }
-      
+
+      for (const contact of this.data.contacts) {
+        if (contact.managedModules === undefined) {
+          contact.managedModules = [];
+          needsSave = true;
+        }
+      }
+
       if (needsSave) {
         await this.saveData();
       }
@@ -575,17 +589,79 @@ export class JsonStorage implements IStorage {
     }
   }
 
+  private filterBootstrapForViewer(
+    data: BootstrapResponse,
+    viewer: ViewerContext,
+  ): BootstrapResponse {
+    if (viewer.managedModules === null) return data;
+
+    const moduleSet = new Set(viewer.managedModules);
+    const privileges = data.privileges.filter((p) => moduleSet.has(p.module));
+    const allowedPrivIds = new Set(privileges.map((p) => p.id));
+
+    const assignments = data.assignments
+      .map((a) => ({
+        ...a,
+        privilegeIds: a.privilegeIds.filter((id) => allowedPrivIds.has(id)),
+      }))
+      .filter((a) => a.privilegeIds.length > 0);
+
+    const requests = data.requests.filter((r) => moduleSet.has(r.module));
+
+    return { ...data, privileges, assignments, requests };
+  }
+
+  private isExternalGrant(
+    request: PrivilegeRequest,
+    employee: Employee,
+  ): boolean {
+    return (
+      (request.requestType ?? "grant") === "grant" &&
+      employee.legalCompanyId !== request.companyId
+    );
+  }
+
+  private canActOnRequestAtStage(
+    adminId: string,
+    request: PrivilegeRequest,
+    stage: ApprovalStage,
+    targetEmployee: Employee | undefined,
+    isSystemAdmin: boolean,
+  ): boolean {
+    if (isSystemAdmin) return true;
+
+    if (stage === "pending_requester_gm") {
+      return isContactGMOfCompany(
+        this.data.contacts,
+        adminId,
+        request.managerLegalCompanyId,
+      );
+    }
+
+    if (!targetEmployee) return false;
+
+    return isContactGMOfCompany(
+      this.data.contacts,
+      adminId,
+      targetEmployee.legalCompanyId,
+    );
+  }
+
   // ============================================
   // PUBLIC METHODS
   // ============================================
 
-  async getBootstrapData(): Promise<BootstrapResponse> {
+  async getBootstrapData(viewer?: ViewerContext | null): Promise<BootstrapResponse> {
     await this.initialized;
     await this.processScheduledRequests();
-    return {
+    const base: BootstrapResponse = {
       ...this.data,
       auditLog: this.auditLog,
     };
+    if (!viewer || viewer.managedModules === null) {
+      return base;
+    }
+    return this.filterBootstrapForViewer(base, viewer);
   }
 
   async getLegalEmployees(managerId: string): Promise<Employee[]> {
@@ -825,6 +901,12 @@ export class JsonStorage implements IStorage {
     }
 
     const now = new Date().toISOString();
+    const isExternalGrant =
+      requestType === "grant" && employee.legalCompanyId !== input.companyId;
+    const approvalStage: ApprovalStage = isExternalGrant
+      ? "pending_requester_gm"
+      : "none";
+
     const request: PrivilegeRequest = {
       id: randomUUID(),
       managerId: input.managerId,
@@ -839,6 +921,7 @@ export class JsonStorage implements IStorage {
       startDate: input.startDate,
       endDate: input.endDate,
       status: "pending",
+      approvalStage,
       adminComments: null,
       executedAt: null,
       reinstatedAt: null,
@@ -859,7 +942,7 @@ export class JsonStorage implements IStorage {
       cc => cc.companyId === employeeLegalCompanyId && cc.role === "GM"
     );
 
-    if (isGMofEmployeeCompany) {
+    if (!isExternalGrant && isGMofEmployeeCompany) {
       request.status = "active";
       request.adminComments = "Auto-approved by GM";
       request.updatedAt = new Date().toISOString();
@@ -890,6 +973,7 @@ export class JsonStorage implements IStorage {
       endDate: input.endDate,
       requestId: request.id,
       requestType,
+      approvalStage: request.approvalStage,
     });
 
     const actionLabel = requestType === "revoke" ? "delete" : "grant";
@@ -904,10 +988,15 @@ export class JsonStorage implements IStorage {
     return request;
   }
 
-  async getRequests(filters?: { managerId?: string; employeeId?: string; status?: RequestStatus; targetCompanyIds?: string[] }): Promise<PrivilegeRequest[]> {
+  async getRequests(filters?: { managerId?: string; employeeId?: string; status?: RequestStatus; targetCompanyIds?: string[]; managedModules?: string[] | null }): Promise<PrivilegeRequest[]> {
     await this.initialized;
 
     let requests = [...this.data.requests];
+
+    if (filters?.managedModules) {
+      const moduleSet = new Set(filters.managedModules);
+      requests = requests.filter((r) => moduleSet.has(r.module));
+    }
 
     if (filters?.managerId) {
       const managerId = filters.managerId;
@@ -954,9 +1043,7 @@ export class JsonStorage implements IStorage {
       throw new Error("Only pending requests can be updated");
     }
 
-    // Authorization: system admin OR GM of the target employee's legal company
-    const targetEmployee = this.data.employees.find(e => e.id === request.employeeId);
-    const targetCompanyId = targetEmployee?.legalCompanyId;
+    const stage = request.approvalStage ?? "none";
 
     // Block: requester cannot self-approve their own request
     if (adminId === request.managerId || adminId === request.managerUserId) {
@@ -964,54 +1051,90 @@ export class JsonStorage implements IStorage {
     }
 
     const isSystemAdmin =
-      this.data.employees.find(e => e.id === adminId && e.isAdmin) ||
-      this.data.contacts.find(c => c.id === adminId && c.isAdmin);
+      Boolean(this.data.employees.find(e => e.id === adminId && e.isAdmin)) ||
+      Boolean(this.data.contacts.find(c => c.id === adminId && c.isAdmin));
 
-    // GM of target employee's company can approve — NOT GM of requester's company
-    // (unless they happen to be the same company)
-    const isGMofTargetCompany = targetCompanyId && this.data.contacts.some(c =>
-      c.id === adminId &&
-      c.companies.some(cc => cc.companyId === targetCompanyId && cc.role === "GM")
-    );
+    const targetEmployee = this.data.employees.find(e => e.id === request.employeeId);
 
-    if (!isSystemAdmin && !isGMofTargetCompany) {
+    if (!this.canActOnRequestAtStage(adminId, request, stage, targetEmployee, Boolean(isSystemAdmin))) {
+      if (stage === "pending_requester_gm") {
+        throw new Error("Only the GM of the requester's company can approve or reject this request at step 1");
+      }
+      if (stage === "pending_target_gm") {
+        throw new Error("Only the GM of the employee's company can approve or reject this request at step 2");
+      }
       throw new Error("Only the GM of the employee's company can approve or reject this request");
     }
 
     const adminEmp = this.data.employees.find(e => e.id === adminId);
     const adminContact = this.data.contacts.find(c => c.id === adminId);
     const adminName = adminEmp?.name || adminContact?.name || adminId;
+    const requestType = request.requestType ?? "grant";
 
-    // Update request
-    request.status = status;
+    if (status === "rejected") {
+      request.status = "rejected";
+      request.approvalStage = "none";
+      request.adminComments = adminComments;
+      request.updatedAt = new Date().toISOString();
+      this.data.requests[requestIdx] = request;
+      await this.saveData();
+
+      const employee = this.data.employees.find(e => e.id === request.employeeId);
+      const company = this.data.companies.find(c => c.id === request.companyId);
+      await this.addAuditEntry(
+        adminId,
+        "REQUEST_REJECTED",
+        `${adminName} rejected ${requestType === "revoke" ? "delete" : "grant"} request for ${request.module}/${request.function} — ${employee?.name} in ${company?.name}${adminComments ? ` - Comment: ${adminComments}` : ""}`,
+        request.companyId,
+        request.employeeId,
+      );
+      return request;
+    }
+
+    if (stage === "pending_requester_gm") {
+      request.approvalStage = "pending_target_gm";
+      request.adminComments = adminComments;
+      request.updatedAt = new Date().toISOString();
+      this.data.requests[requestIdx] = request;
+      await this.saveData();
+
+      const employee = this.data.employees.find(e => e.id === request.employeeId);
+      const company = this.data.companies.find(c => c.id === request.companyId);
+      await this.addAuditEntry(
+        adminId,
+        "REQUEST_APPROVED_STEP1",
+        `${adminName} approved step 1 (requester's company GM) for external ${requestType === "revoke" ? "delete" : "grant"} request — ${request.module}/${request.function} for ${employee?.name} in ${company?.name}${adminComments ? ` - Comment: ${adminComments}` : ""}`,
+        request.companyId,
+        request.employeeId,
+      );
+      return request;
+    }
+
+    // Final approval (internal single-step or external step 2)
+    request.status = "active";
+    request.approvalStage = "none";
     request.adminComments = adminComments;
     request.updatedAt = new Date().toISOString();
-
     this.data.requests[requestIdx] = request;
 
-    // If approved, apply the roles to assignments
-    if (status === "active") {
-      const requestType = request.requestType ?? "grant";
-      if (requestType === "grant") {
-        this.applyGrantRequest(request);
-      } else {
-        await this.executeRevokeRequest(request, adminId);
-      }
+    if (requestType === "grant") {
+      this.applyGrantRequest(request);
+    } else {
+      await this.executeRevokeRequest(request, adminId);
     }
 
     await this.saveData();
     await this.processScheduledRequests();
 
-    // Log audit entry
     const employee = this.data.employees.find(e => e.id === request.employeeId);
     const company = this.data.companies.find(c => c.id === request.companyId);
-    
+
     await this.addAuditEntry(
       adminId,
-      status === "active" ? "REQUEST_APPROVED" : "REQUEST_REJECTED",
-      `${adminName} ${status === "active" ? "approved" : "rejected"} ${request.requestType === "revoke" ? "delete" : "grant"} request for ${request.module}/${request.function} — ${employee?.name} in ${company?.name}${adminComments ? ` - Comment: ${adminComments}` : ""}`,
+      "REQUEST_APPROVED",
+      `${adminName} approved ${requestType === "revoke" ? "delete" : "grant"} request for ${request.module}/${request.function} — ${employee?.name} in ${company?.name}${adminComments ? ` - Comment: ${adminComments}` : ""}`,
       request.companyId,
-      request.employeeId
+      request.employeeId,
     );
 
     return request;

@@ -124,6 +124,7 @@ interface CompanyAccessOverviewProps {
   onDeletePrivilege: (employeeId: string, module?: string, functionName?: string) => void;
   onDeletePrivilegeFromToolbar?: () => void;
   language: "en" | "ar";
+  viewingModules?: string;
   t: {
     title: string;
     subtitle: string;
@@ -543,6 +544,7 @@ export function CompanyAccessOverview({
   onNewRequestFromToolbar,
   onDeletePrivilege,
   language,
+  viewingModules,
   t,
 }: CompanyAccessOverviewProps) {
   const [search, setSearch] = useState("");
@@ -808,6 +810,11 @@ export function CompanyAccessOverview({
                 </span>
               )}
             </p>
+            {viewingModules && (
+              <Badge variant="outline" className="mt-2 font-normal text-slate-600">
+                {viewingModules}
+              </Badge>
+            )}
           </div>
           <div className="flex flex-wrap gap-2">
             <Badge variant="secondary" className="gap-1 font-normal">

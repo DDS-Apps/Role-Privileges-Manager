@@ -35,14 +35,20 @@ export async function sendRequestSubmittedEmail(params: {
   endDate: string | null;
   requestId: string;
   requestType?: "grant" | "revoke";
+  approvalStage?: "none" | "pending_requester_gm" | "pending_target_gm";
 }) {
   const {
     managerName, managerUserId, employeeName, employeeId,
     companyName, module, functionName, rolesCount,
     startDate, endDate, requestId, requestType = "grant",
+    approvalStage = "none",
   } = params;
 
   const isRevoke = requestType === "revoke";
+  const isExternalTwoStep = approvalStage === "pending_requester_gm";
+  const approvalNote = isExternalTwoStep
+    ? "External grant — awaiting Step 1 approval (requester's company GM), then Step 2 (employee's company GM)"
+    : "Pending Approval";
   const subject = `[RPM] ${isRevoke ? "Delete Privilege Request" : "New Privilege Request"} — ${employeeName} | ${module} / ${functionName}`;
 
   const html = `
@@ -117,7 +123,7 @@ export async function sendRequestSubmittedEmail(params: {
       </div>
 
       <div class="row" style="margin-top:8px">
-        <span class="badge">⏳ Pending Approval</span>
+        <span class="badge">⏳ ${approvalNote}</span>
       </div>
     </div>
     <div class="footer">
@@ -137,7 +143,7 @@ export async function sendRequestSubmittedEmail(params: {
     `Module       : ${module} / ${functionName}`,
     `Roles        : ${rolesCount}`,
     `Period       : ${startDate} → ${endDate || "No end date"}`,
-    `Status       : Pending Approval`,
+    `Status       : ${approvalNote}`,
     `Request ID   : ${requestId}`,
   ].join("\n");
 

@@ -9,7 +9,7 @@ import { useUpdateRequest } from "@/hooks/use-app-data";
 import { useToast } from "@/hooks/use-toast";
 import type { PrivilegeRequest, Employee, Company, Privilege } from "@shared/schema";
 import type { AuthUser } from "@/hooks/use-auth";
-import { getRequestTypeLabel, formatRevokeExecutionState } from "@/lib/request-utils";
+import { getRequestTypeLabel, formatRevokeExecutionState, buildOwnerIds, isRequestOwnedByUser, isPendingForUserApproval, getApprovalStepBadge } from "@/lib/request-utils";
 import { cn } from "@/lib/utils";
 
 interface NotificationBellProps {
@@ -28,26 +28,6 @@ const STATUS_ICON = {
 };
 
 const STATUS_ORDER = { pending: 0, active: 1, rejected: 2 };
-
-function buildOwnerIds(
-  actingEmployeeId: string,
-  authId: string | undefined,
-  authUserId: string | undefined,
-): Set<string> {
-  return new Set(
-    [actingEmployeeId, authId, authUserId].filter((id): id is string => Boolean(id)),
-  );
-}
-
-function isRequestOwnedByUser(
-  request: PrivilegeRequest,
-  ownerIds: Set<string>,
-): boolean {
-  return (
-    ownerIds.has(request.managerId) ||
-    (request.managerUserId != null && ownerIds.has(request.managerUserId))
-  );
-}
 
 function dismissedStorageKey(userKey: string) {
   return `rpm-dismissed-notifications:${userKey}`;
@@ -130,29 +110,25 @@ export function NotificationBell({ requests, employees, companies, privileges, m
     [authUser],
   );
 
+  const approvalOptions = useMemo(
+    () => ({
+      isAdmin: Boolean(authUser?.isAdmin),
+      accessibleCompanyIds,
+      gmLegalCompanyIds: gmCompanyIds,
+      employees,
+    }),
+    [authUser?.isAdmin, accessibleCompanyIds, gmCompanyIds, employees],
+  );
+
   const toApprove = useMemo(() => {
     if (!isApprover) return [];
     return requests
-      .filter((r) => {
-        if (r.status !== "pending") return false;
-        if (isRequestOwnedByUser(r, ownerIds)) return false;
-        if (authUser?.isAdmin) return accessibleCompanyIds.has(r.companyId);
-        const emp = employees.find((e) => e.id === r.employeeId);
-        return Boolean(emp && gmCompanyIds.includes(emp.legalCompanyId));
-      })
+      .filter((r) => isPendingForUserApproval(r, ownerIds, approvalOptions))
       .sort(
         (a, b) =>
           new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
       );
-  }, [
-    requests,
-    isApprover,
-    authUser,
-    employees,
-    gmCompanyIds,
-    ownerIds,
-    accessibleCompanyIds,
-  ]);
+  }, [requests, isApprover, ownerIds, approvalOptions]);
 
   const visibleToApprove = useMemo(
     () => toApprove.filter((r) => !dismissedIds.has(r.id)),
@@ -187,11 +163,8 @@ export function NotificationBell({ requests, employees, companies, privileges, m
   const formatDate      = (s: string)  =>
     new Date(s).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
 
-  const canApproveReq = (req: PrivilegeRequest) => {
-    if (authUser?.isAdmin) return true;
-    const emp = employees.find(e => e.id === req.employeeId);
-    return !!emp && gmCompanyIds.includes(emp.legalCompanyId);
-  };
+  const canApproveReq = (req: PrivilegeRequest) =>
+    isPendingForUserApproval(req, ownerIds, approvalOptions);
 
   const handleApprove = async () => {
     if (!approvalReq) return;
@@ -237,6 +210,11 @@ export function NotificationBell({ requests, employees, companies, privileges, m
     const clickable = req.status === "pending" && showApproveHint;
     const isRevoke = (req.requestType ?? "grant") === "revoke";
     const typeLabel = getRequestTypeLabel(req, { grant: "Grant", delete: "Delete" });
+    const stepBadge = getApprovalStepBadge(req, employees, {
+      external: "External",
+      step1of2: "Step 1/2",
+      step2of2: "Step 2/2",
+    });
     const executionState = formatRevokeExecutionState(req, {
       scheduled: "Scheduled",
       revoked: "Revoked",
@@ -270,6 +248,11 @@ export function NotificationBell({ requests, employees, companies, privileges, m
               >
                 {typeLabel}
               </span>
+              {stepBadge && (
+                <span className="inline-flex rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-amber-900">
+                  {stepBadge}
+                </span>
+              )}
               {executionState && (
                 <span className="text-[10px] font-medium text-slate-500">{executionState}</span>
               )}

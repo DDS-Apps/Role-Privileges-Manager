@@ -23,6 +23,7 @@ export interface Contact {
   email: string;        // lowercase, primary login identifier
   isAdmin: boolean;
   companies: ContactCompany[];
+  managedModules?: string[];  // e.g. ["HR"], ["Finance"] — department head scope
 }
 
 // ============================================
@@ -45,6 +46,16 @@ export interface Employee {
 // ============================================
 export type RequestStatus = "pending" | "active" | "rejected";
 export type RequestType = "grant" | "revoke";
+export type ApprovalStage = "none" | "pending_requester_gm" | "pending_target_gm";
+
+// Viewer context for module-scoped bootstrap filtering
+export interface ViewerContext {
+  actorId: string;
+  isAdmin: boolean;
+  isGM: boolean;
+  /** null = unrestricted (GM/Admin); otherwise allowed module names */
+  managedModules: string[] | null;
+}
 
 // ============================================
 // PRIVILEGE REQUESTS (Manager creates, Admin approves)
@@ -63,6 +74,7 @@ export interface PrivilegeRequest {
   startDate: string;           // ISO date string
   endDate: string | null;      // ISO date string or null for no end
   status: RequestStatus;
+  approvalStage: ApprovalStage;
   adminComments: string | null;
   executedAt: string | null;   // when revoke removal was applied
   reinstatedAt: string | null; // when roles were restored after endDate
@@ -99,6 +111,7 @@ export type AuditActionType =
   | "UPLOAD_CATALOG"
   | "REQUEST_CREATED"
   | "REQUEST_APPROVED"
+  | "REQUEST_APPROVED_STEP1"
   | "REQUEST_REJECTED"
   | "EMPLOYEE_TERMINATED";
 

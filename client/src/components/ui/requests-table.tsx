@@ -9,6 +9,8 @@ import type { PrivilegeRequest, Privilege, Company, Employee } from "@shared/sch
 import {
   getRequestTypeLabel,
   formatRevokeExecutionState,
+  getApprovalStepBadge,
+  getExternalApprovalLabel,
 } from "@/lib/request-utils";
 import { cn } from "@/lib/utils";
 
@@ -49,6 +51,11 @@ interface RequestsTableProps {
     requestApproved?: string;
     requestRejected?: string;
     approvalFailed?: string;
+    externalGrant?: string;
+    approvalStep1?: string;
+    approvalStep2?: string;
+    awaitingRequesterGm?: string;
+    awaitingTargetGm?: string;
   };
 }
 
@@ -200,6 +207,18 @@ export function RequestsTable({
               revokedUntil: t.revokedUntil ?? "Revoked until {date}",
               noEndDate: t.noEndDate,
             });
+            const stepBadge = getApprovalStepBadge(request, employees, {
+              external: t.externalGrant ?? "External",
+              step1of2: t.approvalStep1 ?? "Step 1 of 2",
+              step2of2: t.approvalStep2 ?? "Step 2 of 2",
+            });
+            const approvalHint = getExternalApprovalLabel(request, employees, {
+              external: t.externalGrant ?? "External",
+              step1: t.approvalStep1 ?? "Step 1 of 2",
+              step2: t.approvalStep2 ?? "Step 2 of 2",
+              awaitingRequesterGm: t.awaitingRequesterGm ?? "Awaiting GM (your company)",
+              awaitingTargetGm: t.awaitingTargetGm ?? "Awaiting GM (employee's company)",
+            });
             const startLabel = isRevoke ? (t.effectiveFrom ?? t.startDate) : t.startDate;
             const endLabel = isRevoke ? (t.reinstateAfter ?? t.endDate) : t.endDate;
 
@@ -238,6 +257,11 @@ export function RequestsTable({
                         >
                           {typeLabel}
                         </span>
+                        {stepBadge && (
+                          <span className="inline-flex rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-900">
+                            {stepBadge}
+                          </span>
+                        )}
                         {executionState && (
                           <span className="inline-flex rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-medium text-slate-700">
                             {executionState}
@@ -267,7 +291,12 @@ export function RequestsTable({
                     )}
                   </td>
                   <td className="px-3 py-3">
-                    <StatusBadge status={request.status} size="sm" />
+                    <div className="flex flex-col gap-1">
+                      <StatusBadge status={request.status} size="sm" />
+                      {approvalHint && request.status === "pending" && (
+                        <span className="text-[10px] text-amber-700">{approvalHint}</span>
+                      )}
+                    </div>
                   </td>
                 </tr>
 

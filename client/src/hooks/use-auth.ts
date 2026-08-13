@@ -15,6 +15,8 @@ export interface AuthUser {
   isLineManager?: boolean;   // true when logged in as an employee (not a contact)
   companies: AuthCompany[];
   selectedCompanyId: string | null;
+  managedModules: string[] | null;
+  isUnrestrictedViewer: boolean;
 }
 
 export function useAuth() {

@@ -15,6 +15,11 @@ import { NewRequestModal } from "@/components/ui/new-request-modal";
 import { DeletePrivilegeModal } from "@/components/ui/delete-privilege-modal";
 import { RequestsTable } from "@/components/ui/requests-table";
 import type { PrivilegeRequest, RequestStatus } from "@shared/schema";
+import {
+  buildOwnerIds,
+  isRequestOwnedByUser,
+  isPendingForUserApproval,
+} from "@/lib/request-utils";
 
 type Language = "en" | "ar";
 
@@ -118,6 +123,12 @@ const DICT = {
     currentPrivileges: "Current privileges",
     noCurrentPrivileges: "No privileges assigned in this company",
     alreadyAssigned: "Already assigned",
+    externalGrant: "External",
+    approvalStep1: "Step 1 of 2",
+    approvalStep2: "Step 2 of 2",
+    awaitingRequesterGm: "Awaiting GM (your company)",
+    awaitingTargetGm: "Awaiting GM (employee's company)",
+    viewingModules: "Viewing: {modules}",
   },
   ar: {
     title: "أدوار وامتيازات مستخدمي الأعمال",
@@ -218,6 +229,12 @@ const DICT = {
     currentPrivileges: "الامتيازات الحالية",
     noCurrentPrivileges: "لا توجد امتيازات مخصصة في هذه الشركة",
     alreadyAssigned: "مُخصص مسبقاً",
+    externalGrant: "خارجي",
+    approvalStep1: "الخطوة 1 من 2",
+    approvalStep2: "الخطوة 2 من 2",
+    awaitingRequesterGm: "بانتظار موافقة المدير العام (شركتك)",
+    awaitingTargetGm: "بانتظار موافقة المدير العام (شركة الموظف)",
+    viewingModules: "عرض: {modules}",
   },
 };
 
@@ -229,49 +246,6 @@ function getInitials(name: string) {
     .map((w) => w[0])
     .join("")
     .toUpperCase();
-}
-
-function buildOwnerIds(
-  actingEmployeeId: string | undefined,
-  authId: string,
-  authUserId: string | undefined,
-): Set<string> {
-  return new Set(
-    [actingEmployeeId, authId, authUserId].filter((id): id is string => Boolean(id)),
-  );
-}
-
-function isRequestOwnedByUser(
-  request: PrivilegeRequest,
-  ownerIds: Set<string>,
-): boolean {
-  return (
-    ownerIds.has(request.managerId) ||
-    (request.managerUserId != null && ownerIds.has(request.managerUserId))
-  );
-}
-
-function isPendingForUserApproval(
-  request: PrivilegeRequest,
-  ownerIds: Set<string>,
-  options: {
-    isAdmin: boolean;
-    accessibleCompanyIds: Set<string>;
-    gmLegalCompanyIds: string[];
-    employees: { id: string; legalCompanyId: string }[];
-  },
-): boolean {
-  if (request.status !== "pending") return false;
-  if (isRequestOwnedByUser(request, ownerIds)) return false;
-
-  if (options.isAdmin) {
-    return options.accessibleCompanyIds.has(request.companyId);
-  }
-
-  const employee = options.employees.find((e) => e.id === request.employeeId);
-  return Boolean(
-    employee && options.gmLegalCompanyIds.includes(employee.legalCompanyId),
-  );
 }
 
 export default function DashboardPage() {
@@ -556,6 +530,11 @@ export default function DashboardPage() {
     requestApproved: t.requestApproved,
     requestRejected: t.requestRejected,
     approvalFailed: t.approvalFailed,
+    externalGrant: t.externalGrant,
+    approvalStep1: t.approvalStep1,
+    approvalStep2: t.approvalStep2,
+    awaitingRequesterGm: t.awaitingRequesterGm,
+    awaitingTargetGm: t.awaitingTargetGm,
   };
 
   if (isLoading) {
@@ -668,6 +647,11 @@ export default function DashboardPage() {
           onDeletePrivilege={openDeletePrivilegeForEmployee}
           onDeletePrivilegeFromToolbar={openDeletePrivilegeFromToolbar}
           language={language}
+          viewingModules={
+            authUser?.managedModules?.length
+              ? t.viewingModules.replace("{modules}", authUser.managedModules.join(", "))
+              : undefined
+          }
           t={{
             title: t.accessOverviewTitle,
             subtitle: t.accessOverviewSubtitle,
