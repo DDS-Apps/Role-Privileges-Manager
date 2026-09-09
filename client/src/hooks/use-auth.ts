@@ -12,8 +12,10 @@ export interface AuthUser {
   name: string;
   email: string;
   isAdmin: boolean;
-  isLineManager?: boolean;   // true when logged in as an employee (not a contact)
+  authType?: "sso" | "local";
+  isLineManager?: boolean;
   companies: AuthCompany[];
+  accesses?: { companyCode: string; companyName: string; contactRole: string }[];
   selectedCompanyId: string | null;
   managedModules: string[] | null;
   isUnrestrictedViewer: boolean;
@@ -33,10 +35,22 @@ export function useAuth() {
   });
 }
 
+export function useAuthConfig() {
+  return useQuery<{ ssoEnabled: boolean; tenantId: string | null; clientId: string | null }>({
+    queryKey: ["/api/auth/config"],
+    queryFn: async () => {
+      const res = await fetch("/api/auth/config");
+      if (!res.ok) return { ssoEnabled: false, tenantId: null, clientId: null };
+      return res.json();
+    },
+    staleTime: 60_000,
+  });
+}
+
 export function useLogin() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (data: { email: string; password: string }) => {
+    mutationFn: async (data: { username: string; password: string }) => {
       const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -46,6 +60,28 @@ export function useLogin() {
       if (!res.ok) {
         const err = await res.json();
         throw new Error(err.message || "Login failed");
+      }
+      return res.json() as Promise<AuthUser>;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
+    },
+  });
+}
+
+export function useSsoLogin() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (idToken: string) => {
+      const res = await fetch("/api/auth/sso", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ idToken }),
+        credentials: "include",
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.message || "SSO login failed");
       }
       return res.json() as Promise<AuthUser>;
     },

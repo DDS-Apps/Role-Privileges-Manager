@@ -7,7 +7,8 @@ import type {
   PrivilegeRequest,
   CreateRequestInput,
   UpdateRequestInput,
-  RequestStatus
+  RequestStatus,
+  UserRoleImportResult,
 } from "@shared/schema";
 
 async function apiRequest(method: string, url: string, body?: unknown) {
@@ -65,6 +66,29 @@ export function useUploadCatalog() {
   });
 }
 
+export function useUploadUserRoles() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ file, mode = "merge" }: { file: File; mode?: "merge" | "replace" }) => {
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetch(`/api/user-roles/upload?mode=${mode}`, {
+        method: "POST",
+        body: formData,
+        credentials: "include",
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.message || "Failed to import user roles");
+      }
+      return data as UserRoleImportResult;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/bootstrap"] });
+    },
+  });
+}
+
 // Request hooks
 export function useRequests(filters?: { managerId?: string; employeeId?: string; status?: RequestStatus; targetCompanyIds?: string[] }) {
   const params = new URLSearchParams();
@@ -112,6 +136,42 @@ export function useUpdateRequest() {
       if (!res.ok) {
         const error = await res.json();
         throw new Error(error.message || "Failed to update request");
+      }
+      return res.json() as Promise<PrivilegeRequest>;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/requests"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/bootstrap"] });
+    },
+  });
+}
+
+export function useMarkItResolved() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (requestId: string) => {
+      const res = await apiRequest("POST", `/api/requests/${requestId}/mark-resolved`, {});
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.message || "Failed to mark request resolved");
+      }
+      return res.json() as Promise<PrivilegeRequest>;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/requests"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/bootstrap"] });
+    },
+  });
+}
+
+export function useRegisterItTicket() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ requestId, ticketId }: { requestId: string; ticketId: string }) => {
+      const res = await apiRequest("POST", `/api/requests/${requestId}/fulfill-it`, { ticketId });
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.message || "Failed to register IT ticket");
       }
       return res.json() as Promise<PrivilegeRequest>;
     },

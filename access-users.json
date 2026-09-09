@@ -1,0 +1,22 @@
+[
+  {
+    "id": "AU001",
+    "personId": "C016",
+    "email": "waleed@dallah.com",
+    "name": "Waleed",
+    "userId": "123",
+    "authType": "local",
+    "isAdmin": true,
+    "isActive": true,
+    "managedModules": [
+      "Finance",
+      "HR",
+      "SCM"
+    ],
+    "username": "waleed",
+    "passwordHash": "$2b$10$OEjFYsx6qw/NvvCtPcuk8u4fRVW4s1KnrYDO42z.AJJte2vhzsqWO",
+    "companyCode": "001",
+    "companyName": "شركة دله البركة القابضة",
+    "contactRole": "GM"
+  }
+]

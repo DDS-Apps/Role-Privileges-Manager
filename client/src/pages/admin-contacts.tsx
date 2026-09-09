@@ -88,9 +88,15 @@ interface FormValues {
   userId: string; name: string; email: string;
   isAdmin: boolean; companies: ContactCompany[];
   managedModules: string[];
+  authType: "sso" | "local";
+  username: string;
+  password: string;
 }
 
-const EMPTY: FormValues = { userId: "", name: "", email: "", isAdmin: false, companies: [], managedModules: [] };
+const EMPTY: FormValues = {
+  userId: "", name: "", email: "", isAdmin: false, companies: [],
+  managedModules: [], authType: "sso", username: "", password: "",
+};
 
 function ModuleMultiSelect({
   value,
@@ -173,6 +179,46 @@ function ContactDialog({
             <Input type="email" value={form.email} onChange={e => f({ email: e.target.value })} placeholder="name@company.com" className="h-9 text-sm" />
           </div>
 
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label className="text-xs font-medium mb-1 block">Auth type</Label>
+              <select
+                value={form.authType}
+                onChange={(e) => f({ authType: e.target.value as "sso" | "local" })}
+                className="w-full h-9 rounded-md border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm px-2"
+              >
+                <option value="sso">SSO (Microsoft)</option>
+                <option value="local">Local password</option>
+              </select>
+            </div>
+            {form.authType === "local" && (
+              <div>
+                <Label className="text-xs font-medium mb-1 block">Username</Label>
+                <Input
+                  value={form.username}
+                  onChange={(e) => f({ username: e.target.value })}
+                  placeholder="local username"
+                  className="h-9 text-sm"
+                />
+              </div>
+            )}
+          </div>
+
+          {form.authType === "local" && (
+            <div>
+              <Label className="text-xs font-medium mb-1 block">
+                {initial ? "New password (leave blank to keep)" : "Password *"}
+              </Label>
+              <Input
+                type="password"
+                value={form.password}
+                onChange={(e) => f({ password: e.target.value })}
+                placeholder="••••••••"
+                className="h-9 text-sm"
+              />
+            </div>
+          )}
+
           <div>
             <Label className="text-xs font-medium mb-2 block">Companies & Roles</Label>
             <CompanyRows value={form.companies} onChange={v => f({ companies: v })} allCompanies={allCompanies} />
@@ -199,7 +245,10 @@ function ContactDialog({
 
         <div className="flex justify-end gap-2 pt-3 border-t border-slate-200 dark:border-slate-700">
           <Button variant="outline" onClick={onClose}>Cancel</Button>
-          <Button onClick={() => onSave(form)} disabled={saving || !form.name || !form.email}
+          <Button onClick={() => onSave(form)} disabled={
+            saving || !form.name || !form.email ||
+            (form.authType === "local" && !initial && !form.password)
+          }
             className="bg-teal-600 hover:bg-teal-700 text-white">
             {saving ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
             {initial ? "Save Changes" : "Create Contact"}
@@ -230,12 +279,20 @@ export default function AdminContactsPage() {
 
   // Mutations
   const createM = useMutation({
-    mutationFn: (v: FormValues) => apiJson("POST", "/api/contacts", v),
+    mutationFn: (v: FormValues) => apiJson("POST", "/api/contacts", {
+      ...v,
+      password: v.password || undefined,
+      username: v.username || undefined,
+    }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["/api/contacts"] }); toast({ title: "Contact created" }); setEditTarget(null); },
     onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
   const updateM = useMutation({
-    mutationFn: ({ id, v }: { id: string; v: FormValues }) => apiJson("PUT", `/api/contacts/${id}`, v),
+    mutationFn: ({ id, v }: { id: string; v: FormValues }) => apiJson("PUT", `/api/contacts/${id}`, {
+      ...v,
+      password: v.password || undefined,
+      username: v.username || undefined,
+    }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["/api/contacts"] }); toast({ title: "Contact updated" }); setEditTarget(null); },
     onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
@@ -266,10 +323,15 @@ export default function AdminContactsPage() {
   const getCompanyName = (id: string) => allCompanies.find(c => c.id === id)?.name || id;
 
   const handleSave = (v: FormValues) => {
+    const payload: FormValues = {
+      ...v,
+      password: v.password || "",
+      username: v.authType === "local" ? (v.username || v.email.split("@")[0]) : "",
+    };
     if (editTarget === "new") {
-      createM.mutate(v);
+      createM.mutate(payload);
     } else if (editTarget) {
-      updateM.mutate({ id: editTarget.id, v });
+      updateM.mutate({ id: editTarget.id, v: payload });
     }
   };
 
@@ -282,6 +344,9 @@ export default function AdminContactsPage() {
       isAdmin: editTarget.isAdmin,
       companies: editTarget.companies,
       managedModules: editTarget.managedModules ?? [],
+      authType: editTarget.authType || "sso",
+      username: "",
+      password: "",
     };
   }, [editTarget]);
 
@@ -299,7 +364,7 @@ export default function AdminContactsPage() {
           <div className="h-4 w-px bg-white/20" />
           <div className="flex items-center gap-2">
             <ShieldCheck className="h-5 w-5 text-teal-400" />
-            <h1 className="font-bold text-lg">Contacts Management</h1>
+            <h1 className="font-bold text-lg">Allow-list Contacts</h1>
           </div>
         </div>
         <Button onClick={() => setEditTarget("new")} size="sm"

@@ -1,6 +1,8 @@
 import { useState, useMemo } from "react";
 import { Link } from "wouter";
-import { useBootstrapData, useRequests, useUpdateRequest, useTerminateEmployee } from "@/hooks/use-app-data";
+import { useBootstrapData, useRequests, useUpdateRequest, useTerminateEmployee, useRegisterItTicket, useMarkItResolved } from "@/hooks/use-app-data";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { DataImportCenter } from "@/components/ui/data-import-center";
 import { useAuth } from "@/hooks/use-auth";
 import {
   Loader2, Globe, ArrowLeft, ShieldCheck, Search, Users,
@@ -29,7 +31,8 @@ import {
 } from "@/components/ui/select";
 import type { PrivilegeRequest, RequestStatus } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
-import { getRequestTypeLabel, formatRevokeExecutionState } from "@/lib/request-utils";
+import { getRequestTypeLabel, formatRevokeExecutionState, getItTicketLabel } from "@/lib/request-utils";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { cn } from "@/lib/utils";
 
 type Language = "en" | "ar";
@@ -76,6 +79,20 @@ const DICT = {
     revoked: "Revoked",
     reinstated: "Reinstated",
     revokedUntil: "Revoked until {date}",
+    awaitingIt: "Awaiting IT",
+    ticketId: "Ticket ID",
+    registerTicket: "Register ticket",
+    markItResolved: "Mark IT resolved",
+    ticketPlaceholder: "##RE-20217##",
+    dataImportTitle: "Data import center",
+    dataImportSubtitle: "Upload each Excel file in order. All imports merge into existing data unless noted.",
+    recommendedOrder: "Recommended order: 1 Catalog → 2 User roles → 3 Employee roster → 4 Login users. After replacing the catalog, re-import user roles so assignments stay linked.",
+    mergeNote: "Catalog and user-role imports merge by default. Use “Replace entire catalog” only when you intend to reset the master privilege list.",
+    selectFile: "Select Excel file",
+    uploadImport: "Upload & import",
+    uploading: "Importing...",
+    importSummary: "Import summary",
+    importErrors: "Import errors",
   },
   ar: {
     title: "لوحة الإدارة",
@@ -118,6 +135,20 @@ const DICT = {
     revoked: "ملغى",
     reinstated: "مُستعاد",
     revokedUntil: "ملغى حتى {date}",
+    awaitingIt: "بانتظار IT",
+    ticketId: "رقم التذكرة",
+    registerTicket: "تسجيل التذكرة",
+    markItResolved: "تأكيد إنجاز IT",
+    ticketPlaceholder: "##RE-20217##",
+    dataImportTitle: "مركز استيراد البيانات",
+    dataImportSubtitle: "ارفع كل ملف Excel بالترتيب. جميع الاستيرادات تُدمج مع البيانات الحالية ما لم يُذكر خلاف ذلك.",
+    recommendedOrder: "الترتيب الموصى به: 1 الكatalog → 2 أدوار المستخدمين → 3 سجل الموظفين → 4 مستخدمو الدخول. بعد استبدال الكatalog، أعد استيراد أدوار المستخدمين.",
+    mergeNote: "الاستيراد يدمج افتراضياً. استخدم استبدال الكatalog فقط عند إعادة تعيين قائمة الامتيازات.",
+    selectFile: "اختر ملف Excel",
+    uploadImport: "رفع واستيراد",
+    uploading: "جاري الاستيراد...",
+    importSummary: "ملخص الاستيراد",
+    importErrors: "أخطاء الاستيراد",
   }
 };
 
@@ -127,6 +158,8 @@ function getStatusColor(status: RequestStatus) {
   switch (status) {
     case "pending":
       return "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-300";
+    case "approved_pending_it":
+      return "bg-indigo-100 text-indigo-800 dark:bg-indigo-900/50 dark:text-indigo-300";
     case "active":
       return "bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300";
     case "rejected":
@@ -145,13 +178,22 @@ export default function AdminPage() {
   const [statusFilter, setStatusFilter] = useState<RequestStatus | "all">("all");
   const [expandedRequestId, setExpandedRequestId] = useState<string | null>(null);
   const [adminComments, setAdminComments] = useState<Record<string, string>>({});
+  const [itTicketInputs, setItTicketInputs] = useState<Record<string, string>>({});
   
   const [employeeSearch, setEmployeeSearch] = useState("");
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>("");
   const [showTerminateDialog, setShowTerminateDialog] = useState(false);
-
   const { data: authUser } = useAuth();
+  const queryClient = useQueryClient();
   const { data, isLoading: isBootstrapLoading } = useBootstrapData();
+  const { data: accessUsersList } = useQuery({
+    queryKey: ["/api/access-users"],
+    queryFn: async () => {
+      const res = await fetch("/api/access-users", { credentials: "include" });
+      if (!res.ok) return [];
+      return res.json() as Promise<unknown[]>;
+    },
+  });
 
   // The ID sent as adminId for approve/reject (contact id or employee SAP id)
   const adminId = authUser?.id || "";
@@ -167,6 +209,8 @@ export default function AdminPage() {
       : { status: statusFilter, ...(gmCompanyIds?.length ? { targetCompanyIds: gmCompanyIds } : {}) }
   );
   const updateRequest = useUpdateRequest();
+  const registerItTicket = useRegisterItTicket();
+  const markItResolved = useMarkItResolved();
   const terminateEmployee = useTerminateEmployee();
   const { toast } = useToast();
 
@@ -221,7 +265,7 @@ export default function AdminPage() {
           adminComments: adminComments[request.id] || null,
         }
       });
-      toast({ title: "Request approved successfully" });
+      toast({ title: "GM approval recorded — sent to IT Support" });
       setExpandedRequestId(null);
     } catch (err) {
       toast({ 
@@ -249,6 +293,38 @@ export default function AdminPage() {
         title: "Failed to reject request", 
         description: err instanceof Error ? err.message : "Unknown error",
         variant: "destructive" 
+      });
+    }
+  };
+
+  const handleRegisterTicket = async (request: PrivilegeRequest) => {
+    const ticketId = itTicketInputs[request.id]?.trim();
+    if (!ticketId) {
+      toast({ title: "Enter a ticket ID", variant: "destructive" });
+      return;
+    }
+    try {
+      await registerItTicket.mutateAsync({ requestId: request.id, ticketId });
+      toast({ title: "Ticket registered" });
+    } catch (err) {
+      toast({
+        title: "Failed to register ticket",
+        description: err instanceof Error ? err.message : "",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleMarkItResolved = async (request: PrivilegeRequest) => {
+    try {
+      await markItResolved.mutateAsync(request.id);
+      toast({ title: "Request marked resolved — privileges applied" });
+      setExpandedRequestId(null);
+    } catch (err) {
+      toast({
+        title: "Failed to mark resolved",
+        description: err instanceof Error ? err.message : "",
+        variant: "destructive",
       });
     }
   };
@@ -328,6 +404,7 @@ export default function AdminPage() {
               <TabsList className="mb-4" data-testid="tabs-status-filter">
                 <TabsTrigger value="all" data-testid="tab-all">{t.all}</TabsTrigger>
                 <TabsTrigger value="pending" data-testid="tab-pending">{t.pending}</TabsTrigger>
+                <TabsTrigger value="approved_pending_it" data-testid="tab-awaiting-it">{t.awaitingIt}</TabsTrigger>
                 <TabsTrigger value="active" data-testid="tab-active">{t.active}</TabsTrigger>
                 <TabsTrigger value="rejected" data-testid="tab-rejected">{t.rejected}</TabsTrigger>
               </TabsList>
@@ -428,9 +505,14 @@ export default function AdminPage() {
                                 <td className="py-3 px-3">{formatDate(request.startDate)}</td>
                                 <td className="py-3 px-3">{request.endDate ? formatDate(request.endDate) : t.noEndDate}</td>
                                 <td className="py-3 px-3">
-                                  <Badge className={getStatusColor(request.status)} data-testid={`badge-status-${request.id}`}>
-                                    {request.status}
-                                  </Badge>
+                                  <div className="flex flex-col gap-1">
+                                    <StatusBadge status={request.status} size="sm" />
+                                    {getItTicketLabel(request) && (
+                                      <span className="text-[10px] font-mono text-indigo-700">
+                                        {getItTicketLabel(request)}
+                                      </span>
+                                    )}
+                                  </div>
                                 </td>
                                 <td className="py-3 px-3">{formatDate(request.createdAt)}</td>
                               </tr>
@@ -491,6 +573,42 @@ export default function AdminPage() {
                                             </Button>
                                           </div>
                                         </div>
+                                      ) : request.status === "approved_pending_it" ? (
+                                        <div className="space-y-3">
+                                          {request.supportRequestTitle && (
+                                            <p className="text-xs text-slate-500">
+                                              Support title: <span className="font-medium text-slate-700">{request.supportRequestTitle}</span>
+                                            </p>
+                                          )}
+                                          <div>
+                                            <label className="text-sm font-medium">{t.ticketId}</label>
+                                            <Input
+                                              placeholder={t.ticketPlaceholder}
+                                              value={itTicketInputs[request.id] ?? request.supportTicketId ?? ""}
+                                              onChange={(e) => setItTicketInputs((prev) => ({
+                                                ...prev,
+                                                [request.id]: e.target.value,
+                                              }))}
+                                              className="mt-1 max-w-xs font-mono text-sm"
+                                              onClick={(e) => e.stopPropagation()}
+                                            />
+                                          </div>
+                                          <div className="flex flex-wrap gap-2">
+                                            <Button
+                                              variant="outline"
+                                              onClick={(e) => { e.stopPropagation(); handleRegisterTicket(request); }}
+                                              disabled={registerItTicket.isPending}
+                                            >
+                                              {t.registerTicket}
+                                            </Button>
+                                            <Button
+                                              onClick={(e) => { e.stopPropagation(); handleMarkItResolved(request); }}
+                                              disabled={markItResolved.isPending}
+                                            >
+                                              {t.markItResolved}
+                                            </Button>
+                                          </div>
+                                        </div>
                                       ) : request.adminComments ? (
                                         <div>
                                           <h4 className="font-medium mb-1">{t.adminComment}:</h4>
@@ -514,6 +632,34 @@ export default function AdminPage() {
             </Tabs>
           </div>
         </section>
+
+        {data && (
+          <DataImportCenter
+            counts={{
+              privileges: data.privileges.length,
+              employees: data.employees.length,
+              assignments: data.assignments.length,
+              companies: data.companies.length,
+              accessUsers: accessUsersList?.length,
+            }}
+            labels={{
+              sectionTitle: t.dataImportTitle,
+              sectionSubtitle: t.dataImportSubtitle,
+              recommendedOrder: t.recommendedOrder,
+              mergeNote: t.mergeNote,
+              selectFile: t.selectFile,
+              upload: t.uploadImport,
+              uploading: t.uploading,
+              summary: t.importSummary,
+              errors: t.importErrors,
+            }}
+            onSuccess={() => {
+              queryClient.invalidateQueries({ queryKey: ["/api/bootstrap"] });
+              queryClient.invalidateQueries({ queryKey: ["/api/access-users"] });
+              toast({ title: "Import completed" });
+            }}
+          />
+        )}
 
         <section className="space-y-4">
           <h2 className="text-xl font-semibold" data-testid="text-termination-title">{t.employeeTermination}</h2>

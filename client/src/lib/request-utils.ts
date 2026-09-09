@@ -152,3 +152,24 @@ export function formatShortDate(dateStr: string): string {
     year: "numeric",
   });
 }
+
+export function getItTicketLabel(request: PrivilegeRequest): string | null {
+  if (!request.supportTicketId) return null;
+  return request.supportTicketId;
+}
+
+export function getRequestStatusLabel(
+  status: PrivilegeRequest["status"],
+  t: { pending: string; awaitingIt: string; active: string; rejected: string },
+): string {
+  switch (status) {
+    case "approved_pending_it":
+      return t.awaitingIt;
+    case "active":
+      return t.active;
+    case "rejected":
+      return t.rejected;
+    default:
+      return t.pending;
+  }
+}

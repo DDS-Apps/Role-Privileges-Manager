@@ -35,6 +35,11 @@ export const colors = {
       text: '#B54242',
       border: '#D66666',
     },
+    approved_pending_it: {
+      bg: '#EEF2FF',
+      text: '#4338CA',
+      border: '#818CF8',
+    },
   },
   text: {
     primary: '#1A2B3C',
@@ -100,7 +105,7 @@ export const typography = {
   },
 };
 
-export const getStatusStyles = (status: 'pending' | 'active' | 'rejected') => {
+export const getStatusStyles = (status: 'pending' | 'approved_pending_it' | 'active' | 'rejected') => {
   const statusColors = colors.status[status];
   return {
     backgroundColor: statusColors.bg,

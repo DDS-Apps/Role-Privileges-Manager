@@ -1,4 +1,4 @@
-import { sendRequestSubmittedEmail } from "./email.js";
+import { sendItFulfillmentEmail } from "./email.js";
 import {
   AppData,
   AuditEntry,
@@ -14,11 +14,26 @@ import {
   RequestStatus,
   ApprovalStage,
   ViewerContext,
+  UserRoleImportRow,
+  UserRoleImportResult,
+  UserRoleImportMode,
+  CatalogImportResult,
+  EmployeeRosterImportRow,
+  EmployeeRosterImportResult,
 } from "@shared/schema";
 import fs from "fs/promises";
 import path from "path";
 import { randomUUID } from "crypto";
 import { isContactGMOfCompany } from "./viewer-context.js";
+import { accessUsers } from "./access-users.js";
+import {
+  parseSupportTicketId,
+  parseAckRequestTitle,
+  isResolvedEmail,
+  bodyContainsRequestId,
+  ticketIdMatches,
+  isAllowedSupportSender,
+} from "./it-email-parser.js";
 
 export interface IStorage {
   getBootstrapData(viewer?: ViewerContext | null): Promise<BootstrapResponse>;
@@ -33,6 +48,13 @@ export interface IStorage {
   
   // Catalog
   uploadCatalog(managerId: string, catalog: { module: string; function: string; role: string }[]): Promise<Privilege[]>;
+  importPrivilegeCatalog(
+    actorId: string,
+    catalog: { module: string; function: string; role: string }[],
+    mode?: "merge" | "replace",
+  ): Promise<CatalogImportResult>;
+  importUserRoles(actorId: string, rows: UserRoleImportRow[], mode: UserRoleImportMode): Promise<UserRoleImportResult>;
+  importEmployeeRoster(actorId: string, rows: EmployeeRosterImportRow[]): Promise<EmployeeRosterImportResult>;
   
   // Audit
   getAuditLog(): Promise<AuditEntry[]>;
@@ -46,6 +68,12 @@ export interface IStorage {
   createRequest(input: CreateRequestInput): Promise<PrivilegeRequest>;
   getRequests(filters?: { managerId?: string; employeeId?: string; status?: RequestStatus; targetCompanyIds?: string[]; managedModules?: string[] | null }): Promise<PrivilegeRequest[]>;
   updateRequestStatus(requestId: string, status: RequestStatus, adminComments: string | null, adminId: string): Promise<PrivilegeRequest>;
+  submitRequestToItFulfillment(requestId: string, actorId: string, approverName?: string): Promise<PrivilegeRequest>;
+  registerItTicket(requestId: string, ticketId: string, actorId: string): Promise<PrivilegeRequest>;
+  fulfillRequestByTicket(ticketId: string): Promise<PrivilegeRequest | null>;
+  markRequestItResolved(requestId: string, adminId: string): Promise<PrivilegeRequest>;
+  processItAckEmail(subject: string, body: string, from: string): Promise<boolean>;
+  processItResolvedEmail(subject: string, body: string, from: string): Promise<boolean>;
   getGMsForCompany(companyId: string): Promise<Contact[]>;
   
   // Employee Termination
@@ -364,6 +392,26 @@ export class JsonStorage implements IStorage {
           req.approvalStage = "none";
           needsSave = true;
         }
+        if (req.supportRequestTitle === undefined) {
+          req.supportRequestTitle = null;
+          needsSave = true;
+        }
+        if (req.supportTicketId === undefined) {
+          req.supportTicketId = null;
+          needsSave = true;
+        }
+        if (req.itEmailSentAt === undefined) {
+          req.itEmailSentAt = null;
+          needsSave = true;
+        }
+        if (req.itTicketLoggedAt === undefined) {
+          req.itTicketLoggedAt = null;
+          needsSave = true;
+        }
+        if (req.itResolvedAt === undefined) {
+          req.itResolvedAt = null;
+          needsSave = true;
+        }
       }
 
       for (const contact of this.data.contacts) {
@@ -543,6 +591,221 @@ export class JsonStorage implements IStorage {
     request.updatedAt = request.executedAt;
   }
 
+  private getItEmailAllowlist(): string[] {
+    const raw = process.env.IT_EMAIL_FROM_ALLOWLIST || "support";
+    return raw.split(",").map((s) => s.trim()).filter(Boolean);
+  }
+
+  private buildItEmailContext(
+    request: PrivilegeRequest,
+    approverName?: string,
+  ): {
+    managerName: string;
+    managerUserId?: string;
+    employeeName: string;
+    employeeId: string;
+    companyName: string;
+    roles: { module: string; function: string; role: string }[];
+    approverName?: string;
+    approverComments?: string | null;
+  } {
+    const manager =
+      this.data.employees.find((e) => e.id === request.managerId) ||
+      this.data.employees.find((e) => e.id === request.managerUserId || "");
+    const employee = this.data.employees.find((e) => e.id === request.employeeId);
+    const company = this.data.companies.find((c) => c.id === request.companyId);
+    const roles = request.rolesSelected
+      .map((id) => this.data.privileges.find((p) => p.id === id))
+      .filter(Boolean)
+      .map((p) => ({
+        module: p!.module,
+        function: p!.function,
+        role: p!.role,
+      }));
+
+    return {
+      managerName: manager?.name || request.managerId,
+      managerUserId: request.managerUserId,
+      employeeName: employee?.name || request.employeeId,
+      employeeId: request.employeeId,
+      companyName: company?.name || request.companyId,
+      roles,
+      approverName,
+      approverComments: request.adminComments,
+    };
+  }
+
+  private async applyApprovedRequest(request: PrivilegeRequest, actorId: string): Promise<void> {
+    const requestType = request.requestType ?? "grant";
+    if (requestType === "grant") {
+      this.applyGrantRequest(request);
+    } else {
+      await this.executeRevokeRequest(request, actorId);
+    }
+  }
+
+  async submitRequestToItFulfillment(
+    requestId: string,
+    actorId: string,
+    approverName?: string,
+  ): Promise<PrivilegeRequest> {
+    await this.initialized;
+    const requestIdx = this.data.requests.findIndex((r) => r.id === requestId);
+    if (requestIdx < 0) throw new Error("Request not found");
+
+    const request = this.data.requests[requestIdx];
+    if (request.status !== "pending" && request.status !== "approved_pending_it") {
+      throw new Error("Request is not eligible for IT fulfillment");
+    }
+
+    const ctx = this.buildItEmailContext(request, approverName);
+    const subject = await sendItFulfillmentEmail(request, ctx);
+    const now = new Date().toISOString();
+
+    request.status = "approved_pending_it";
+    request.approvalStage = "none";
+    request.supportRequestTitle = subject;
+    request.itEmailSentAt = now;
+    request.updatedAt = now;
+    this.data.requests[requestIdx] = request;
+    await this.saveData();
+
+    const employee = this.data.employees.find((e) => e.id === request.employeeId);
+    const company = this.data.companies.find((c) => c.id === request.companyId);
+    await this.addAuditEntry(
+      actorId,
+      "IT_EMAIL_SENT",
+      `IT fulfillment email sent to Support for ${request.module}/${request.function} — ${employee?.name} in ${company?.name} (subject: ${subject})`,
+      request.companyId,
+      request.employeeId,
+    );
+
+    return request;
+  }
+
+  async registerItTicket(
+    requestId: string,
+    ticketIdRaw: string,
+    actorId: string,
+  ): Promise<PrivilegeRequest> {
+    await this.initialized;
+    const ticketId = parseSupportTicketId(ticketIdRaw) || ticketIdRaw.trim();
+    if (!ticketId) throw new Error("Invalid ticket ID");
+
+    const requestIdx = this.data.requests.findIndex((r) => r.id === requestId);
+    if (requestIdx < 0) throw new Error("Request not found");
+
+    const request = this.data.requests[requestIdx];
+    if (request.status !== "approved_pending_it") {
+      throw new Error("Request is not awaiting IT fulfillment");
+    }
+
+    request.supportTicketId = ticketId.startsWith("RE-") ? ticketId : `RE-${ticketId.replace(/\D/g, "")}`;
+    request.itTicketLoggedAt = new Date().toISOString();
+    request.updatedAt = request.itTicketLoggedAt;
+    this.data.requests[requestIdx] = request;
+    await this.saveData();
+
+    await this.addAuditEntry(
+      actorId,
+      "IT_TICKET_LOGGED",
+      `ServiceDesk ticket ${request.supportTicketId} linked to request ${request.id}`,
+      request.companyId,
+      request.employeeId,
+    );
+
+    return request;
+  }
+
+  async fulfillRequestByTicket(ticketIdRaw: string): Promise<PrivilegeRequest | null> {
+    await this.initialized;
+    const ticketId = parseSupportTicketId(ticketIdRaw) || ticketIdRaw.trim();
+    if (!ticketId) return null;
+
+    const request = this.data.requests.find(
+      (r) =>
+        r.status === "approved_pending_it" &&
+        r.supportTicketId &&
+        ticketIdMatches(r.supportTicketId, ticketId),
+    );
+    if (!request) return null;
+
+    return this.markRequestItResolved(request.id, "system");
+  }
+
+  async markRequestItResolved(requestId: string, adminId: string): Promise<PrivilegeRequest> {
+    await this.initialized;
+    const requestIdx = this.data.requests.findIndex((r) => r.id === requestId);
+    if (requestIdx < 0) throw new Error("Request not found");
+
+    const request = this.data.requests[requestIdx];
+    if (request.status === "active") return request;
+    if (request.status !== "approved_pending_it") {
+      throw new Error("Request is not awaiting IT resolution");
+    }
+
+    const now = new Date().toISOString();
+    request.status = "active";
+    request.itResolvedAt = now;
+    request.updatedAt = now;
+    this.data.requests[requestIdx] = request;
+
+    await this.applyApprovedRequest(request, adminId);
+    await this.saveData();
+    await this.processScheduledRequests();
+
+    const employee = this.data.employees.find((e) => e.id === request.employeeId);
+    const company = this.data.companies.find((c) => c.id === request.companyId);
+    const requestType = request.requestType ?? "grant";
+    await this.addAuditEntry(
+      adminId,
+      "IT_TICKET_RESOLVED",
+      `IT fulfilled ${requestType === "revoke" ? "delete" : "grant"} request ${request.supportTicketId || request.id} — ${employee?.name} in ${company?.name}; privileges ${requestType === "revoke" ? "removed" : "applied"}`,
+      request.companyId,
+      request.employeeId,
+    );
+
+    return request;
+  }
+
+  async processItAckEmail(subject: string, body: string, from: string): Promise<boolean> {
+    if (!isAllowedSupportSender(from, this.getItEmailAllowlist())) return false;
+
+    const ticketId = parseSupportTicketId(subject) || parseSupportTicketId(body);
+    if (!ticketId) return false;
+
+    const ackTitle = parseAckRequestTitle(body);
+    const pending = this.data.requests.filter((r) => r.status === "approved_pending_it");
+
+    let request = pending.find((r) => {
+      if (r.supportTicketId && ticketIdMatches(r.supportTicketId, ticketId)) return true;
+      if (ackTitle && r.supportRequestTitle && ackTitle === r.supportRequestTitle) return true;
+      if (r.supportRequestTitle && body.includes(r.supportRequestTitle)) return true;
+      return bodyContainsRequestId(body, r.id);
+    });
+
+    if (!request) {
+      const numeric = ticketId.replace(/^RE-/i, "");
+      request = pending.find((r) => r.supportRequestTitle?.includes(`[${numeric}]`));
+    }
+
+    if (!request || request.supportTicketId) return false;
+
+    await this.registerItTicket(request.id, ticketId, "system-email");
+    return true;
+  }
+
+  async processItResolvedEmail(subject: string, body: string, from: string): Promise<boolean> {
+    if (!isAllowedSupportSender(from, this.getItEmailAllowlist())) return false;
+    if (!isResolvedEmail(body)) return false;
+
+    const ticketId = parseSupportTicketId(subject) || parseSupportTicketId(body);
+    if (!ticketId) return false;
+
+    const fulfilled = await this.fulfillRequestByTicket(ticketId);
+    return fulfilled !== null;
+  }
+
   private async processScheduledRequests(): Promise<void> {
     const today = this.todayDateString();
     let changed = false;
@@ -621,18 +884,24 @@ export class JsonStorage implements IStorage {
     );
   }
 
+  private async contacts(): Promise<Contact[]> {
+    await accessUsers.ensureReady();
+    return accessUsers.getAllContacts();
+  }
+
   private canActOnRequestAtStage(
     adminId: string,
     request: PrivilegeRequest,
     stage: ApprovalStage,
     targetEmployee: Employee | undefined,
     isSystemAdmin: boolean,
+    contacts: Contact[],
   ): boolean {
     if (isSystemAdmin) return true;
 
     if (stage === "pending_requester_gm") {
       return isContactGMOfCompany(
-        this.data.contacts,
+        contacts,
         adminId,
         request.managerLegalCompanyId,
       );
@@ -641,7 +910,7 @@ export class JsonStorage implements IStorage {
     if (!targetEmployee) return false;
 
     return isContactGMOfCompany(
-      this.data.contacts,
+      contacts,
       adminId,
       targetEmployee.legalCompanyId,
     );
@@ -654,8 +923,10 @@ export class JsonStorage implements IStorage {
   async getBootstrapData(viewer?: ViewerContext | null): Promise<BootstrapResponse> {
     await this.initialized;
     await this.processScheduledRequests();
+    const contacts = await this.contacts();
     const base: BootstrapResponse = {
       ...this.data,
+      contacts,
       auditLog: this.auditLog,
     };
     if (!viewer || viewer.managedModules === null) {
@@ -839,6 +1110,315 @@ export class JsonStorage implements IStorage {
     return newPrivileges;
   }
 
+  async importPrivilegeCatalog(
+    actorId: string,
+    catalog: { module: string; function: string; role: string }[],
+    mode: "merge" | "replace" = "merge",
+  ): Promise<CatalogImportResult> {
+    await this.initialized;
+
+    const result: CatalogImportResult = {
+      type: "catalog",
+      processed: 0,
+      privilegesCreated: 0,
+      privilegesSkipped: 0,
+      mode,
+      errors: [],
+    };
+
+    if (mode === "replace") {
+      this.data.privileges = [];
+    }
+
+    for (const item of catalog) {
+      result.processed++;
+      const existing = this.data.privileges.find(
+        (p) =>
+          p.module.trim().toLowerCase() === item.module.trim().toLowerCase() &&
+          p.function.trim().toLowerCase() === item.function.trim().toLowerCase() &&
+          p.role.trim().toLowerCase() === item.role.trim().toLowerCase(),
+      );
+      if (existing) {
+        result.privilegesSkipped++;
+        continue;
+      }
+      this.createPrivilegeFromImport(item.module, item.function, item.role);
+      result.privilegesCreated++;
+    }
+
+    if (result.privilegesCreated > 0 || mode === "replace") {
+      await this.saveData();
+    }
+
+    const actor =
+      this.data.employees.find((e) => e.id === actorId) ||
+      (await this.contacts()).find((c) => c.id === actorId);
+    const actorName = actor?.name || actorId;
+
+    await this.addAuditEntry(
+      actorId,
+      "UPLOAD_CATALOG",
+      `${actorName} imported privilege catalog (${mode}): ${result.privilegesCreated} new, ${result.privilegesSkipped} skipped`,
+    );
+
+    return result;
+  }
+
+  async importEmployeeRoster(
+    actorId: string,
+    rows: EmployeeRosterImportRow[],
+  ): Promise<EmployeeRosterImportResult> {
+    await this.initialized;
+
+    const result: EmployeeRosterImportResult = {
+      type: "employees",
+      processed: 0,
+      created: 0,
+      updated: 0,
+      managersLinked: 0,
+      skipped: 0,
+      errors: [],
+    };
+
+    const employeeIds = new Set(this.data.employees.map((e) => e.id));
+
+    for (const row of rows) {
+      result.processed++;
+
+      if (!this.data.companies.some((c) => c.id === row.legalCompanyId)) {
+        this.data.companies.push({
+          id: row.legalCompanyId,
+          name: row.companyName?.trim() || row.legalCompanyId,
+        });
+      }
+
+      const existing = this.data.employees.find((e) => e.id === row.employeeId);
+      const email =
+        row.email ||
+        existing?.email ||
+        `${row.employeeId}@import.local`;
+
+      if (existing) {
+        existing.name = row.name;
+        existing.title = row.title ?? existing.title;
+        existing.email = email;
+        existing.legalCompanyId = row.legalCompanyId;
+        existing.isManager = row.isManager;
+        if (row.managerId) {
+          existing.managerId = row.managerId;
+          result.managersLinked++;
+        }
+        result.updated++;
+      } else {
+        this.data.employees.push({
+          id: row.employeeId,
+          name: row.name,
+          title: row.title ?? "",
+          email,
+          isManager: row.isManager,
+          legalCompanyId: row.legalCompanyId,
+          ...(row.managerId ? { managerId: row.managerId } : {}),
+        });
+        employeeIds.add(row.employeeId);
+        if (row.managerId) result.managersLinked++;
+        result.created++;
+      }
+    }
+
+    if (result.created > 0 || result.updated > 0) {
+      await this.saveData();
+    }
+
+    const actor =
+      this.data.employees.find((e) => e.id === actorId) ||
+      (await this.contacts()).find((c) => c.id === actorId);
+    const actorName = actor?.name || actorId;
+
+    await this.addAuditEntry(
+      actorId,
+      "UPLOAD_CATALOG",
+      `${actorName} imported employee roster: ${result.created} created, ${result.updated} updated`,
+    );
+
+    return result;
+  }
+
+  private findPrivilegeByModuleFunction(
+    module: string,
+    functionName: string,
+  ): Privilege | undefined {
+    const mod = module.trim();
+    const fn = functionName.trim();
+    return this.data.privileges.find(
+      (p) =>
+        p.module.trim().toLowerCase() === mod.toLowerCase() &&
+        p.function.trim().toLowerCase() === fn.toLowerCase(),
+    );
+  }
+
+  private createPrivilegeFromImport(
+    module: string,
+    functionName: string,
+    role: string,
+  ): Privilege {
+    const modKey = module.replace(/[^A-Za-z]/g, "").toUpperCase().slice(0, 3) || "MOD";
+    const sanRole = role
+      .replace(/[^A-Za-z0-9]/g, "_")
+      .toUpperCase()
+      .slice(0, 20)
+      .replace(/^_+|_+$/g, "") || "ROLE";
+
+    let n = 1;
+    let id = `P_${modKey}_${sanRole}_${String(n).padStart(2, "0")}`;
+    while (this.data.privileges.some((p) => p.id === id)) {
+      n++;
+      id = `P_${modKey}_${sanRole}_${String(n).padStart(2, "0")}`;
+    }
+
+    const privilege: Privilege = {
+      id,
+      module: module.trim(),
+      function: functionName.trim(),
+      role: role.trim(),
+    };
+    this.data.privileges.push(privilege);
+    return privilege;
+  }
+
+  async importUserRoles(
+    actorId: string,
+    rows: UserRoleImportRow[],
+    mode: UserRoleImportMode = "merge",
+  ): Promise<UserRoleImportResult> {
+    await this.initialized;
+
+    const result: UserRoleImportResult = {
+      processed: 0,
+      assignmentsUpdated: 0,
+      privilegesCreated: 0,
+      companiesCreated: 0,
+      employeesCreated: 0,
+      skipped: 0,
+      errors: [],
+    };
+
+    const employeeIds = new Set(this.data.employees.map((e) => e.id));
+
+    const ensureCompany = (companyId: string, name?: string): void => {
+      if (this.data.companies.some((c) => c.id === companyId)) return;
+      this.data.companies.push({
+        id: companyId,
+        name: name?.trim() || companyId,
+      });
+      result.companiesCreated++;
+    };
+
+    const ensureEmployee = (row: UserRoleImportRow): void => {
+      if (employeeIds.has(row.employeeId)) return;
+
+      ensureCompany(row.legalCompanyId, row.companyName);
+
+      this.data.employees.push({
+        id: row.employeeId,
+        name: row.displayName?.trim() || row.employeeId,
+        title: "",
+        email: `${row.employeeId}@import.local`,
+        isManager: false,
+        legalCompanyId: row.legalCompanyId,
+      });
+      employeeIds.add(row.employeeId);
+      result.employeesCreated++;
+    };
+
+    // replace mode: track desired privilege ids per assignment pair from file
+    const replaceMap = new Map<string, Set<string>>();
+
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i];
+
+      ensureCompany(row.companyId);
+      ensureEmployee(row);
+
+      let privilege = this.findPrivilegeByModuleFunction(row.module, row.function);
+      if (!privilege) {
+        privilege = this.createPrivilegeFromImport(
+          row.module,
+          row.function,
+          row.role,
+        );
+        result.privilegesCreated++;
+      }
+
+      const pairKey = `${row.companyId}:${row.employeeId}`;
+
+      if (mode === "replace") {
+        if (!replaceMap.has(pairKey)) {
+          replaceMap.set(pairKey, new Set());
+        }
+        replaceMap.get(pairKey)!.add(privilege.id);
+      } else {
+        let assignment = this.data.assignments.find(
+          (a) => a.companyId === row.companyId && a.employeeId === row.employeeId,
+        );
+
+        if (!assignment) {
+          assignment = {
+            companyId: row.companyId,
+            employeeId: row.employeeId,
+            privilegeIds: [],
+          };
+          this.data.assignments.push(assignment);
+          result.assignmentsUpdated++;
+        }
+
+        if (!assignment.privilegeIds.includes(privilege.id)) {
+          assignment.privilegeIds.push(privilege.id);
+          result.assignmentsUpdated++;
+        }
+      }
+
+      result.processed++;
+    }
+
+    if (mode === "replace") {
+      for (const [pairKey, privIds] of Array.from(replaceMap.entries())) {
+        const [companyId, employeeId] = pairKey.split(":");
+        const existingIdx = this.data.assignments.findIndex(
+          (a) => a.companyId === companyId && a.employeeId === employeeId,
+        );
+        const privilegeIds = Array.from(privIds);
+        if (existingIdx >= 0) {
+          this.data.assignments[existingIdx].privilegeIds = privilegeIds;
+        } else {
+          this.data.assignments.push({ companyId, employeeId, privilegeIds });
+        }
+        result.assignmentsUpdated++;
+      }
+    }
+
+    if (
+      result.processed > 0 ||
+      result.privilegesCreated > 0 ||
+      result.companiesCreated > 0 ||
+      result.employeesCreated > 0
+    ) {
+      await this.saveData();
+    }
+
+    const actor =
+      this.data.employees.find((e) => e.id === actorId) ||
+      (await this.contacts()).find((c) => c.id === actorId);
+    const actorName = actor?.name || actorId;
+
+    await this.addAuditEntry(
+      actorId,
+      "UPLOAD_USER_ROLES",
+      `${actorName} imported user roles (${mode}): ${result.processed} rows, ${result.companiesCreated} new companies, ${result.employeesCreated} new employees, ${result.privilegesCreated} new privileges, ${result.assignmentsUpdated} assignment updates, ${result.skipped} skipped`,
+    );
+
+    return result;
+  }
+
   async getAuditLog(): Promise<AuditEntry[]> {
     await this.initialized;
     return this.auditLog.sort((a, b) => 
@@ -853,12 +1433,13 @@ export class JsonStorage implements IStorage {
 
   async createRequest(input: CreateRequestInput): Promise<PrivilegeRequest> {
     await this.initialized;
+    const contacts = await this.contacts();
 
     // Get manager — accept any employee (contacts are pre-authenticated as managers)
     // Also try matching via contact userId for contacts whose SAP id differs from actingUserId
     const manager = this.data.employees.find(e => e.id === input.managerId)
       || (() => {
-        const contact = this.data.contacts.find(c => c.id === input.managerId);
+        const contact = contacts.find(c => c.id === input.managerId);
         return contact?.userId
           ? this.data.employees.find(e => e.id === contact.userId)
           : undefined;
@@ -923,6 +1504,11 @@ export class JsonStorage implements IStorage {
       status: "pending",
       approvalStage,
       adminComments: null,
+      supportRequestTitle: null,
+      supportTicketId: null,
+      itEmailSentAt: null,
+      itTicketLoggedAt: null,
+      itResolvedAt: null,
       executedAt: null,
       reinstatedAt: null,
       createdAt: now,
@@ -934,47 +1520,32 @@ export class JsonStorage implements IStorage {
     // ── Auto-approve if the submitter is a GM of the employee's legal company ──
     const employeeLegalCompanyId = employee.legalCompanyId;
     const submitterContact =
-      this.data.contacts.find(c => c.userId === input.managerId) ||
-      this.data.contacts.find(c => c.id === input.managerId) ||
-      (input.managerUserId ? this.data.contacts.find(c => c.userId === input.managerUserId || c.id === input.managerUserId) : undefined);
+      contacts.find(c => c.userId === input.managerId) ||
+      contacts.find(c => c.id === input.managerId) ||
+      (input.managerUserId ? contacts.find(c => c.userId === input.managerUserId || c.id === input.managerUserId) : undefined);
 
     const isGMofEmployeeCompany = submitterContact?.companies.some(
       cc => cc.companyId === employeeLegalCompanyId && cc.role === "GM"
     );
 
     if (!isExternalGrant && isGMofEmployeeCompany) {
-      request.status = "active";
       request.adminComments = "Auto-approved by GM";
       request.updatedAt = new Date().toISOString();
+      await this.saveData();
 
-      if (requestType === "grant") {
-        this.applyGrantRequest(request);
-      } else {
-        await this.executeRevokeRequest(request, input.managerId);
-      }
+      await this.addAuditEntry(
+        input.managerId,
+        "REQUEST_APPROVED",
+        `${manager.name} auto-approved ${requestType === "revoke" ? "delete" : "grant"} request for ${request.module}/${request.function} — ${employee.name} in ${company.name}`,
+        input.companyId,
+        input.employeeId,
+      );
+
+      return this.submitRequestToItFulfillment(request.id, input.managerId, manager.name);
     }
 
     await this.saveData();
     await this.processScheduledRequests();
-
-    // Send email notification (fire-and-forget — never blocks the response)
-    const notifCompany = this.data.companies.find(c => c.id === input.companyId);
-    const notifEmployee = this.data.employees.find(e => e.id === input.employeeId);
-    sendRequestSubmittedEmail({
-      managerName: manager.name,
-      managerUserId: input.managerUserId,
-      employeeName: notifEmployee?.name || input.employeeId,
-      employeeId: input.employeeId,
-      companyName: notifCompany?.name || input.companyId,
-      module: input.module,
-      functionName: input.function,
-      rolesCount: input.rolesSelected.length,
-      startDate: input.startDate,
-      endDate: input.endDate,
-      requestId: request.id,
-      requestType,
-      approvalStage: request.approvalStage,
-    });
 
     const actionLabel = requestType === "revoke" ? "delete" : "grant";
     await this.addAuditEntry(
@@ -1050,13 +1621,14 @@ export class JsonStorage implements IStorage {
       throw new Error("The requester cannot approve or reject their own request");
     }
 
+    const contacts = await this.contacts();
     const isSystemAdmin =
       Boolean(this.data.employees.find(e => e.id === adminId && e.isAdmin)) ||
-      Boolean(this.data.contacts.find(c => c.id === adminId && c.isAdmin));
+      Boolean(contacts.find(c => c.id === adminId && c.isAdmin));
 
     const targetEmployee = this.data.employees.find(e => e.id === request.employeeId);
 
-    if (!this.canActOnRequestAtStage(adminId, request, stage, targetEmployee, Boolean(isSystemAdmin))) {
+    if (!this.canActOnRequestAtStage(adminId, request, stage, targetEmployee, Boolean(isSystemAdmin), contacts)) {
       if (stage === "pending_requester_gm") {
         throw new Error("Only the GM of the requester's company can approve or reject this request at step 1");
       }
@@ -1067,7 +1639,7 @@ export class JsonStorage implements IStorage {
     }
 
     const adminEmp = this.data.employees.find(e => e.id === adminId);
-    const adminContact = this.data.contacts.find(c => c.id === adminId);
+    const adminContact = contacts.find(c => c.id === adminId);
     const adminName = adminEmp?.name || adminContact?.name || adminId;
     const requestType = request.requestType ?? "grant";
 
@@ -1110,21 +1682,12 @@ export class JsonStorage implements IStorage {
       return request;
     }
 
-    // Final approval (internal single-step or external step 2)
-    request.status = "active";
-    request.approvalStage = "none";
+    // Final GM approval (internal single-step or external step 2) → queue IT fulfillment
     request.adminComments = adminComments;
+    request.approvalStage = "none";
     request.updatedAt = new Date().toISOString();
     this.data.requests[requestIdx] = request;
-
-    if (requestType === "grant") {
-      this.applyGrantRequest(request);
-    } else {
-      await this.executeRevokeRequest(request, adminId);
-    }
-
     await this.saveData();
-    await this.processScheduledRequests();
 
     const employee = this.data.employees.find(e => e.id === request.employeeId);
     const company = this.data.companies.find(c => c.id === request.companyId);
@@ -1137,15 +1700,16 @@ export class JsonStorage implements IStorage {
       request.employeeId,
     );
 
-    return request;
+    return this.submitRequestToItFulfillment(requestId, adminId, adminName);
   }
 
   async terminateEmployee(employeeId: string, adminId: string): Promise<void> {
     await this.initialized;
+    const contacts = await this.contacts();
 
-    // Verify admin — check employees OR contacts
+    // Verify admin — check employees OR allow-list contacts
     const adminEmp2 = this.data.employees.find(e => e.id === adminId && e.isAdmin);
-    const adminContact2 = this.data.contacts.find(c => c.id === adminId && c.isAdmin);
+    const adminContact2 = contacts.find(c => c.id === adminId && c.isAdmin);
     if (!adminEmp2 && !adminContact2) {
       throw new Error("Only admins can terminate employees");
     }
@@ -1163,7 +1727,7 @@ export class JsonStorage implements IStorage {
 
     // Cancel all pending requests for this employee
     for (const request of this.data.requests) {
-      if (request.employeeId === employeeId && request.status === "pending") {
+      if (request.employeeId === employeeId && (request.status === "pending" || request.status === "approved_pending_it")) {
         request.status = "rejected";
         request.adminComments = "Employee terminated";
         request.updatedAt = new Date().toISOString();
@@ -1183,50 +1747,79 @@ export class JsonStorage implements IStorage {
     );
   }
 
-  // ── Contacts ──────────────────────────────────────────────────────────────
+  // ── Contacts (backed by access-users.json allow-list) ─────────────────────
 
   async findContactByEmail(email: string): Promise<Contact | undefined> {
     await this.initialized;
-    const lower = email.trim().toLowerCase();
-    return this.data.contacts.find(c => c.email.toLowerCase() === lower);
+    await accessUsers.ensureReady();
+    return accessUsers.findContactByEmail(email);
   }
 
   async getContacts(): Promise<Contact[]> {
     await this.initialized;
-    return [...this.data.contacts].sort((a, b) => a.name.localeCompare(b.name));
+    return this.contacts();
   }
 
-  async createContact(contact: Omit<Contact, "id">): Promise<Contact> {
+  async createContact(contact: Omit<Contact, "id"> & {
+    authType?: "sso" | "local";
+    username?: string;
+    password?: string;
+  }): Promise<Contact> {
     await this.initialized;
-    const id = `C${String(this.data.contacts.length + 1).padStart(3, "0")}`;
-    const newContact: Contact = { id, ...contact };
-    this.data.contacts.push(newContact);
-    await this.saveData();
-    return newContact;
+    const data = this.data;
+    return accessUsers.upsertPerson({
+      email: contact.email,
+      name: contact.name,
+      userId: contact.userId,
+      authType: contact.authType || "sso",
+      isAdmin: contact.isAdmin,
+      managedModules: contact.managedModules,
+      companies: contact.companies.map((cc) => ({
+        companyId: cc.companyId,
+        role: cc.role,
+        companyName: data.companies.find((c) => c.id === cc.companyId)?.name || cc.companyId,
+      })),
+      username: contact.username,
+      password: contact.password,
+    });
   }
 
-  async updateContact(id: string, updates: Partial<Omit<Contact, "id">>): Promise<Contact> {
+  async updateContact(
+    id: string,
+    updates: Partial<Omit<Contact, "id">> & {
+      authType?: "sso" | "local";
+      username?: string;
+      password?: string;
+    },
+  ): Promise<Contact> {
     await this.initialized;
-    const idx = this.data.contacts.findIndex(c => c.id === id);
-    if (idx < 0) throw new Error("Contact not found");
-    this.data.contacts[idx] = { ...this.data.contacts[idx], ...updates };
-    await this.saveData();
-    return this.data.contacts[idx];
+    const companies = updates.companies?.map((cc) => ({
+      companyId: cc.companyId,
+      role: cc.role,
+      companyName: this.data.companies.find((c) => c.id === cc.companyId)?.name || cc.companyId,
+    }));
+    return accessUsers.updatePerson(id, {
+      email: updates.email,
+      name: updates.name,
+      userId: updates.userId,
+      isAdmin: updates.isAdmin,
+      managedModules: updates.managedModules,
+      companies,
+      authType: updates.authType,
+      username: updates.username,
+      password: updates.password,
+    });
   }
 
   async deleteContact(id: string): Promise<void> {
     await this.initialized;
-    const idx = this.data.contacts.findIndex(c => c.id === id);
-    if (idx < 0) throw new Error("Contact not found");
-    this.data.contacts.splice(idx, 1);
-    await this.saveData();
+    await accessUsers.deletePerson(id);
   }
 
   async getGMsForCompany(companyId: string): Promise<Contact[]> {
     await this.initialized;
-    return this.data.contacts.filter(c =>
-      c.companies.some(cc => cc.companyId === companyId && cc.role === "GM")
-    );
+    await accessUsers.ensureReady();
+    return accessUsers.getGMsForCompany(companyId);
   }
 }
 

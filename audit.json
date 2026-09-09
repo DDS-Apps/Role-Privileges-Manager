@@ -1,371 +1,51 @@
 [
   {
-    "id": "66ec2c67-4b93-444d-a19f-d39601654cf8",
-    "timestamp": "2026-01-07T06:16:26.988Z",
-    "managerUserId": "E001",
-    "actionType": "REMOVE_ROLE",
-    "companyId": "001",
-    "targetEmployeeId": "E003",
-    "details": "Mohammed Nawar removed Finance/Accountant/Generate financial reports from Shahad Alharbi in شركة دله البركة القابضة"
+    "id": "dbb9ba86-bf85-44fb-b40e-5d212c039791",
+    "timestamp": "2026-09-06T07:30:46.256Z",
+    "managerUserId": "C016",
+    "actionType": "UPLOAD_USER_ROLES",
+    "details": "System Admin imported user roles (merge): 0 rows, 0 new companies, 0 new privileges, 0 assignment updates, 12183 skipped"
   },
   {
-    "id": "3533c892-5d32-4214-be69-5a09d5dfcd0c",
-    "timestamp": "2026-01-07T06:16:35.929Z",
-    "managerUserId": "E001",
-    "actionType": "ADD_ROLE",
-    "companyId": "001",
-    "targetEmployeeId": "E003",
-    "details": "Mohammed Nawar added SCM/Cost Management/Analyze material, labor, and overhead variances to Shahad Alharbi in شركة دله البركة القابضة"
+    "id": "a8f437c4-bb29-4002-b22c-d15a30aa5fd6",
+    "timestamp": "2026-09-06T07:40:51.476Z",
+    "managerUserId": "C016",
+    "actionType": "UPLOAD_USER_ROLES",
+    "details": "System Admin imported user roles (merge): 0 rows, 0 new companies, 0 new privileges, 0 assignment updates, 0 skipped"
   },
   {
-    "id": "b67997e3-bb91-44d2-97d0-abf05520010f",
-    "timestamp": "2026-01-07T06:16:35.931Z",
-    "managerUserId": "E001",
-    "actionType": "ADD_ROLE",
-    "companyId": "001",
-    "targetEmployeeId": "E003",
-    "details": "Mohammed Nawar added SCM/Cost Management/Generate cost and margin analysis reports to Shahad Alharbi in شركة دله البركة القابضة"
+    "id": "031290f5-4be7-459f-b027-b443c01089ba",
+    "timestamp": "2026-09-06T07:43:21.997Z",
+    "managerUserId": "C016",
+    "actionType": "UPLOAD_CATALOG",
+    "details": "System Admin imported privilege catalog with 108 entries"
   },
   {
-    "id": "92792563-0764-46a5-b728-2fc86bd27aa7",
-    "timestamp": "2026-01-07T06:16:35.933Z",
-    "managerUserId": "E001",
-    "actionType": "ADD_ROLE",
-    "companyId": "001",
-    "targetEmployeeId": "E003",
-    "details": "Mohammed Nawar added SCM/Cost Management/Maintain item costs and cost structures to Shahad Alharbi in شركة دله البركة القابضة"
+    "id": "d2c3c6b1-68d9-4bf0-930b-1512589597c2",
+    "timestamp": "2026-09-06T07:48:35.465Z",
+    "managerUserId": "C016",
+    "actionType": "UPLOAD_USER_ROLES",
+    "details": "System Admin imported user roles (merge): 0 rows, 0 new companies, 0 new privileges, 0 assignment updates, 12183 skipped"
   },
   {
-    "id": "a78e27f3-e3a3-4233-8a1a-f9d261d13cf5",
-    "timestamp": "2026-01-07T06:16:35.934Z",
-    "managerUserId": "E001",
-    "actionType": "ADD_ROLE",
-    "companyId": "001",
-    "targetEmployeeId": "E003",
-    "details": "Mohammed Nawar added SCM/Cost Management/Perform cost rollups and updates to Shahad Alharbi in شركة دله البركة القابضة"
+    "id": "83b7ab74-b9d5-4603-8312-c58c5dbe518b",
+    "timestamp": "2026-09-06T07:52:12.273Z",
+    "managerUserId": "C016",
+    "actionType": "UPLOAD_USER_ROLES",
+    "details": "System Admin imported user roles (merge): 2 rows, 1 new companies, 2 new employees, 2 new privileges, 4 assignment updates, 0 skipped"
   },
   {
-    "id": "26fcbff0-1a83-4985-a4a0-6b5ba81eb1f0",
-    "timestamp": "2026-01-07T06:16:35.935Z",
-    "managerUserId": "E001",
-    "actionType": "ADD_ROLE",
-    "companyId": "001",
-    "targetEmployeeId": "E003",
-    "details": "Mohammed Nawar added SCM/Cost Management/Support inventory and manufacturing valuation to Shahad Alharbi in شركة دله البركة القابضة"
+    "id": "ea95ea50-cfb4-44fb-9240-b1763a9dd1ca",
+    "timestamp": "2026-09-06T07:54:15.882Z",
+    "managerUserId": "C016",
+    "actionType": "UPLOAD_USER_ROLES",
+    "details": "System Admin imported user roles (merge): 12183 rows, 34 new companies, 2149 new employees, 12 new privileges, 5160 assignment updates, 0 skipped"
   },
   {
-    "id": "33d4a426-ee87-4d77-ac96-753944eaa805",
-    "timestamp": "2026-01-07T08:22:14.072Z",
-    "managerUserId": "E001",
-    "actionType": "ADD_ROLE",
-    "companyId": "055",
-    "targetEmployeeId": "E003",
-    "details": "Mohammed Nawar added HR/Employee Relation/Access and manage worker personal, employment, and assignment information to Shahad Alharbi in الشركة السعودية للمدن السياحية"
-  },
-  {
-    "id": "3bd28cec-833b-48d3-9acc-700610bf15d8",
-    "timestamp": "2026-01-07T08:22:14.073Z",
-    "managerUserId": "E001",
-    "actionType": "ADD_ROLE",
-    "companyId": "055",
-    "targetEmployeeId": "E003",
-    "details": "Mohammed Nawar added HR/Employee Relation/Perform hiring, termination, promotion, and transfer transactions to Shahad Alharbi in الشركة السعودية للمدن السياحية"
-  },
-  {
-    "id": "43d12000-c3c1-451f-879b-895868cc6755",
-    "timestamp": "2026-01-07T08:22:41.912Z",
-    "managerUserId": "E001",
-    "actionType": "ADD_ROLE",
-    "companyId": "055",
-    "targetEmployeeId": "E003",
-    "details": "Mohammed Nawar added HR/Employee Relation/Update worker documents, addresses, and contact details to Shahad Alharbi in الشركة السعودية للمدن السياحية"
-  },
-  {
-    "id": "1d30fa96-23b4-44af-800a-09c8bd3bbbf7",
-    "timestamp": "2026-01-07T08:22:41.913Z",
-    "managerUserId": "E001",
-    "actionType": "ADD_ROLE",
-    "companyId": "055",
-    "targetEmployeeId": "E003",
-    "details": "Mohammed Nawar added HR/Employee Relation/Manage employee benefits e.g., medical insurance, annual ticket, etc. to Shahad Alharbi in الشركة السعودية للمدن السياحية"
-  },
-  {
-    "id": "82b9ae3b-0aa6-45b2-a698-1c8cf684d603",
-    "timestamp": "2026-01-07T10:38:26.201Z",
-    "managerUserId": "E001",
-    "actionType": "ADD_ROLE",
-    "companyId": "001",
-    "targetEmployeeId": "E003",
-    "details": "Mohammed Nawar added Finance/Accounting and Reporting/Review and post the entire accounting process to Shahad Alharbi in شركة دله البركة القابضة"
-  },
-  {
-    "id": "d312069d-4c2a-47d5-9e88-c450e98054e1",
-    "timestamp": "2026-01-07T10:38:26.202Z",
-    "managerUserId": "E001",
-    "actionType": "ADD_ROLE",
-    "companyId": "001",
-    "targetEmployeeId": "E003",
-    "details": "Mohammed Nawar added Finance/Accounting and Reporting/Manage and configure the company chart of accounts to Shahad Alharbi in شركة دله البركة القابضة"
-  },
-  {
-    "id": "6983036f-caf0-47f6-9801-bcd45a279cb2",
-    "timestamp": "2026-01-07T10:38:26.203Z",
-    "managerUserId": "E001",
-    "actionType": "ADD_ROLE",
-    "companyId": "001",
-    "targetEmployeeId": "E003",
-    "details": "Mohammed Nawar added Finance/Accounting and Reporting/Configure fiscal periods and tax codes to Shahad Alharbi in شركة دله البركة القابضة"
-  },
-  {
-    "id": "d7c59370-4236-4ceb-b867-24c66e935420",
-    "timestamp": "2026-01-07T10:38:26.203Z",
-    "managerUserId": "E001",
-    "actionType": "ADD_ROLE",
-    "companyId": "001",
-    "targetEmployeeId": "E003",
-    "details": "Mohammed Nawar added Finance/Accounting and Reporting/Close the books (monthly, quarterly, annually) to Shahad Alharbi in شركة دله البركة القابضة"
-  },
-  {
-    "id": "cb4be7d5-f18f-4154-a6b9-3b59f275a428",
-    "timestamp": "2026-01-07T10:38:26.204Z",
-    "managerUserId": "E001",
-    "actionType": "ADD_ROLE",
-    "companyId": "001",
-    "targetEmployeeId": "E003",
-    "details": "Mohammed Nawar added Finance/Accounting and Reporting/Prepare financial reports monthly, quarterly and annually to Shahad Alharbi in شركة دله البركة القابضة"
-  },
-  {
-    "id": "a1b33276-8436-4bd8-a9d0-f4668bc26a07",
-    "timestamp": "2026-01-07T10:38:26.205Z",
-    "managerUserId": "E001",
-    "actionType": "ADD_ROLE",
-    "companyId": "001",
-    "targetEmployeeId": "E003",
-    "details": "Mohammed Nawar added Finance/Accounting and Reporting/Handle auditor queries to Shahad Alharbi in شركة دله البركة القابضة"
-  },
-  {
-    "id": "fa505292-5c00-4f5d-9290-d5ff5479fc7b",
-    "timestamp": "2026-01-07T10:38:26.206Z",
-    "managerUserId": "E001",
-    "actionType": "ADD_ROLE",
-    "companyId": "001",
-    "targetEmployeeId": "E003",
-    "details": "Mohammed Nawar added Finance/Accounting and Reporting/Approve journal entries and payable invoices to Shahad Alharbi in شركة دله البركة القابضة"
-  },
-  {
-    "id": "a729ddb3-e020-4dc0-8180-6a11944eee4c",
-    "timestamp": "2026-01-07T10:38:26.207Z",
-    "managerUserId": "E001",
-    "actionType": "ADD_ROLE",
-    "companyId": "001",
-    "targetEmployeeId": "E003",
-    "details": "Mohammed Nawar added Finance/Accounting and Reporting/Coordinate with IT for system upgrades, integrations and troubleshooting to Shahad Alharbi in شركة دله البركة القابضة"
-  },
-  {
-    "id": "0b41f967-e575-4cbb-88c6-fd4a3606f9a5",
-    "timestamp": "2026-01-07T10:38:26.208Z",
-    "managerUserId": "E001",
-    "actionType": "ADD_ROLE",
-    "companyId": "001",
-    "targetEmployeeId": "E003",
-    "details": "Mohammed Nawar added Finance/Accounting and Reporting/Correct errors and suggest financial adjustments to Shahad Alharbi in شركة دله البركة القابضة"
-  },
-  {
-    "id": "d8bf3291-1300-49fd-bb1b-81b368409045",
-    "timestamp": "2026-01-07T14:48:48.307Z",
-    "managerUserId": "E001",
-    "actionType": "REQUEST_CREATED",
-    "companyId": "054",
-    "targetEmployeeId": "E003",
-    "details": "Mohammed Nawar requested HR/Performance Management privileges for Shahad Alharbi in شركة دله للتنمية العقارية والسياحية (5 roles)"
-  },
-  {
-    "id": "6e78dca7-a868-4ed9-a95c-a96db45bc451",
-    "timestamp": "2026-01-07T14:55:56.434Z",
-    "managerUserId": "E001",
-    "actionType": "REQUEST_APPROVED",
-    "companyId": "054",
-    "targetEmployeeId": "E003",
-    "details": "Mohammed Nawar approved HR/Performance Management request for Shahad Alharbi in شركة دله للتنمية العقارية والسياحية - Comment: OK I will give it to you"
-  },
-  {
-    "id": "3ad8284d-cd98-4c49-b0f8-1928be9252ad",
-    "timestamp": "2026-01-10T11:40:59.435Z",
-    "managerUserId": "E001",
-    "actionType": "REQUEST_CREATED",
-    "companyId": "020",
-    "targetEmployeeId": "E004",
-    "details": "Mohammed Nawar requested HR/Performance Management privileges for Jameel Ashraf in شركة مجموعة خدمات الطعام (3 roles)"
-  },
-  {
-    "id": "55971470-82bc-43a0-9f4e-7999c745fbe9",
-    "timestamp": "2026-01-10T11:41:22.916Z",
-    "managerUserId": "E001",
-    "actionType": "REQUEST_APPROVED",
-    "companyId": "020",
-    "targetEmployeeId": "E004",
-    "details": "Mohammed Nawar approved HR/Performance Management request for Jameel Ashraf in شركة مجموعة خدمات الطعام - Comment: OK for one month"
-  },
-  {
-    "id": "9cacf27b-435b-470e-9079-b0f87a28443e",
-    "timestamp": "2026-01-11T06:31:13.264Z",
-    "managerUserId": "E001",
-    "actionType": "REQUEST_CREATED",
-    "companyId": "022",
-    "targetEmployeeId": "9280",
-    "details": "Mohammed Nawar requested SCM/Order Management privileges for Ibrahim Mohammed Shaker in شركة دله لتعليم قيادة السيارات (3 roles)"
-  },
-  {
-    "id": "f0c6549b-c796-4ea4-9250-01999095eeaa",
-    "timestamp": "2026-01-11T06:31:34.786Z",
-    "managerUserId": "E001",
-    "actionType": "REQUEST_APPROVED",
-    "companyId": "022",
-    "targetEmployeeId": "9280",
-    "details": "Mohammed Nawar approved SCM/Order Management request for Ibrahim Mohammed Shaker in شركة دله لتعليم قيادة السيارات"
-  },
-  {
-    "id": "382d0a07-48a9-4eb3-bbe4-55ff3bcf9636",
-    "timestamp": "2026-01-11T06:32:42.527Z",
-    "managerUserId": "E001",
-    "actionType": "REQUEST_CREATED",
-    "companyId": "022",
-    "targetEmployeeId": "9280",
-    "details": "Mohammed Nawar requested SCM/Order Management privileges for Ibrahim Mohammed Shaker in شركة دله لتعليم قيادة السيارات (1 roles)"
-  },
-  {
-    "id": "2ff1f099-4078-47ee-ab54-e6f523f73190",
-    "timestamp": "2026-01-29T10:25:01.918Z",
-    "managerUserId": "E002",
-    "actionType": "REQUEST_CREATED",
-    "companyId": "002",
-    "targetEmployeeId": "E008",
-    "details": "Adnan Alqahtani requested HR/Performance Management privileges for Khalid Saleh in شركة دله الرقمية (4 roles)"
-  },
-  {
-    "id": "9f3cf997-69d8-4af5-be06-4c52a16a8053",
-    "timestamp": "2026-06-02T06:25:05.537Z",
-    "managerUserId": "E001",
-    "actionType": "REQUEST_REJECTED",
-    "companyId": "022",
-    "targetEmployeeId": "9280",
-    "details": "Mohammed Nawar rejected SCM/Order Management request for Ibrahim Mohammed Shaker in شركة دله لتعليم قيادة السيارات"
-  },
-  {
-    "id": "970fd078-f510-4f4c-ab41-292e39840960",
-    "timestamp": "2026-06-02T17:44:23.995Z",
-    "managerUserId": "84294",
-    "actionType": "REQUEST_CREATED",
-    "companyId": "002",
-    "targetEmployeeId": "80281",
-    "details": "Jameel Ashraf requested SCM/Buyer / Purchasing Agent privileges for Waleed Hassan Alahdal in شركة دله الرقمية (4 roles)"
-  },
-  {
-    "id": "5a3e7348-6d80-403b-a745-5b8dbd5e4520",
-    "timestamp": "2026-06-02T17:53:02.995Z",
-    "managerUserId": "84294",
-    "actionType": "REQUEST_CREATED",
-    "companyId": "002",
-    "targetEmployeeId": "80281",
-    "details": "Jameel Ashraf requested HR/Learning privileges for Waleed Hassan Alahdal in شركة دله الرقمية (5 roles)"
-  },
-  {
-    "id": "349f6396-acf1-4dea-a62b-33988481f418",
-    "timestamp": "2026-06-03T06:21:06.976Z",
-    "managerUserId": "84294",
-    "actionType": "REQUEST_CREATED",
-    "companyId": "002",
-    "targetEmployeeId": "85090",
-    "details": "Jameel Ashraf requested Finance/Accounting and Reporting privileges for Abdullah Mohammed Bukhari in شركة دله الرقمية (9 roles)"
-  },
-  {
-    "id": "efc01120-eefb-4772-841f-1ad4cb331a6b",
-    "timestamp": "2026-06-03T07:43:04.089Z",
-    "managerUserId": "80281",
-    "actionType": "REQUEST_CREATED",
-    "companyId": "002",
-    "targetEmployeeId": "85090",
-    "details": "Waleed Hassan Alahdal requested SCM/Order Entry Specialist privileges for Abdullah Mohammed Bukhari in شركة دله الرقمية (4 roles)"
-  },
-  {
-    "id": "4d72956f-c299-43d3-8e0d-013c7957c951",
-    "timestamp": "2026-06-03T07:53:47.771Z",
-    "managerUserId": "84294",
-    "actionType": "REQUEST_CREATED",
-    "companyId": "001",
-    "targetEmployeeId": "80431",
-    "details": "Jameel Ashraf requested SCM/Maintenance Technician privileges for Abdul Malik Hamid Allam in شركة دله البركة القابضة (4 roles)"
-  },
-  {
-    "id": "ad8dcd2e-fb29-4b32-9ae8-dad1a6044d12",
-    "timestamp": "2026-06-03T09:02:43.452Z",
-    "managerUserId": "9065",
-    "actionType": "REQUEST_CREATED",
-    "companyId": "001",
-    "targetEmployeeId": "80431",
-    "details": "Abdulrhman Khalid Murad requested SCM/Requisitioner privileges for Abdul Malik Hamid Allam in شركة دله البركة القابضة (3 roles)"
-  },
-  {
-    "id": "77592aad-9c10-484d-92b3-f3d96f59d3c2",
-    "timestamp": "2026-06-03T09:14:58.469Z",
-    "managerUserId": "9065",
-    "actionType": "REQUEST_CREATED",
-    "companyId": "001",
-    "targetEmployeeId": "80431",
-    "details": "Abdulrhman Khalid Murad requested SCM/Receiving Clerk privileges for Abdul Malik Hamid Allam in شركة دله البركة القابضة (4 roles)"
-  },
-  {
-    "id": "2206dfcc-5aa7-414b-9bb9-d6de83523652",
-    "timestamp": "2026-06-03T09:18:04.586Z",
-    "managerUserId": "84711",
-    "actionType": "REQUEST_CREATED",
-    "companyId": "002",
-    "targetEmployeeId": "8963",
-    "details": "Mohamed Ahmed Soultan requested HR/Payroll privileges for Mohammed Fawzi Elshafie in شركة دله الرقمية (5 roles)"
-  },
-  {
-    "id": "b42d5453-922b-413d-9b74-1189cecd6fba",
-    "timestamp": "2026-06-03T09:20:25.280Z",
-    "managerUserId": "84294",
-    "actionType": "REQUEST_CREATED",
-    "companyId": "001",
-    "targetEmployeeId": "84632",
-    "details": "Jameel Ashraf requested HR/Learning privileges for Nouf Mohammed Binthabit in شركة دله البركة القابضة (5 roles)"
-  },
-  {
-    "id": "87b5b96d-56f8-476e-967a-65302ef77f34",
-    "timestamp": "2026-06-03T10:38:13.077Z",
-    "managerUserId": "84294",
-    "actionType": "REQUEST_CREATED",
-    "companyId": "002",
-    "targetEmployeeId": "84711",
-    "details": "Jameel Ashraf requested SCM/Buyer / Purchasing Agent privileges for Mohamed Ahmed Soultan in شركة دله الرقمية (4 roles)"
-  },
-  {
-    "id": "17b0e35a-10c0-435f-9f9d-c9c586ebe547",
-    "timestamp": "2026-06-04T09:21:28.765Z",
-    "managerUserId": "84294",
-    "actionType": "REQUEST_CREATED",
-    "companyId": "002",
-    "targetEmployeeId": "81287",
-    "details": "Jameel Ashraf requested HR/Payroll privileges for Adnan Hussein Alomari in شركة دله الرقمية (5 roles)"
-  },
-  {
-    "id": "1fdde9da-827d-47c9-bb20-a43bd7423235",
-    "timestamp": "2026-06-04T09:25:17.309Z",
-    "managerUserId": "C013",
-    "actionType": "REQUEST_REJECTED",
-    "companyId": "002",
-    "targetEmployeeId": "8963",
-    "details": "Jameel Ashraf rejected HR/Payroll request for Mohammed Fawzi Elshafie in شركة دله الرقمية"
-  },
-  {
-    "id": "86c886dd-f82e-460b-ad19-cf2681a6abfd",
-    "timestamp": "2026-06-04T11:04:43.330Z",
-    "managerUserId": "84294",
-    "actionType": "REQUEST_CREATED",
-    "companyId": "002",
-    "targetEmployeeId": "80281",
-    "details": "Jameel Ashraf requested HR/Payroll privileges for Waleed Hassan Alahdal in شركة دله الرقمية (5 roles)"
+    "id": "3752541d-4a48-4e65-8d8f-564ad788a5d5",
+    "timestamp": "2026-09-06T10:08:52.274Z",
+    "managerUserId": "C016",
+    "actionType": "UPLOAD_CATALOG",
+    "details": "Waleed imported privilege catalog with 108 entries"
   }
 ]

@@ -9,7 +9,7 @@ import { useUpdateRequest } from "@/hooks/use-app-data";
 import { useToast } from "@/hooks/use-toast";
 import type { PrivilegeRequest, Employee, Company, Privilege } from "@shared/schema";
 import type { AuthUser } from "@/hooks/use-auth";
-import { getRequestTypeLabel, formatRevokeExecutionState, buildOwnerIds, isRequestOwnedByUser, isPendingForUserApproval, getApprovalStepBadge } from "@/lib/request-utils";
+import { getRequestTypeLabel, formatRevokeExecutionState, buildOwnerIds, isRequestOwnedByUser, isPendingForUserApproval, getApprovalStepBadge, getItTicketLabel } from "@/lib/request-utils";
 import { cn } from "@/lib/utils";
 
 interface NotificationBellProps {
@@ -23,11 +23,12 @@ interface NotificationBellProps {
 
 const STATUS_ICON = {
   pending:  <Clock       className="h-3.5 w-3.5 text-amber-500 shrink-0" />,
+  approved_pending_it: <Clock className="h-3.5 w-3.5 text-indigo-500 shrink-0" />,
   active:   <CheckCircle2 className="h-3.5 w-3.5 text-teal-500 shrink-0" />,
   rejected: <XCircle     className="h-3.5 w-3.5 text-rose-500 shrink-0" />,
 };
 
-const STATUS_ORDER = { pending: 0, active: 1, rejected: 2 };
+const STATUS_ORDER = { pending: 0, approved_pending_it: 1, active: 2, rejected: 3 };
 
 function dismissedStorageKey(userKey: string) {
   return `rpm-dismissed-notifications:${userKey}`;
@@ -156,7 +157,7 @@ export function NotificationBell({ requests, employees, companies, privileges, m
 
   const badgeCount =
     visibleToApprove.length ||
-    visibleMyRequests.filter((r) => r.status === "pending").length;
+    visibleMyRequests.filter((r) => r.status === "pending" || r.status === "approved_pending_it").length;
 
   const getEmployeeName = (id: string) => employees.find(e => e.id === id)?.name || id;
   const getCompanyName  = (id: string) => companies.find(c => c.id === id)?.name || id;
@@ -174,7 +175,7 @@ export function NotificationBell({ requests, employees, companies, privileges, m
         adminId: authUser?.id || "",
         data: { status: "active", adminComments: comment || null },
       });
-      toast({ title: "Request approved" });
+      toast({ title: "GM approved — sent to IT Support" });
       setApprovalReq(null);
       setComment("");
     } catch (err) {
@@ -215,6 +216,7 @@ export function NotificationBell({ requests, employees, companies, privileges, m
       step1of2: "Step 1/2",
       step2of2: "Step 2/2",
     });
+    const itTicket = getItTicketLabel(req);
     const executionState = formatRevokeExecutionState(req, {
       scheduled: "Scheduled",
       revoked: "Revoked",
@@ -275,6 +277,9 @@ export function NotificationBell({ requests, employees, companies, privileges, m
               <Trash2 className="h-3.5 w-3.5" />
             </button>
             <StatusBadge status={req.status} size="sm" />
+            {itTicket && (
+              <p className="text-[10px] font-mono text-indigo-600">{itTicket}</p>
+            )}
             <p className="text-xs text-slate-400">{formatDate(req.createdAt)}</p>
             {clickable && (
               <p className="text-[10px] font-medium text-amber-600">Tap to review →</p>

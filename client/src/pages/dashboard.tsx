@@ -38,6 +38,7 @@ const DICT = {
     department: "Department",
     position: "Position",
     pending: "Pending",
+    awaitingIt: "Awaiting IT",
     active: "Approved",
     rejected: "Rejected",
     noRequests: "No requests found",
@@ -70,7 +71,7 @@ const DICT = {
     addComment: "Add a comment...",
     approve: "Approve",
     reject: "Reject",
-    requestApproved: "Request approved",
+    requestApproved: "GM approved — sent to IT Support",
     requestRejected: "Request rejected",
     approvalFailed: "Action failed",
     selectAll: "Select all",
@@ -144,6 +145,7 @@ const DICT = {
     department: "القسم",
     position: "المسمى",
     pending: "قيد الانتظار",
+    awaitingIt: "بانتظار IT",
     active: "معتمد",
     rejected: "مرفوض",
     noRequests: "لم يتم العثور على طلبات",
@@ -176,7 +178,7 @@ const DICT = {
     addComment: "أضف تعليقاً...",
     approve: "اعتماد",
     reject: "رفض",
-    requestApproved: "تم اعتماد الطلب",
+    requestApproved: "اعتماد GM — أُرسل إلى دعم IT",
     requestRejected: "تم رفض الطلب",
     approvalFailed: "فشل الإجراء",
     selectAll: "تحديد الكل",
@@ -418,6 +420,7 @@ export default function DashboardPage() {
   );
 
   const pendingRequests = managerRequests.filter((r) => r.status === "pending");
+  const awaitingItRequests = managerRequests.filter((r) => r.status === "approved_pending_it");
   const activeRequests = managerRequests.filter((r) => r.status === "active");
   const rejectedRequests = managerRequests.filter((r) => r.status === "rejected");
 
@@ -721,6 +724,12 @@ export default function DashboardPage() {
                       {pendingRequests.length}
                     </span>
                   </TabsTrigger>
+                  <TabsTrigger value="approved_pending_it" className="text-xs" data-testid="tab-awaiting-it">
+                    {t.awaitingIt}
+                    <span className="ml-1.5 rounded-full bg-indigo-100 px-1.5 py-0.5 text-xs text-indigo-800">
+                      {awaitingItRequests.length}
+                    </span>
+                  </TabsTrigger>
                   <TabsTrigger value="active" className="text-xs" data-testid="tab-active">
                     {t.active}
                     <span className="ml-1.5 rounded-full bg-teal-100 px-1.5 py-0.5 text-xs text-teal-800">
@@ -742,6 +751,15 @@ export default function DashboardPage() {
                     employees={data.employees}
                     adminId={authUser?.id || ""}
                     canApproveRequest={canApproveRequest}
+                    t={requestTableLabels}
+                  />
+                </TabsContent>
+                <TabsContent value="approved_pending_it">
+                  <RequestsTable
+                    requests={awaitingItRequests}
+                    privileges={data.privileges}
+                    companies={data.companies}
+                    employees={data.employees}
                     t={requestTableLabels}
                   />
                 </TabsContent>

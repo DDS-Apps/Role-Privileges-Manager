@@ -1,3 +1,4 @@
+import "dotenv/config";
 import express, { type Request, Response, NextFunction } from "express";
 import session from "express-session";
 import MemoryStore from "memorystore";
@@ -99,5 +100,10 @@ app.use((req, res, next) => {
   const port = parseInt(process.env.PORT || "5000", 10);
   httpServer.listen(port, "0.0.0.0", () => {
     log(`serving on port ${port}`);
+    import("./it-email-poller.js").then(({ startItEmailPoller }) => {
+      startItEmailPoller();
+    }).catch((err) => {
+      console.error("Failed to start IT email poller:", err);
+    });
   });
 })();

@@ -11,6 +11,7 @@ import {
   formatRevokeExecutionState,
   getApprovalStepBadge,
   getExternalApprovalLabel,
+  getItTicketLabel,
 } from "@/lib/request-utils";
 import { cn } from "@/lib/utils";
 
@@ -219,6 +220,7 @@ export function RequestsTable({
               awaitingRequesterGm: t.awaitingRequesterGm ?? "Awaiting GM (your company)",
               awaitingTargetGm: t.awaitingTargetGm ?? "Awaiting GM (employee's company)",
             });
+            const itTicket = getItTicketLabel(request);
             const startLabel = isRevoke ? (t.effectiveFrom ?? t.startDate) : t.startDate;
             const endLabel = isRevoke ? (t.reinstateAfter ?? t.endDate) : t.endDate;
 
@@ -293,6 +295,9 @@ export function RequestsTable({
                   <td className="px-3 py-3">
                     <div className="flex flex-col gap-1">
                       <StatusBadge status={request.status} size="sm" />
+                      {itTicket && (
+                        <span className="text-[10px] font-mono text-indigo-700">{itTicket}</span>
+                      )}
                       {approvalHint && request.status === "pending" && (
                         <span className="text-[10px] text-amber-700">{approvalHint}</span>
                       )}

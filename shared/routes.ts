@@ -57,6 +57,42 @@ export const api = {
     },
   },
 
+  // User roles import (ERP Excel)
+  userRoles: {
+    upload: {
+      method: 'POST' as const,
+      path: '/api/user-roles/upload',
+      responses: {
+        200: z.any(),
+        400: errorSchemas.validation,
+        403: errorSchemas.forbidden,
+      },
+    },
+  },
+
+  imports: {
+    catalog: {
+      method: 'POST' as const,
+      path: '/api/imports/catalog',
+      responses: { 200: z.any(), 400: errorSchemas.validation, 403: errorSchemas.forbidden },
+    },
+    userRoles: {
+      method: 'POST' as const,
+      path: '/api/imports/user-roles',
+      responses: { 200: z.any(), 400: errorSchemas.validation, 403: errorSchemas.forbidden },
+    },
+    employees: {
+      method: 'POST' as const,
+      path: '/api/imports/employees',
+      responses: { 200: z.any(), 400: errorSchemas.validation, 403: errorSchemas.forbidden },
+    },
+    accessUsers: {
+      method: 'POST' as const,
+      path: '/api/imports/access-users',
+      responses: { 200: z.any(), 400: errorSchemas.validation, 403: errorSchemas.forbidden },
+    },
+  },
+
   // Audit Log
   audit: {
     list: {

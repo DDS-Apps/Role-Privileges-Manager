@@ -1,18 +1,28 @@
-import { Clock, CheckCircle2, XCircle } from "lucide-react";
-
-type StatusType = 'pending' | 'active' | 'rejected';
+import { Clock, CheckCircle2, XCircle, Headphones } from "lucide-react";
+import type { RequestStatus } from "@shared/schema";
 
 interface StatusBadgeProps {
-  status: StatusType;
+  status: RequestStatus;
   size?: 'sm' | 'md';
 }
 
-const statusConfig = {
+const statusConfig: Record<RequestStatus, {
+  label: string;
+  labelAr: string;
+  icon: typeof Clock;
+  className: string;
+}> = {
   pending: {
     label: 'Pending',
     labelAr: 'قيد الانتظار',
     icon: Clock,
     className: 'bg-amber-50 text-amber-800 border border-amber-200 dark:bg-amber-950/50 dark:text-amber-200 dark:border-amber-800',
+  },
+  approved_pending_it: {
+    label: 'Awaiting IT',
+    labelAr: 'بانتظار IT',
+    icon: Headphones,
+    className: 'bg-indigo-50 text-indigo-800 border border-indigo-200 dark:bg-indigo-950/50 dark:text-indigo-200 dark:border-indigo-800',
   },
   active: {
     label: 'Approved',

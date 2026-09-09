@@ -1,30 +1,54 @@
 import type { Express, Request, Response } from "express";
 import type { Server } from "http";
 import { storage } from "./storage";
+import { accessUsers } from "./access-users";
+import { isEntraConfigured, verifyEntraIdToken } from "./auth-entra";
 import { api } from "@shared/routes";
-import { applyAssignmentsSchema, uploadCatalogSchema, createRequestSchema, updateRequestSchema, RequestStatus, type ViewerContext } from "@shared/schema";
+import { applyAssignmentsSchema, uploadCatalogSchema, createRequestSchema, updateRequestSchema, fulfillItTicketSchema, userRoleImportModeSchema, catalogImportModeSchema, RequestStatus, type ViewerContext } from "@shared/schema";
 import { z } from "zod";
 import * as XLSX from "xlsx";
+import multer from "multer";
+import { parseUserRolesExcel } from "./user-roles-import.js";
 import {
-  resolveViewerFromContact,
-  resolveViewerFromEmployee,
-} from "./viewer-context.js";
+  detectExcelImportType,
+  parsePrivilegeCatalogExcel,
+} from "./catalog-import.js";
+import { parseEmployeeRosterExcel } from "./employees-import.js";
+import { parseAccessUsersExcel } from "./access-users-import.js";
+import { resolveViewerFromContact } from "./viewer-context.js";
 
-// Extend session with auth data
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    const ok =
+      file.mimetype === "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" ||
+      file.mimetype === "application/vnd.ms-excel" ||
+      Boolean(file.originalname.match(/\.xlsx?$/i));
+    if (!ok) {
+      cb(new Error("Only .xlsx or .xls files are allowed"));
+      return;
+    }
+    cb(null, true);
+  },
+});
+
+// Extend session with auth data — only allow-list (access-users) principals
 declare module "express-session" {
   interface SessionData {
-    contactId: string;
-    employeeId: string;   // set when a line-manager employee logs in (not a contact)
+    email: string;
+    personId: string;
     selectedCompanyId: string;
     isAdmin: boolean;
+    authType: "sso" | "local";
+    /** @deprecated legacy session fields */
+    contactId?: string;
+    employeeId?: string;
   }
 }
 
-// Demo password — same for all users (MVP)
-const DEMO_PASSWORD = "password";
-
 function requireAuth(req: Request, res: Response, next: () => void) {
-  if (!req.session.contactId && !req.session.employeeId)
+  if (!req.session.email && !req.session.contactId)
     return res.status(401).json({ message: "Unauthorized" });
   next();
 }
@@ -37,32 +61,78 @@ function requireAdmin(req: Request, res: Response, next: () => void) {
 }
 
 function getSessionActorId(req: Request): string {
-  return req.session.contactId || req.session.employeeId || "";
-}
-
-function authScopeFromViewer(viewer: ViewerContext) {
-  return {
-    managedModules: viewer.managedModules,
-    isUnrestrictedViewer: viewer.managedModules === null,
-  };
+  return req.session.personId || req.session.contactId || "";
 }
 
 async function resolveSessionViewer(req: Request): Promise<ViewerContext | null> {
-  const raw = await storage.getBootstrapData();
+  await accessUsers.ensureReady();
+  const email = req.session.email;
+  if (email) {
+    const resolved = accessUsers.resolveByEmail(email);
+    if (resolved) return resolveViewerFromContact(resolved.contact);
+  }
+  // Legacy cookie: contactId only
   if (req.session.contactId) {
-    const contact = raw.contacts.find((c) => c.id === req.session.contactId);
+    const contacts = accessUsers.getAllContacts();
+    const contact = contacts.find((c) => c.id === req.session.contactId);
     if (contact) return resolveViewerFromContact(contact);
   }
-  if (req.session.employeeId) {
-    const employee = raw.employees.find((e) => e.id === req.session.employeeId);
-    if (employee) {
-      const contact = raw.contacts.find(
-        (c) => c.email.toLowerCase() === employee.email.toLowerCase(),
-      );
-      return resolveViewerFromEmployee(employee, contact);
-    }
-  }
   return null;
+}
+
+function establishSession(
+  req: Request,
+  resolved: NonNullable<ReturnType<typeof accessUsers.resolveByEmail>>,
+) {
+  req.session.email = resolved.email;
+  req.session.personId = resolved.personId;
+  req.session.contactId = resolved.personId; // backward-compatible actor id
+  req.session.isAdmin = resolved.isAdmin;
+  req.session.authType = resolved.authType;
+  delete req.session.employeeId;
+}
+
+async function enrichAuthUser(
+  resolved: NonNullable<ReturnType<typeof accessUsers.resolveByEmail>>,
+  selectedCompanyId: string | null,
+) {
+  const bootstrap = await storage.getBootstrapData();
+  let selected = selectedCompanyId;
+
+  if (resolved.isAdmin) {
+    const allCompanies = bootstrap.companies.map((c) => ({
+      companyId: c.id,
+      role: "Admin",
+      name: c.name,
+    }));
+
+    if (selected && !allCompanies.some((c) => c.companyId === selected)) {
+      selected = allCompanies[0]?.companyId ?? null;
+    } else if (!selected && allCompanies.length > 0) {
+      selected = allCompanies[0].companyId;
+    }
+
+    const base = accessUsers.toAuthUser(resolved, selected);
+    return {
+      ...base,
+      companies: allCompanies,
+      managedModules: null,
+      isUnrestrictedViewer: true,
+      selectedCompanyId: selected,
+    };
+  }
+
+  const companies = resolved.contact.companies;
+  if (
+    selected &&
+    !companies.some((c) => c.companyId === selected)
+  ) {
+    selected = companies[0]?.companyId ?? null;
+  } else if (!selected) {
+    selected = companies[0]?.companyId ?? null;
+  }
+
+  return accessUsers.toAuthUser(resolved, selected);
 }
 
 export async function registerRoutes(
@@ -71,79 +141,126 @@ export async function registerRoutes(
 ): Promise<Server> {
 
   // ============================================
-  // AUTH
+  // AUTH — only allow-list (access-users) may sign in
   // ============================================
 
-  // POST /api/auth/login  { email, password }
-  // Returns { contact, companies } — client picks company if multiple
+  // POST /api/auth/login  { username, password } — local accounts only
   app.post("/api/auth/login", async (req, res) => {
     try {
-      const { email, password } = req.body as { email: string; password: string };
-      if (!email || !password) return res.status(400).json({ message: "Email and password required" });
-      if (password !== DEMO_PASSWORD) return res.status(401).json({ message: "Invalid credentials" });
+      await accessUsers.ensureReady();
+      const { username, password, email } = req.body as {
+        username?: string;
+        password?: string;
+        email?: string;
+      };
+      const userKey = (username || email || "").trim();
+      if (!userKey || !password) {
+        return res.status(400).json({ message: "Username and password required" });
+      }
 
-      const data = await storage.getBootstrapData();
-
-      // ── Try contact login first ────────────────────────────────────────────
-      const contact = await storage.findContactByEmail(email);
-      if (contact) {
-        const companies = contact.companies.map(cc => ({
-          companyId: cc.companyId,
-          role: cc.role,
-          name: data.companies.find(c => c.id === cc.companyId)?.name || cc.companyId,
-        }));
-        req.session.contactId = contact.id;
-        req.session.isAdmin = contact.isAdmin;
-        if (companies.length > 0) {
-          req.session.selectedCompanyId = companies[0].companyId;
-        }
-        return res.json({
-          id: contact.id,
-          userId: contact.userId,
-          name: contact.name,
-          email: contact.email,
-          isAdmin: contact.isAdmin,
-          companies,
-          selectedCompanyId: req.session.selectedCompanyId || null,
-          ...authScopeFromViewer(resolveViewerFromContact(contact)),
+      const resolved = await accessUsers.verifyLocalPassword(userKey, password);
+      if (!resolved) {
+        return res.status(401).json({
+          message: "Invalid credentials or account not in allow-list",
+        });
+      }
+      if (resolved.authType !== "local") {
+        return res.status(403).json({
+          message: "This account must sign in with Microsoft SSO",
         });
       }
 
-      // ── Try line-manager employee login ───────────────────────────────────
-      const empLower = email.trim().toLowerCase();
-      const employee = data.employees.find(
-        e => e.isManager && e.email.toLowerCase() === empLower
-      );
-      if (!employee) return res.status(401).json({ message: "No account found for this email" });
-
-      req.session.employeeId = employee.id;
-      req.session.isAdmin = false;
-      req.session.selectedCompanyId = employee.legalCompanyId;
-      const empCompanyName = data.companies.find(c => c.id === employee.legalCompanyId)?.name || employee.legalCompanyId;
-
-      return res.json({
-        id: employee.id,
-        userId: employee.id,
-        name: employee.name,
-        email: employee.email,
-        isAdmin: false,
-        isLineManager: true,
-        companies: [{ companyId: employee.legalCompanyId, role: "Manager", name: empCompanyName }],
-        selectedCompanyId: employee.legalCompanyId,
-        managedModules: null,
-        isUnrestrictedViewer: true,
-      });
+      establishSession(req, resolved);
+      const priorSelected = req.session.selectedCompanyId || null;
+      const authUser = await enrichAuthUser(resolved, priorSelected);
+      req.session.selectedCompanyId = authUser.selectedCompanyId || "";
+      return res.json(authUser);
     } catch (err) {
       console.error("Login error:", err);
-      res.status(500).json({ message: "Login failed" });
+      res.status(500).json({
+        message: err instanceof Error ? err.message : "Login failed",
+      });
     }
   });
 
+  // POST /api/auth/sso  { idToken } — Entra SSO; email must be on allow-list
+  app.post("/api/auth/sso", async (req, res) => {
+    try {
+      await accessUsers.ensureReady();
+      const { idToken } = req.body as { idToken?: string };
+      if (!idToken) {
+        return res.status(400).json({ message: "idToken required" });
+      }
+
+      const email = await verifyEntraIdToken(idToken);
+      const resolved = accessUsers.resolveByEmail(email);
+      if (!resolved) {
+        return res.status(403).json({
+          message: "Access denied — your account is not in the allow-list",
+        });
+      }
+      if (resolved.authType !== "sso") {
+        return res.status(403).json({
+          message: "This account must sign in with a local username and password",
+        });
+      }
+
+      establishSession(req, resolved);
+      const priorSelected = req.session.selectedCompanyId || null;
+      const authUser = await enrichAuthUser(resolved, priorSelected);
+      req.session.selectedCompanyId = authUser.selectedCompanyId || "";
+      return res.json(authUser);
+    } catch (err) {
+      console.error("SSO login error:", err);
+      const message = err instanceof Error ? err.message : "SSO login failed";
+      const status =
+        message.includes("not configured") || message.includes("allow-list")
+          ? 403
+          : 401;
+      res.status(status).json({ message });
+    }
+  });
+
+  app.get("/api/auth/config", (_req, res) => {
+    res.json({
+      ssoEnabled: isEntraConfigured(),
+      tenantId: process.env.AZURE_AD_TENANT_ID || null,
+      clientId: process.env.AZURE_AD_CLIENT_ID || null,
+    });
+  });
+
   // POST /api/auth/select-company  { companyId }
-  app.post("/api/auth/select-company", (req, res) => {
-    if (!req.session.contactId && !req.session.employeeId) return res.status(401).json({ message: "Not authenticated" });
+  app.post("/api/auth/select-company", async (req, res) => {
+    if (!req.session.email && !req.session.contactId) {
+      return res.status(401).json({ message: "Not authenticated" });
+    }
     const { companyId } = req.body as { companyId: string };
     if (!companyId) return res.status(400).json({ message: "companyId required" });
+
+    await accessUsers.ensureReady();
+    const email = req.session.email;
+    const resolved = email
+      ? accessUsers.resolveByEmail(email)
+      : accessUsers.getAllContacts().find((c) => c.id === req.session.contactId)
+        ? accessUsers.resolveByEmail(
+            accessUsers.getAllContacts().find((c) => c.id === req.session.contactId)!.email,
+          )
+        : null;
+
+    if (!resolved) return res.status(401).json({ message: "Not authenticated" });
+
+    if (resolved.isAdmin) {
+      const bootstrap = await storage.getBootstrapData();
+      if (!bootstrap.companies.some((c) => c.id === companyId)) {
+        return res.status(403).json({ message: "Unknown company" });
+      }
+    } else {
+      const allowed = resolved.contact.companies.some((c) => c.companyId === companyId);
+      if (!allowed) {
+        return res.status(403).json({ message: "Company not in your access list" });
+      }
+    }
+
     req.session.selectedCompanyId = companyId;
     res.json({ ok: true, selectedCompanyId: companyId });
   });
@@ -153,85 +270,134 @@ export async function registerRoutes(
   });
 
   app.get("/api/auth/me", async (req, res) => {
-    if (!req.session.contactId && !req.session.employeeId)
+    if (!req.session.email && !req.session.contactId) {
       return res.status(401).json({ message: "Not authenticated" });
+    }
     try {
-      const data = await storage.getBootstrapData();
-
-      // ── Employee (line manager) session ──────────────────────────────────
-      if (req.session.employeeId) {
-        const emp = data.employees.find(e => e.id === req.session.employeeId);
-        if (!emp) return res.status(401).json({ message: "User not found" });
-        const empCompanyName = data.companies.find(c => c.id === emp.legalCompanyId)?.name || emp.legalCompanyId;
-        return res.json({
-          id: emp.id,
-          userId: emp.id,
-          name: emp.name,
-          email: emp.email,
-          isAdmin: false,
-          isLineManager: true,
-          companies: [{ companyId: emp.legalCompanyId, role: "Manager", name: empCompanyName }],
-          selectedCompanyId: req.session.selectedCompanyId || emp.legalCompanyId,
-          managedModules: null,
-          isUnrestrictedViewer: true,
-        });
+      await accessUsers.ensureReady();
+      let resolved = req.session.email
+        ? accessUsers.resolveByEmail(req.session.email)
+        : null;
+      if (!resolved && req.session.contactId) {
+        const contact = accessUsers
+          .getAllContacts()
+          .find((c) => c.id === req.session.contactId);
+        if (contact) resolved = accessUsers.resolveByEmail(contact.email);
       }
+      if (!resolved) return res.status(401).json({ message: "User not found" });
 
-      // ── Contact session ───────────────────────────────────────────────────
-      const contacts = await storage.getContacts();
-      const c = contacts.find(x => x.id === req.session.contactId);
-      if (!c) return res.status(401).json({ message: "User not found" });
-      const companies = c.companies.map(cc => ({
-        companyId: cc.companyId,
-        role: cc.role,
-        name: data.companies.find(co => co.id === cc.companyId)?.name || cc.companyId,
-      }));
-      return res.json({
-        id: c.id,
-        userId: c.userId,
-        name: c.name,
-        email: c.email,
-        isAdmin: c.isAdmin,
-        companies,
-        selectedCompanyId: req.session.selectedCompanyId || null,
-        ...authScopeFromViewer(resolveViewerFromContact(c)),
-      });
+      // Refresh session fields
+      req.session.email = resolved.email;
+      req.session.personId = resolved.personId;
+      req.session.contactId = resolved.personId;
+      req.session.isAdmin = resolved.isAdmin;
+      req.session.authType = resolved.authType;
+
+      const authUser = await enrichAuthUser(
+        resolved,
+        req.session.selectedCompanyId || null,
+      );
+      req.session.selectedCompanyId = authUser.selectedCompanyId || "";
+      return res.json(authUser);
     } catch {
       res.status(500).json({ message: "Failed to get session" });
     }
   });
 
-  // ── Contacts CRUD (admin only) ─────────────────────────────────────────────
+  // ── Access-users / contacts CRUD (admin only) ──────────────────────────────
   app.get("/api/contacts", requireAuth as any, requireAdmin as any, async (_req, res) => {
     try {
-      const contacts = await storage.getContacts();
-      res.json(contacts);
+      await accessUsers.ensureReady();
+      res.json(accessUsers.getAllContacts());
     } catch (err) {
       res.status(500).json({ message: "Failed to fetch contacts" });
     }
   });
 
+  app.get("/api/access-users", requireAuth as any, requireAdmin as any, async (_req, res) => {
+    try {
+      await accessUsers.ensureReady();
+      res.json(await accessUsers.list());
+    } catch {
+      res.status(500).json({ message: "Failed to fetch access users" });
+    }
+  });
+
   app.post("/api/contacts", requireAuth as any, requireAdmin as any, async (req, res) => {
     try {
-      const contact = await storage.createContact(req.body);
+      await accessUsers.ensureReady();
+      const body = req.body as {
+        userId?: string;
+        name: string;
+        email: string;
+        isAdmin?: boolean;
+        companies?: { companyId: string; role: string }[];
+        managedModules?: string[];
+        authType?: "sso" | "local";
+        username?: string;
+        password?: string;
+      };
+      const data = await storage.getBootstrapData();
+      const companies = (body.companies || []).map((cc) => ({
+        companyId: cc.companyId,
+        role: cc.role,
+        companyName: data.companies.find((c) => c.id === cc.companyId)?.name || cc.companyId,
+      }));
+      const contact = await accessUsers.upsertPerson({
+        email: body.email,
+        name: body.name,
+        userId: body.userId,
+        authType: body.authType || "sso",
+        isAdmin: Boolean(body.isAdmin),
+        managedModules: body.managedModules,
+        companies,
+        username: body.username,
+        password: body.password,
+      });
       res.json(contact);
     } catch (err) {
-      res.status(500).json({ message: "Failed to create contact" });
+      res.status(500).json({
+        message: err instanceof Error ? err.message : "Failed to create contact",
+      });
     }
   });
 
   app.put("/api/contacts/:id", requireAuth as any, requireAdmin as any, async (req, res) => {
     try {
-      const contact = await storage.updateContact(req.params.id, req.body);
+      await accessUsers.ensureReady();
+      const body = req.body as {
+        userId?: string;
+        name?: string;
+        email?: string;
+        isAdmin?: boolean;
+        companies?: { companyId: string; role: string }[];
+        managedModules?: string[];
+        authType?: "sso" | "local";
+        username?: string;
+        password?: string;
+      };
+      const data = await storage.getBootstrapData();
+      const companies = body.companies?.map((cc) => ({
+        companyId: cc.companyId,
+        role: cc.role,
+        companyName: data.companies.find((c) => c.id === cc.companyId)?.name || cc.companyId,
+      }));
+      const contact = await accessUsers.updatePerson(req.params.id, {
+        ...body,
+        companies,
+      });
       res.json(contact);
     } catch (err: any) {
-      res.status(err.message === "Contact not found" ? 404 : 500).json({ message: err.message });
+      res.status(err.message === "Contact not found" ? 404 : 500).json({
+        message: err.message || "Failed to update contact",
+      });
     }
   });
 
   app.delete("/api/contacts/:id", requireAuth as any, requireAdmin as any, async (req, res) => {
     try {
-      await storage.deleteContact(req.params.id);
+      await accessUsers.ensureReady();
+      await accessUsers.deletePerson(req.params.id);
       res.json({ ok: true });
     } catch (err: any) {
       res.status(err.message === "Contact not found" ? 404 : 500).json({ message: err.message });
@@ -296,6 +462,221 @@ export async function registerRoutes(
       res.status(500).json({ message: "Failed to upload catalog" });
     }
   });
+
+  // Import user roles from ERP Excel (admin)
+  app.post(
+    api.userRoles.upload.path,
+    requireAuth as any,
+    requireAdmin as any,
+    upload.single("file"),
+    async (req, res) => {
+      try {
+        if (!req.file?.buffer) {
+          return res.status(400).json({ message: "Excel file is required (field: file)" });
+        }
+
+        const importType = detectExcelImportType(req.file.buffer);
+
+        if (importType === "catalog") {
+          const catalog = parsePrivilegeCatalogExcel(req.file.buffer);
+          if (catalog.length === 0) {
+            return res.status(400).json({ message: "No privilege catalog rows found in Excel file" });
+          }
+          const actorId = getSessionActorId(req);
+          const mode = catalogImportModeSchema.parse(req.query.mode ?? "merge");
+          const result = await storage.importPrivilegeCatalog(actorId, catalog, mode);
+          return res.json(result);
+        }
+
+        if (importType === "unknown") {
+          return res.status(400).json({
+            message:
+              "Unrecognized Excel format. Expected ERP user roles (USERNAME, Company_Code, ...) or privilege catalog (Models, Functions, Privileges).",
+          });
+        }
+
+        const mode = userRoleImportModeSchema.parse(req.query.mode ?? "merge");
+        const actorId = getSessionActorId(req);
+        const bootstrap = await storage.getBootstrapData();
+        const { rows, errors: parseErrors } = parseUserRolesExcel(
+          req.file.buffer,
+          bootstrap.companies,
+        );
+
+        if (rows.length === 0 && parseErrors.length > 0) {
+          return res.status(400).json({
+            message: "No valid rows found in Excel file",
+            type: "user_roles",
+            processed: 0,
+            assignmentsUpdated: 0,
+            privilegesCreated: 0,
+            companiesCreated: 0,
+            skipped: 0,
+            errors: parseErrors,
+          });
+        }
+
+        const result = await storage.importUserRoles(actorId, rows, mode);
+        result.errors.push(...parseErrors);
+
+        res.json({ type: "user_roles", ...result });
+      } catch (err) {
+        if (err instanceof z.ZodError) {
+          return res.status(400).json({ message: err.errors[0].message });
+        }
+        if (err instanceof multer.MulterError) {
+          return res.status(400).json({ message: err.message });
+        }
+        console.error("User roles upload error:", err);
+        res.status(500).json({
+          message: err instanceof Error ? err.message : "Failed to import user roles",
+        });
+      }
+    },
+  );
+
+  // Dedicated import endpoints (admin) — force import type per upload slot
+  app.post(
+    api.imports.catalog.path,
+    requireAuth as any,
+    requireAdmin as any,
+    upload.single("file"),
+    async (req, res) => {
+      try {
+        if (!req.file?.buffer) {
+          return res.status(400).json({ message: "Excel file is required (field: file)" });
+        }
+        const catalog = parsePrivilegeCatalogExcel(req.file.buffer);
+        if (catalog.length === 0) {
+          return res.status(400).json({ message: "No privilege catalog rows found" });
+        }
+        const mode = catalogImportModeSchema.parse(req.query.mode ?? "merge");
+        const actorId = getSessionActorId(req);
+        const result = await storage.importPrivilegeCatalog(actorId, catalog, mode);
+        res.json(result);
+      } catch (err) {
+        if (err instanceof z.ZodError) {
+          return res.status(400).json({ message: err.errors[0].message });
+        }
+        console.error("Catalog import error:", err);
+        res.status(500).json({ message: err instanceof Error ? err.message : "Failed to import catalog" });
+      }
+    },
+  );
+
+  app.post(
+    api.imports.userRoles.path,
+    requireAuth as any,
+    requireAdmin as any,
+    upload.single("file"),
+    async (req, res) => {
+      try {
+        if (!req.file?.buffer) {
+          return res.status(400).json({ message: "Excel file is required (field: file)" });
+        }
+        const mode = userRoleImportModeSchema.parse(req.query.mode ?? "merge");
+        const actorId = getSessionActorId(req);
+        const bootstrap = await storage.getBootstrapData();
+        const { rows, errors: parseErrors } = parseUserRolesExcel(
+          req.file.buffer,
+          bootstrap.companies,
+        );
+        if (rows.length === 0) {
+          return res.status(400).json({
+            message: "No valid user role rows found",
+            type: "user_roles",
+            processed: 0,
+            assignmentsUpdated: 0,
+            privilegesCreated: 0,
+            companiesCreated: 0,
+            employeesCreated: 0,
+            skipped: 0,
+            errors: parseErrors,
+          });
+        }
+        const result = await storage.importUserRoles(actorId, rows, mode);
+        result.errors.push(...parseErrors);
+        res.json({ type: "user_roles", ...result });
+      } catch (err) {
+        if (err instanceof z.ZodError) {
+          return res.status(400).json({ message: err.errors[0].message });
+        }
+        console.error("User roles import error:", err);
+        res.status(500).json({ message: err instanceof Error ? err.message : "Failed to import user roles" });
+      }
+    },
+  );
+
+  app.post(
+    api.imports.employees.path,
+    requireAuth as any,
+    requireAdmin as any,
+    upload.single("file"),
+    async (req, res) => {
+      try {
+        if (!req.file?.buffer) {
+          return res.status(400).json({ message: "Excel file is required (field: file)" });
+        }
+        const actorId = getSessionActorId(req);
+        const bootstrap = await storage.getBootstrapData();
+        const { rows, errors: parseErrors } = parseEmployeeRosterExcel(
+          req.file.buffer,
+          bootstrap.companies,
+        );
+        if (rows.length === 0) {
+          return res.status(400).json({
+            message: "No valid employee rows found",
+            type: "employees",
+            processed: 0,
+            created: 0,
+            updated: 0,
+            managersLinked: 0,
+            skipped: 0,
+            errors: parseErrors,
+          });
+        }
+        const result = await storage.importEmployeeRoster(actorId, rows);
+        result.errors.push(...parseErrors);
+        res.json(result);
+      } catch (err) {
+        console.error("Employee roster import error:", err);
+        res.status(500).json({ message: err instanceof Error ? err.message : "Failed to import employees" });
+      }
+    },
+  );
+
+  app.post(
+    api.imports.accessUsers.path,
+    requireAuth as any,
+    requireAdmin as any,
+    upload.single("file"),
+    async (req, res) => {
+      try {
+        if (!req.file?.buffer) {
+          return res.status(400).json({ message: "Excel file is required (field: file)" });
+        }
+        const { rows, errors: parseErrors } = parseAccessUsersExcel(req.file.buffer);
+        if (rows.length === 0) {
+          return res.status(400).json({
+            message: "No valid access user rows found",
+            type: "access_users",
+            processed: 0,
+            personsCreated: 0,
+            personsUpdated: 0,
+            rowsCreated: 0,
+            skipped: 0,
+            errors: parseErrors,
+          });
+        }
+        const result = await accessUsers.importFromExcelRows(rows);
+        result.errors.push(...parseErrors);
+        res.json(result);
+      } catch (err) {
+        console.error("Access users import error:", err);
+        res.status(500).json({ message: err instanceof Error ? err.message : "Failed to import access users" });
+      }
+    },
+  );
 
   // Get Audit Log
   app.get(api.audit.list.path, requireAuth as any, async (req, res) => {
@@ -444,6 +825,40 @@ export async function registerRoutes(
       }
       console.error("Update request error:", err);
       res.status(500).json({ message: "Failed to update request" });
+    }
+  });
+
+  // IT fulfillment — register ServiceDesk ticket ID (admin)
+  app.post("/api/requests/:requestId/fulfill-it", requireAuth as any, requireAdmin as any, async (req, res) => {
+    try {
+      const { requestId } = req.params;
+      const adminId = getSessionActorId(req);
+      const { ticketId } = fulfillItTicketSchema.parse(req.body);
+      const request = await storage.registerItTicket(requestId, ticketId, adminId);
+      res.json(request);
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({ message: err.errors[0].message });
+      }
+      if (err instanceof Error) {
+        return res.status(err.message.includes("not found") ? 404 : 400).json({ message: err.message });
+      }
+      res.status(500).json({ message: "Failed to register IT ticket" });
+    }
+  });
+
+  // IT fulfillment — manually mark resolved (admin)
+  app.post("/api/requests/:requestId/mark-resolved", requireAuth as any, requireAdmin as any, async (req, res) => {
+    try {
+      const { requestId } = req.params;
+      const adminId = getSessionActorId(req);
+      const request = await storage.markRequestItResolved(requestId, adminId);
+      res.json(request);
+    } catch (err) {
+      if (err instanceof Error) {
+        return res.status(err.message.includes("not found") ? 404 : 400).json({ message: err.message });
+      }
+      res.status(500).json({ message: "Failed to mark request resolved" });
     }
   });
 
