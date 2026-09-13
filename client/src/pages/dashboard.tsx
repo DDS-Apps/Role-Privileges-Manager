@@ -49,7 +49,9 @@ const DICT = {
     created: "Created",
     newRequest: "New request",
     newPrivilege: "New Privilege",
-    searchEmployee: "Search by ID or name...",
+    searchEmployee: "Search by ID or name (English / Arabic)...",
+    searchHintLargeRoster: "employees — type ID or name to search",
+    noPriorAccess: "No privileges yet",
     selectEmployee: "Select an employee",
     externalEmployee: "External employee",
     privilegeRequests: "Privilege requests",
@@ -156,7 +158,9 @@ const DICT = {
     created: "تاريخ الإنشاء",
     newRequest: "طلب جديد",
     newPrivilege: "امتياز جديد",
-    searchEmployee: "بحث بالرقم أو الاسم...",
+    searchEmployee: "ابحث بالرقم أو الاسم (عربي / إنجليزي)...",
+    searchHintLargeRoster: "موظف — اكتب الرقم أو الاسم للبحث",
+    noPriorAccess: "لا توجد صلاحيات بعد",
     selectEmployee: "اختر موظفاً",
     externalEmployee: "موظف خارجي",
     privilegeRequests: "طلبات الامتيازات",
@@ -799,6 +803,7 @@ export default function DashboardPage() {
         employeeId={newRequestEmployeeId}
         requireEmployeeSearch={newRequestRequireEmployeePick}
         onEmployeeIdChange={setNewRequestEmployeeId}
+        language={language}
         isSubmitting={createRequest.isPending}
         t={{
           newRequest: t.newRequest,
@@ -820,6 +825,8 @@ export default function DashboardPage() {
           currentPrivileges: t.currentPrivileges,
           noCurrentPrivileges: t.noCurrentPrivileges,
           alreadyAssigned: t.alreadyAssigned,
+          searchHintLargeRoster: t.searchHintLargeRoster,
+          noPriorAccess: t.noPriorAccess,
         }}
       />
 

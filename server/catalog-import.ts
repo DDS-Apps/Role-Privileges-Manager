@@ -31,7 +31,15 @@ function isCatalogSheet(headers: string[]): boolean {
 
 function isUserRolesSheet(headers: string[]): boolean {
   const h = new Set(headers.map(normalizeHeader));
-  return h.has("username") && (h.has("company_code") || h.has("data_access_company_code"));
+  return (
+    h.has("username") &&
+    h.has("company_code") &&
+    (h.has("business_role_name") ||
+      h.has("role_common_name") ||
+      h.has("role_name") ||
+      h.has("data_company_code") ||
+      h.has("data_access_company_code"))
+  );
 }
 
 export function detectExcelImportType(buffer: Buffer): "catalog" | "user_roles" | "unknown" {

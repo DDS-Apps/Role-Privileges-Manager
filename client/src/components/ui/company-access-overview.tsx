@@ -36,6 +36,12 @@ import {
 } from "@/components/ui/table";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import type { Employee, Privilege, Assignment, Company } from "@shared/schema";
+import {
+  employeeDisplayDepartment,
+  employeeDisplayName,
+  employeeDisplayTitle,
+} from "@shared/employee-display";
+import { employeeMatchesQuery } from "@/lib/employee-search";
 import type { AuthCompany } from "@/hooks/use-auth";
 import { CompanySwitcher } from "@/components/ui/company-switcher";
 import { cn } from "@/lib/utils";
@@ -108,7 +114,7 @@ export interface EmployeeAccessGroup {
   externalCompanyCount: number;
 }
 
-type ViewTab = "internal" | "external" | "all";
+type ViewTab = "internal" | "external" | "all" | "no_access";
 
 interface CompanyAccessOverviewProps {
   privileges: Privilege[];
@@ -217,6 +223,7 @@ function buildAccessRows(
   employeeMap: Map<string, Employee>,
   companyMap: Map<string, Company>,
   privilegeMap: Map<string, Privilege>,
+  language: "en" | "ar",
 ): { accessRows: CompanyAccessRow[]; noAccessIds: Set<string> } {
   const rows: CompanyAccessRow[] = [];
   const withAccessInCtx = new Set<string>();
@@ -237,9 +244,9 @@ function buildAccessRows(
       rows.push({
         key: `${emp.id}-${assignment.companyId}-${privId}-${rowType}`,
         employeeId: emp.id,
-        employeeName: emp.name,
+        employeeName: employeeDisplayName(emp, language),
         employeeEmail: emp.email,
-        employeeTitle: emp.title,
+        employeeTitle: employeeDisplayTitle(emp, language),
         legalCompanyId: emp.legalCompanyId,
         legalCompanyName,
         accessCompanyId: assignment.companyId,
@@ -282,9 +289,9 @@ function buildAccessRows(
       rows.push({
         key: `${emp.id}-no-access`,
         employeeId: emp.id,
-        employeeName: emp.name,
+        employeeName: employeeDisplayName(emp, language),
         employeeEmail: emp.email,
-        employeeTitle: emp.title,
+        employeeTitle: employeeDisplayTitle(emp, language),
         legalCompanyId: emp.legalCompanyId,
         legalCompanyName,
         accessCompanyId: companyId,
@@ -295,6 +302,31 @@ function buildAccessRows(
         rowType: "no_access",
       });
     }
+  }
+
+  const representedInCompany = new Set(rows.map((r) => r.employeeId));
+  for (const emp of employees) {
+    if (emp.legalCompanyId !== companyId) continue;
+    if (representedInCompany.has(emp.id)) continue;
+
+    noAccessIds.add(emp.id);
+    const legalCompanyName = companyMap.get(emp.legalCompanyId)?.name ?? emp.legalCompanyId;
+    rows.push({
+      key: `${emp.id}-no-access-fallback`,
+      employeeId: emp.id,
+      employeeName: employeeDisplayName(emp, language),
+      employeeEmail: emp.email,
+      employeeTitle: employeeDisplayTitle(emp, language),
+      legalCompanyId: emp.legalCompanyId,
+      legalCompanyName,
+      accessCompanyId: companyId,
+      accessCompanyName: companyName,
+      module: "—",
+      function: "—",
+      role: "—",
+      rowType: "no_access",
+    });
+    representedInCompany.add(emp.id);
   }
 
   return { accessRows: rows, noAccessIds };
@@ -391,14 +423,13 @@ function summarizeRoles(modules: ModuleInstance[]): string {
 function enrichEmployeeGroup(
   first: CompanyAccessRow,
   employeeMap: Map<string, Employee>,
+  language: "en" | "ar",
 ): Pick<EmployeeAccessGroup, "employeeDepartment" | "lineManagerName"> {
   const emp = employeeMap.get(first.employeeId);
-  const lineManagerName = emp?.managerId
-    ? employeeMap.get(emp.managerId)?.name
-    : undefined;
+  const manager = emp?.managerId ? employeeMap.get(emp.managerId) : undefined;
   return {
-    employeeDepartment: emp?.department,
-    lineManagerName,
+    employeeDepartment: emp ? employeeDisplayDepartment(emp, language) : undefined,
+    lineManagerName: manager ? employeeDisplayName(manager, language) : undefined,
   };
 }
 
@@ -428,7 +459,7 @@ function rowsToEmployeeGroups(
         employeeName: first.employeeName,
         employeeEmail: first.employeeEmail,
         employeeTitle: first.employeeTitle,
-        ...enrichEmployeeGroup(first, employeeMap),
+        ...enrichEmployeeGroup(first, employeeMap, language as "en" | "ar"),
         legalCompanyName: first.legalCompanyName,
         legalCompanyId: first.legalCompanyId,
         rowType: "no_access",
@@ -474,7 +505,7 @@ function rowsToEmployeeGroups(
       employeeName: first.employeeName,
       employeeEmail: first.employeeEmail,
       employeeTitle: first.employeeTitle,
-      ...enrichEmployeeGroup(first, employeeMap),
+      ...enrichEmployeeGroup(first, employeeMap, language as "en" | "ar"),
       legalCompanyName: first.legalCompanyName,
       legalCompanyId: first.legalCompanyId,
       rowType: displayType,
@@ -590,6 +621,7 @@ export function CompanyAccessOverview({
       employeeMap,
       companyMap,
       privilegeMap,
+      language,
     );
   }, [
     assignments,
@@ -597,6 +629,7 @@ export function CompanyAccessOverview({
     companyName,
     employeeMap,
     employees,
+    language,
     companyMap,
     privilegeMap,
   ]);
@@ -614,6 +647,8 @@ export function CompanyAccessOverview({
       );
     } else if (viewTab === "external") {
       result = result.filter((r) => r.rowType === "external");
+    } else if (viewTab === "no_access") {
+      result = result.filter((r) => r.rowType === "no_access");
     }
 
     if (moduleFilters.size > 0) {
@@ -624,8 +659,9 @@ export function CompanyAccessOverview({
 
     if (search.trim()) {
       const q = search.trim().toLowerCase();
-      result = result.filter(
-        (r) =>
+      result = result.filter((r) => {
+        const emp = employeeMap.get(r.employeeId);
+        return (
           r.employeeId.toLowerCase().includes(q) ||
           r.employeeName.toLowerCase().includes(q) ||
           r.employeeEmail.toLowerCase().includes(q) ||
@@ -633,12 +669,14 @@ export function CompanyAccessOverview({
           r.function.toLowerCase().includes(q) ||
           r.role.toLowerCase().includes(q) ||
           r.accessCompanyName.toLowerCase().includes(q) ||
-          r.legalCompanyName.toLowerCase().includes(q),
-      );
+          r.legalCompanyName.toLowerCase().includes(q) ||
+          (emp ? employeeMatchesQuery(emp, search, language as "en" | "ar") : false)
+        );
+      });
     }
 
     return result;
-  }, [accessRows, viewTab, moduleFilters, search]);
+  }, [accessRows, viewTab, moduleFilters, search, employeeMap, language]);
 
   const moduleFilterLabel = useMemo(() => {
     if (moduleFilters.size === 0) return t.allModules;
@@ -847,6 +885,9 @@ export function CompanyAccessOverview({
               </TabsTrigger>
               <TabsTrigger value="external" className="text-xs capitalize">
                 {t.external}
+              </TabsTrigger>
+              <TabsTrigger value="no_access" className="text-xs capitalize">
+                {t.noAccess} ({stats.noAccess})
               </TabsTrigger>
             </TabsList>
 

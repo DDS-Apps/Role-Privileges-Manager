@@ -561,6 +561,14 @@ export class AccessUserStore {
     return result;
   }
 
+  async resetAll(): Promise<number> {
+    await this.ready;
+    const count = this.rows.length;
+    this.rows = [];
+    await this.save();
+    return count;
+  }
+
   async verifyLocalPassword(
     username: string,
     password: string,

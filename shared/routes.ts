@@ -70,6 +70,14 @@ export const api = {
     },
   },
 
+  admin: {
+    reset: {
+      method: 'POST' as const,
+      path: '/api/admin/reset',
+      responses: { 200: z.any(), 403: errorSchemas.forbidden },
+    },
+  },
+
   imports: {
     catalog: {
       method: 'POST' as const,

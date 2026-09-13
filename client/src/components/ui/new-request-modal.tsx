@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { Loader2, Calendar, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -18,7 +18,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type { Assignment, Company, Employee, Privilege } from "@shared/schema";
+import type { AppLanguage } from "@shared/employee-display";
+import { employeeDisplayName } from "@shared/employee-display";
 import { cn } from "@/lib/utils";
+import { searchCompanyEmployees } from "@/lib/employee-search";
 import { CurrentPrivilegesPanel } from "@/components/ui/current-privileges-panel";
 
 interface NewRequestModalProps {
@@ -39,6 +42,7 @@ interface NewRequestModalProps {
   employeeId?: string;
   requireEmployeeSearch?: boolean;
   onEmployeeIdChange?: (employeeId: string) => void;
+  language?: AppLanguage;
   isSubmitting: boolean;
   t: {
     newRequest: string;
@@ -60,6 +64,8 @@ interface NewRequestModalProps {
     currentPrivileges: string;
     noCurrentPrivileges: string;
     alreadyAssigned: string;
+    searchHintLargeRoster: string;
+    noPriorAccess: string;
   };
 }
 
@@ -75,6 +81,7 @@ export function NewRequestModal({
   employeeId = "",
   requireEmployeeSearch = false,
   onEmployeeIdChange,
+  language = "en",
   isSubmitting,
   t,
 }: NewRequestModalProps) {
@@ -85,6 +92,7 @@ export function NewRequestModal({
   const [endDate, setEndDate] = useState("");
   const [employeeSearch, setEmployeeSearch] = useState("");
   const [externalEmployeeOnly, setExternalEmployeeOnly] = useState(false);
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   const isExternalEmployee = (emp: Employee) =>
     Boolean(companyId && emp.legalCompanyId !== companyId);
@@ -99,26 +107,24 @@ export function NewRequestModal({
     return new Set(assignment?.privilegeIds ?? []);
   }, [assignments, companyId, employeeId]);
 
-  const filteredEmployees = useMemo(() => {
-    let result = [...employees];
-    if (companyId) {
-      result = result.filter((e) =>
-        externalEmployeeOnly
-          ? isExternalEmployee(e)
-          : !isExternalEmployee(e),
-      );
-    }
-    if (employeeSearch.trim()) {
-      const q = employeeSearch.trim().toLowerCase();
-      result = result.filter(
-        (e) =>
-          e.id.toLowerCase().includes(q) ||
-          e.name.toLowerCase().includes(q) ||
-          e.email?.toLowerCase().includes(q),
-      );
-    }
-    return result.slice(0, 50);
-  }, [employees, employeeSearch, companyId, externalEmployeeOnly]);
+  const filteredEmployees = useMemo(
+    () =>
+      searchCompanyEmployees(employees, {
+        companyId,
+        externalOnly: externalEmployeeOnly,
+        query: employeeSearch,
+        language,
+      }),
+    [employees, employeeSearch, companyId, externalEmployeeOnly, language],
+  );
+
+  const companyEmployeeCount = useMemo(
+    () =>
+      employees.filter((e) =>
+        externalEmployeeOnly ? isExternalEmployee(e) : !isExternalEmployee(e),
+      ).length,
+    [employees, companyId, externalEmployeeOnly],
+  );
 
   useEffect(() => {
     if (!open) {
@@ -129,8 +135,23 @@ export function NewRequestModal({
       setEndDate("");
       setEmployeeSearch("");
       setExternalEmployeeOnly(false);
+      return;
     }
-  }, [open]);
+    if (requireEmployeeSearch) {
+      const timer = window.setTimeout(() => searchInputRef.current?.focus(), 100);
+      return () => window.clearTimeout(timer);
+    }
+  }, [open, requireEmployeeSearch]);
+
+  const employeesWithAccessInCompany = useMemo(() => {
+    const ids = new Set<string>();
+    for (const assignment of assignments) {
+      if (assignment.companyId === companyId && assignment.privilegeIds.length > 0) {
+        ids.add(assignment.employeeId);
+      }
+    }
+    return ids;
+  }, [assignments, companyId]);
 
   useEffect(() => {
     if (!requireEmployeeSearch || !employeeId) return;
@@ -234,17 +255,26 @@ export function NewRequestModal({
               <div className="relative">
                 <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                 <Input
+                  ref={searchInputRef}
                   value={employeeSearch}
                   onChange={(e) => setEmployeeSearch(e.target.value)}
                   placeholder={t.searchEmployee}
                   className="pl-9"
                   data-testid="modal-search-employee"
+                  autoComplete="off"
                 />
               </div>
-              <div className="mt-2 max-h-40 overflow-y-auto rounded-lg border border-slate-200 bg-slate-50">
+              {!employeeSearch.trim() && companyEmployeeCount > 50 && (
+                <p className="mt-1 text-xs text-amber-700">
+                  {companyEmployeeCount.toLocaleString()} {t.searchHintLargeRoster}
+                </p>
+              )}
+              <div className="mt-2 max-h-48 overflow-y-auto rounded-lg border border-slate-200 bg-slate-50">
                 {filteredEmployees.length === 0 ? (
                   <p className="px-3 py-4 text-center text-sm text-slate-500">
-                    {t.selectEmployee}
+                    {!employeeSearch.trim() && companyEmployeeCount > 50
+                      ? t.searchHintLargeRoster
+                      : t.selectEmployee}
                   </p>
                 ) : (
                   filteredEmployees.map((emp) => {
@@ -264,11 +294,14 @@ export function NewRequestModal({
                       data-testid={`modal-employee-${emp.id}`}
                     >
                       <span className="text-sm font-medium text-slate-900">
-                        {emp.name}
+                        {employeeDisplayName(emp, language)}
                       </span>
                       <span className="text-xs text-slate-500">
                         {emp.id}
                         {emp.email ? ` · ${emp.email}` : ""}
+                        {!employeesWithAccessInCompany.has(emp.id) && (
+                          <span className="text-teal-700"> · {t.noPriorAccess}</span>
+                        )}
                       </span>
                       {external && legalCompany && (
                         <span className="text-xs text-orange-600">

@@ -1,11 +1,20 @@
 import * as XLSX from "xlsx";
-import type { Company, EmployeeRosterImportRow, UserRoleImportError } from "@shared/schema";
+import type {
+  Company,
+  Employee,
+  EmployeeRosterImportErrorDetail,
+  EmployeeRosterImportRow,
+  UserRoleImportError,
+} from "@shared/schema";
 
 function normalizeHeader(value: unknown): string {
   return String(value ?? "")
     .trim()
     .toLowerCase()
-    .replace(/\s+/g, "_");
+    .replace(/[-–—:/\\]+/g, "_")
+    .replace(/\s+/g, "_")
+    .replace(/_+/g, "_")
+    .replace(/^_+|_+$/g, "");
 }
 
 function cellStr(value: unknown): string {
@@ -50,19 +59,61 @@ function resolveCompanyId(rawCode: string, companyCodeSet: Set<string>): string 
   return companyCode;
 }
 
+function resolveCompanyFromName(name: string, companies: Company[]): string | null {
+  const val = name.trim();
+  if (!val) return null;
+
+  const lower = val.toLowerCase();
+  for (const company of companies) {
+    if (company.id.toLowerCase() === lower) return company.id;
+    if (company.name.toLowerCase() === lower) return company.id;
+  }
+
+  const stripped = val.replace(/^\d+\s+/, "").trim().toLowerCase();
+  for (const company of companies) {
+    const companyName = company.name.trim().toLowerCase();
+    if (companyName === stripped) return company.id;
+    if (stripped && (stripped.includes(companyName) || companyName.includes(stripped))) {
+      return company.id;
+    }
+  }
+
+  return null;
+}
+
+function resolveKnownCompanyCode(
+  rawCode: string,
+  companyCodeSet: Set<string>,
+  companies: Company[],
+): string | null {
+  const resolved = resolveCompanyId(rawCode, companyCodeSet);
+  if (companyCodeSet.has(resolved)) return resolved;
+  const trimmed = rawCode.trim();
+  if (companies.some((c) => c.id === trimmed || c.id === resolved)) return resolved;
+  return null;
+}
+
 export interface ParseEmployeeRosterResult {
   rows: EmployeeRosterImportRow[];
   errors: UserRoleImportError[];
+  errorDetails: EmployeeRosterImportErrorDetail[];
+  skipped: number;
 }
 
 export function parseEmployeeRosterExcel(
   buffer: Buffer,
   companies: Company[],
+  employees: Employee[] = [],
 ): ParseEmployeeRosterResult {
   const wb = XLSX.read(buffer, { type: "buffer" });
   const sheetName = wb.SheetNames[0];
   if (!sheetName) {
-    return { rows: [], errors: [{ row: 0, message: "Workbook has no sheets" }] };
+    return {
+      rows: [],
+      errors: [{ row: 0, message: "Workbook has no sheets" }],
+      errorDetails: [],
+      skipped: 0,
+    };
   }
 
   const rawRows = XLSX.utils.sheet_to_json<Record<string, unknown>>(
@@ -70,13 +121,29 @@ export function parseEmployeeRosterExcel(
     { defval: "", raw: false },
   );
   if (rawRows.length === 0) {
-    return { rows: [], errors: [{ row: 0, message: "Sheet is empty" }] };
+    return {
+      rows: [],
+      errors: [{ row: 0, message: "Sheet is empty" }],
+      errorDetails: [],
+      skipped: 0,
+    };
   }
 
   const companyCodeSet = new Set(companies.map((c) => c.id));
+  const employeeById = new Map(employees.map((e) => [e.id, e]));
   const rows: EmployeeRosterImportRow[] = [];
   const errors: UserRoleImportError[] = [];
+  const errorDetails: EmployeeRosterImportErrorDetail[] = [];
   const seen = new Set<string>();
+
+  const recordError = (
+    rowNum: number,
+    reason: string,
+    detail: Omit<EmployeeRosterImportErrorDetail, "row" | "reason">,
+  ): void => {
+    errors.push({ row: rowNum, message: reason });
+    errorDetails.push({ row: rowNum, reason, ...detail });
+  };
 
   for (let i = 0; i < rawRows.length; i++) {
     const raw = rawRows[i];
@@ -89,40 +156,110 @@ export function parseEmployeeRosterExcel(
     const employeeId = normalizeUsername(
       pickColumn(mapped, ["username", "user_name", "employee_id", "userid"]),
     );
-    const name = pickColumn(mapped, ["display_name", "name", "employee_name"]);
+    const nameEn = pickColumn(mapped, [
+      "display_name_english",
+      "display_nameenglish",
+      "display_name_en",
+      "display_name",
+      "name",
+      "employee_name",
+    ]);
+    const nameAr = pickColumn(mapped, [
+      "display_name_arabic",
+      "display_namearabic",
+      "display_name_ar",
+    ]);
     const legalCompanyCode = pickColumn(mapped, ["company_code", "legal_company_code"]);
+    const companyNameEn = pickColumn(mapped, ["company_name_english", "company_nameenglish", "company_name"]);
+    const companyNameAr = pickColumn(mapped, ["company_name_arabic", "company_namearabic"]);
     const email = pickColumn(mapped, ["email", "email_address", "work_email"]).toLowerCase();
-    const title = pickColumn(mapped, ["title", "job_title", "position"]);
+    const titleEn = pickColumn(mapped, ["title_english", "titleenglish", "title", "job_title", "position"]);
+    const titleAr = pickColumn(mapped, ["title_arabic", "titlearabic"]);
+    const departmentEn = pickColumn(mapped, [
+      "department_english",
+      "departmentenglish",
+      "department",
+    ]);
+    const departmentAr = pickColumn(mapped, ["department_arabic", "departmentarabic"]);
     const managerId = normalizeUsername(
       pickColumn(mapped, ["manager_username", "manager_id", "manager_user_name"]),
     );
+    const managerEmail = pickColumn(mapped, ["manageremail", "manager_email"]).toLowerCase();
     const isManagerRaw = pickColumn(mapped, ["is_manager", "manager"]);
-    const companyName = pickColumn(mapped, ["company_name"]);
 
-    if (!employeeId && !name && !legalCompanyCode) continue;
-
-    if (!employeeId) {
-      errors.push({ row: rowNum, message: "Missing USERNAME / employee ID" });
+    if (!employeeId && !nameEn && !nameAr && !legalCompanyCode && !companyNameEn && !companyNameAr) {
       continue;
     }
-    if (!legalCompanyCode) {
-      errors.push({ row: rowNum, message: "Missing Company_Code" });
+
+    if (!employeeId) {
+      recordError(rowNum, "Missing USERNAME / employee ID", {
+        displayNameEn: nameEn || undefined,
+        displayNameAr: nameAr || undefined,
+        companyCode: legalCompanyCode || undefined,
+        companyNameEn: companyNameEn || undefined,
+        companyNameAr: companyNameAr || undefined,
+        email: email || undefined,
+      });
       continue;
     }
     if (seen.has(employeeId)) continue;
     seen.add(employeeId);
 
+    const hasCompanyHint = !!(legalCompanyCode || companyNameEn || companyNameAr);
+    let legalCompanyId: string | null = null;
+    let unknownCompany: string | null = null;
+
+    if (legalCompanyCode) {
+      legalCompanyId = resolveKnownCompanyCode(legalCompanyCode, companyCodeSet, companies);
+      if (!legalCompanyId) unknownCompany = legalCompanyCode;
+    }
+
+    if (!legalCompanyId && (companyNameEn || companyNameAr)) {
+      legalCompanyId =
+        resolveCompanyFromName(companyNameEn, companies) ??
+        resolveCompanyFromName(companyNameAr, companies);
+      if (!legalCompanyId) {
+        unknownCompany = companyNameEn || companyNameAr;
+      }
+    }
+
+    if (!legalCompanyId && !hasCompanyHint) {
+      legalCompanyId = employeeById.get(employeeId)?.legalCompanyId ?? null;
+    }
+
+    if (!legalCompanyId) {
+      const reason = unknownCompany
+        ? `Unknown company — EN: "${companyNameEn || ""}", AR: "${companyNameAr || ""}"`
+        : "Missing Company_Code / Company_Name (could not resolve company)";
+      recordError(rowNum, reason, {
+        username: employeeId,
+        displayNameEn: nameEn || undefined,
+        displayNameAr: nameAr || undefined,
+        companyCode: legalCompanyCode || undefined,
+        companyNameEn: companyNameEn || undefined,
+        companyNameAr: companyNameAr || undefined,
+        email: email || undefined,
+      });
+      continue;
+    }
+
     rows.push({
       employeeId,
-      name: name || employeeId,
-      legalCompanyId: resolveCompanyId(legalCompanyCode, companyCodeSet),
-      companyName: companyName || undefined,
+      name: nameEn || nameAr || employeeId,
+      nameAr: nameAr || undefined,
+      legalCompanyId,
+      companyName: companyNameEn || companyNameAr || undefined,
+      companyNameAr: companyNameAr || undefined,
       email: email || undefined,
-      title: title || undefined,
+      title: titleEn || undefined,
+      titleAr: titleAr || undefined,
+      department: departmentEn || undefined,
+      departmentAr: departmentAr || undefined,
       managerId: managerId || undefined,
+      managerEmail: managerEmail || undefined,
       isManager: parseBool(isManagerRaw),
     });
   }
 
-  return { rows, errors };
+  return { rows, errors, errorDetails, skipped: errorDetails.length };
 }

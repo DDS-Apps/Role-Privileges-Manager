@@ -74,9 +74,13 @@ export interface ResolvedAccessUser {
 // ============================================
 export interface Employee {
   id: string;
+  /** English display name (primary). */
   name: string;
+  nameAr?: string;
   title: string;
+  titleAr?: string;
   department?: string;
+  departmentAr?: string;
   email: string;
   isManager: boolean;
   isAdmin?: boolean;       // Admin users can approve/reject requests
@@ -268,6 +272,20 @@ export interface UserRoleImportRow {
   role: string;
   roleName?: string;
   displayName?: string;
+  /** 1-based Excel row number (header = row 1). */
+  sourceRow?: number;
+}
+
+export interface UserRoleImportSkippedRow {
+  row: number;
+  reason: string;
+  username?: string;
+  displayName?: string;
+  companyCode?: string;
+  companyName?: string;
+  businessRoleName?: string;
+  roleName?: string;
+  roleCommonName?: string;
 }
 
 export interface UserRoleImportError {
@@ -282,6 +300,8 @@ export interface UserRoleImportResult {
   companiesCreated: number;
   employeesCreated: number;
   skipped: number;
+  mode?: UserRoleImportMode;
+  skippedDetails?: UserRoleImportSkippedRow[];
   errors: UserRoleImportError[];
 }
 
@@ -300,12 +320,30 @@ export interface CatalogImportResult {
 export interface EmployeeRosterImportRow {
   employeeId: string;
   name: string;
+  nameAr?: string;
   legalCompanyId: string;
   companyName?: string;
+  companyNameAr?: string;
   email?: string;
   title?: string;
+  titleAr?: string;
+  department?: string;
+  departmentAr?: string;
   managerId?: string;
+  managerEmail?: string;
   isManager: boolean;
+}
+
+export interface EmployeeRosterImportErrorDetail {
+  row: number;
+  reason: string;
+  username?: string;
+  displayNameEn?: string;
+  displayNameAr?: string;
+  companyCode?: string;
+  companyNameEn?: string;
+  companyNameAr?: string;
+  email?: string;
 }
 
 export interface EmployeeRosterImportResult {
@@ -315,7 +353,26 @@ export interface EmployeeRosterImportResult {
   updated: number;
   managersLinked: number;
   skipped: number;
+  errorDetails?: EmployeeRosterImportErrorDetail[];
   errors: UserRoleImportError[];
+}
+
+export interface EmployeeRosterClearResult {
+  type: "employees_clear";
+  removed: number;
+  cleared: number;
+}
+
+export interface AppResetResult {
+  type: "app_reset";
+  companies: number;
+  employees: number;
+  privileges: number;
+  assignments: number;
+  requests: number;
+  contacts: number;
+  auditEntries: number;
+  accessUsersCleared: number;
 }
 
 export interface AccessUserImportResult {

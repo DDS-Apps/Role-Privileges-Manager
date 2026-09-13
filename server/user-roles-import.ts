@@ -1,5 +1,16 @@
 import * as XLSX from "xlsx";
-import type { Company, UserRoleImportError, UserRoleImportRow } from "@shared/schema";
+import type {
+  Company,
+  Privilege,
+  UserRoleImportError,
+  UserRoleImportRow,
+  UserRoleImportSkippedRow,
+} from "@shared/schema";
+import {
+  isPlaceholderBusinessRoleName,
+  resolveErpRoleToCatalogFunction,
+  resolveFunctionNameCandidates,
+} from "./erp-role-mapping";
 
 const MODULE_MAP: Record<string, string> = {
   HCM: "HR",
@@ -58,6 +69,8 @@ function pickColumn(
 export interface ParseUserRolesResult {
   rows: UserRoleImportRow[];
   errors: UserRoleImportError[];
+  skipped: number;
+  skippedDetails: UserRoleImportSkippedRow[];
 }
 
 function resolveCompanyId(rawCode: string, companyCodeSet: Set<string>): string {
@@ -70,14 +83,163 @@ function resolveCompanyId(rawCode: string, companyCodeSet: Set<string>): string 
   return companyCode;
 }
 
+function resolveCompanyFromData(dataVal: string, companies: Company[]): string | null {
+  const val = dataVal.trim();
+  if (!val) return null;
+
+  const nameToId = new Map<string, string>();
+  for (const c of companies) {
+    nameToId.set(c.name.toLowerCase().trim(), c.id);
+    nameToId.set(c.id.toLowerCase(), c.id);
+  }
+
+  const lower = val.toLowerCase();
+  if (nameToId.has(lower)) return nameToId.get(lower)!;
+
+  const stripped = val.replace(/^\d+\s+/, "").trim().toLowerCase();
+  if (nameToId.has(stripped)) return nameToId.get(stripped)!;
+
+  for (const [name, id] of Array.from(nameToId.entries())) {
+    if (stripped && (stripped.includes(name) || name.includes(stripped))) {
+      return id;
+    }
+  }
+  return null;
+}
+
+function splitBusinessRoleSegments(raw: string): string[] {
+  return raw
+    .split(/\\|\//)
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
+/** Match one segment to a catalog Function (case-insensitive). */
+function findCatalogFunctionMatch(
+  functionName: string,
+  moduleRaw: string,
+  privileges: Privilege[],
+): { module: string; function: string } | null {
+  const fn = functionName.trim().toLowerCase();
+  if (!fn) return null;
+
+  const moduleFilter = moduleRaw ? mapModule(moduleRaw) : null;
+
+  const matchWithModule = (requireModule: boolean): Privilege | undefined => {
+    const hits = privileges.filter((p) => {
+      if (p.function.trim().toLowerCase() !== fn) return false;
+      if (
+        requireModule &&
+        moduleFilter &&
+        p.module.trim().toLowerCase() !== moduleFilter.toLowerCase()
+      ) {
+        return false;
+      }
+      return true;
+    });
+    return hits[0];
+  };
+
+  const hit =
+    (moduleFilter ? matchWithModule(true) : undefined) ?? matchWithModule(false);
+  if (!hit) return null;
+  return { module: hit.module, function: hit.function };
+}
+
+/** Supports compound names like "Accounting and Reporting \\ Treasury Management". */
+function findAllCatalogFunctionMatches(
+  functionName: string,
+  moduleRaw: string,
+  privileges: Privilege[],
+): { module: string; function: string }[] {
+  const segments = splitBusinessRoleSegments(functionName);
+  const seen = new Set<string>();
+  const results: { module: string; function: string }[] = [];
+
+  for (const segment of segments) {
+    const match = findCatalogFunctionMatch(segment, moduleRaw, privileges);
+    if (!match) continue;
+    const key = `${match.module}:${match.function}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    results.push(match);
+  }
+
+  return results;
+}
+
+function findCatalogFunctionBySubstring(
+  roleText: string,
+  moduleRaw: string,
+  privileges: Privilege[],
+): { module: string; function: string } | null {
+  const lower = roleText.trim().toLowerCase();
+  if (!lower) return null;
+
+  const uniqueFunctions = Array.from(new Set(privileges.map((p) => p.function))).sort(
+    (a, b) => b.length - a.length,
+  );
+
+  for (const fn of uniqueFunctions) {
+    if (lower.includes(fn.toLowerCase())) {
+      return findCatalogFunctionMatch(fn, moduleRaw, privileges);
+    }
+  }
+  return null;
+}
+
+function resolveCatalogMatchesForRow(
+  row: Record<string, unknown>,
+  moduleRaw: string,
+  privileges: Privilege[],
+): { module: string; function: string }[] {
+  const candidates = resolveFunctionNameCandidates(row, pickColumn);
+  const seen = new Set<string>();
+  const results: { module: string; function: string }[] = [];
+
+  const addMatches = (matches: { module: string; function: string }[]) => {
+    for (const match of matches) {
+      const key = `${match.module}:${match.function}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      results.push(match);
+    }
+  };
+
+  for (const candidate of candidates) {
+    addMatches(findAllCatalogFunctionMatches(candidate, moduleRaw, privileges));
+    if (results.length > 0) return results;
+
+    const mapped = resolveErpRoleToCatalogFunction(candidate);
+    if (mapped) {
+      addMatches(findAllCatalogFunctionMatches(mapped, moduleRaw, privileges));
+      if (results.length > 0) return results;
+    }
+
+    const substringHit = findCatalogFunctionBySubstring(candidate, moduleRaw, privileges);
+    if (substringHit) {
+      addMatches([substringHit]);
+      return results;
+    }
+  }
+
+  return results;
+}
+
 export function parseUserRolesExcel(
   buffer: Buffer,
   companies: Company[],
+  privileges: Privilege[] = [],
 ): ParseUserRolesResult {
   const wb = XLSX.read(buffer, { type: "buffer" });
   const sheetName = wb.SheetNames[0];
   if (!sheetName) {
-    return { rows: [], errors: [{ row: 0, message: "Workbook has no sheets" }] };
+    return {
+      rows: [],
+      errors: [{ row: 0, message: "Workbook has no sheets" }],
+      skipped: 0,
+      skippedDetails: [],
+    };
   }
 
   const sheet = wb.Sheets[sheetName];
@@ -87,7 +249,12 @@ export function parseUserRolesExcel(
   });
 
   if (rawRows.length === 0) {
-    return { rows: [], errors: [{ row: 0, message: "Sheet is empty" }] };
+    return {
+      rows: [],
+      errors: [{ row: 0, message: "Sheet is empty" }],
+      skipped: 0,
+      skippedDetails: [],
+    };
   }
 
   const companyCodeSet = new Set(companies.map((c) => c.id));
@@ -102,6 +269,16 @@ export function parseUserRolesExcel(
 
   const rows: UserRoleImportRow[] = [];
   const errors: UserRoleImportError[] = [];
+  const skippedDetails: UserRoleImportSkippedRow[] = [];
+  let skipped = 0;
+
+  if (privileges.length === 0) {
+    errors.push({
+      row: 0,
+      message:
+        "Privilege catalog is empty — import Step 1 (Business-Role.xlsx) before user roles",
+    });
+  }
 
   for (let i = 0; i < normalizedRows.length; i++) {
     const row = normalizedRows[i];
@@ -111,18 +288,24 @@ export function parseUserRolesExcel(
       pickColumn(row, ["username", "user_name"]),
     );
     const legalCompanyCode = pickColumn(row, ["company_code"]);
-    const accessCompanyCode = pickColumn(row, ["data_access_company_code"]);
-    const moduleRaw = pickColumn(row, ["module_name", "module"]);
-    const functionName = pickColumn(row, [
-      "business_role_name",
-      "role_common_name",
-      "business_role",
+    const accessCompanyCode = pickColumn(row, [
+      "data_access_company_code",
+      "data_company_code",
     ]);
+    const accessTo = pickColumn(row, ["access_to"]);
+    const dataVal = pickColumn(row, ["data"]);
+    const moduleRaw = pickColumn(row, ["module_name", "module"]);
+    const businessRoleName = pickColumn(row, ["business_role_name", "business_role"]);
     const roleName = pickColumn(row, ["role_name"]);
+    const roleCommonName = pickColumn(row, ["role_common_name"]);
     const displayName = pickColumn(row, ["display_name"]);
     const companyName = pickColumn(row, ["company_name"]);
+    const hasRoleHint =
+      (!isPlaceholderBusinessRoleName(businessRoleName) && !!businessRoleName) ||
+      !!roleName ||
+      !!roleCommonName;
 
-    if (!employeeId && !moduleRaw && !functionName) {
+    if (!employeeId && !moduleRaw && !hasRoleHint) {
       continue; // blank row
     }
 
@@ -131,46 +314,65 @@ export function parseUserRolesExcel(
       continue;
     }
 
-    if (!legalCompanyCode && !accessCompanyCode) {
+    if (!legalCompanyCode) {
+      errors.push({ row: rowNum, message: "Missing Company_Code" });
+      continue;
+    }
+
+    if (!hasRoleHint) {
       errors.push({
         row: rowNum,
-        message: "Missing Company_Code and DATA_ACCESS_COMPANY_CODE",
+        message: "Missing role (Business Role Name, ROLE_NAME, or ROLE_COMMON_NAME)",
       });
       continue;
     }
 
-    const module = mapModule(moduleRaw);
-    if (!module) {
-      errors.push({ row: rowNum, message: "Missing Module_Name" });
+    const catalogMatches = resolveCatalogMatchesForRow(row, moduleRaw, privileges);
+    if (catalogMatches.length === 0) {
+      skipped++;
+      skippedDetails.push({
+        row: rowNum,
+        reason: "No matching catalog Function",
+        username: employeeId,
+        displayName: displayName || undefined,
+        companyCode: legalCompanyCode,
+        companyName: companyName || undefined,
+        businessRoleName: isPlaceholderBusinessRoleName(businessRoleName)
+          ? undefined
+          : businessRoleName,
+        roleName: roleName || undefined,
+        roleCommonName: roleCommonName || undefined,
+      });
       continue;
     }
 
-    if (!functionName) {
-      errors.push({ row: rowNum, message: "Missing Business Role Name or ROLE_COMMON_NAME" });
-      continue;
+    const resolvedLegalCompanyId = resolveCompanyId(legalCompanyCode, companyCodeSet);
+
+    let resolvedAccessCompanyId: string;
+    if (accessCompanyCode) {
+      resolvedAccessCompanyId = resolveCompanyId(accessCompanyCode, companyCodeSet);
+    } else if (!accessTo.trim() || !dataVal.trim()) {
+      resolvedAccessCompanyId = resolvedLegalCompanyId;
+    } else {
+      resolvedAccessCompanyId =
+        resolveCompanyFromData(dataVal, companies) ?? resolvedLegalCompanyId;
     }
 
-    const resolvedLegalCompanyId = resolveCompanyId(
-      legalCompanyCode || accessCompanyCode,
-      companyCodeSet,
-    );
-    const resolvedAccessCompanyId = resolveCompanyId(
-      accessCompanyCode || legalCompanyCode,
-      companyCodeSet,
-    );
-
-    rows.push({
-      employeeId,
-      companyId: resolvedAccessCompanyId,
-      legalCompanyId: resolvedLegalCompanyId,
-      companyName: companyName || undefined,
-      module,
-      function: functionName,
-      role: roleName || functionName,
-      roleName: roleName || undefined,
-      displayName: displayName || undefined,
-    });
+    for (const catalogMatch of catalogMatches) {
+      rows.push({
+        employeeId,
+        companyId: resolvedAccessCompanyId,
+        legalCompanyId: resolvedLegalCompanyId,
+        companyName: companyName || undefined,
+        module: catalogMatch.module,
+        function: catalogMatch.function,
+        role: roleName || catalogMatch.function,
+        roleName: roleName || undefined,
+        displayName: displayName || undefined,
+        sourceRow: rowNum,
+      });
+    }
   }
 
-  return { rows, errors };
+  return { rows, errors, skipped, skippedDetails };
 }

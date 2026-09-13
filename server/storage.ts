@@ -20,6 +20,8 @@ import {
   CatalogImportResult,
   EmployeeRosterImportRow,
   EmployeeRosterImportResult,
+  EmployeeRosterClearResult,
+  AppResetResult,
 } from "@shared/schema";
 import fs from "fs/promises";
 import path from "path";
@@ -55,6 +57,8 @@ export interface IStorage {
   ): Promise<CatalogImportResult>;
   importUserRoles(actorId: string, rows: UserRoleImportRow[], mode: UserRoleImportMode): Promise<UserRoleImportResult>;
   importEmployeeRoster(actorId: string, rows: EmployeeRosterImportRow[]): Promise<EmployeeRosterImportResult>;
+  clearEmployeeRoster(actorId: string): Promise<EmployeeRosterClearResult>;
+  resetAllData(): Promise<Omit<AppResetResult, "type" | "accessUsersCleared">>;
   
   // Audit
   getAuditLog(): Promise<AuditEntry[]>;
@@ -1181,6 +1185,23 @@ export class JsonStorage implements IStorage {
     };
 
     const employeeIds = new Set(this.data.employees.map((e) => e.id));
+    const pendingManagerLinks: { employeeId: string; managerEmail: string }[] = [];
+
+    const applyBilingualFields = (
+      employee: Employee,
+      row: EmployeeRosterImportRow,
+      email: string,
+    ): void => {
+      employee.name = row.name;
+      if (row.nameAr) employee.nameAr = row.nameAr;
+      employee.title = row.title ?? employee.title ?? "";
+      if (row.titleAr) employee.titleAr = row.titleAr;
+      if (row.department) employee.department = row.department;
+      if (row.departmentAr) employee.departmentAr = row.departmentAr;
+      employee.email = email;
+      employee.legalCompanyId = row.legalCompanyId;
+      employee.isManager = row.isManager;
+    };
 
     for (const row of rows) {
       result.processed++;
@@ -1188,7 +1209,7 @@ export class JsonStorage implements IStorage {
       if (!this.data.companies.some((c) => c.id === row.legalCompanyId)) {
         this.data.companies.push({
           id: row.legalCompanyId,
-          name: row.companyName?.trim() || row.legalCompanyId,
+          name: row.companyName?.trim() || row.companyNameAr?.trim() || row.legalCompanyId,
         });
       }
 
@@ -1199,29 +1220,52 @@ export class JsonStorage implements IStorage {
         `${row.employeeId}@import.local`;
 
       if (existing) {
-        existing.name = row.name;
-        existing.title = row.title ?? existing.title;
-        existing.email = email;
-        existing.legalCompanyId = row.legalCompanyId;
-        existing.isManager = row.isManager;
+        applyBilingualFields(existing, row, email);
         if (row.managerId) {
           existing.managerId = row.managerId;
           result.managersLinked++;
+        } else if (row.managerEmail) {
+          pendingManagerLinks.push({ employeeId: row.employeeId, managerEmail: row.managerEmail });
         }
         result.updated++;
       } else {
         this.data.employees.push({
           id: row.employeeId,
           name: row.name,
+          ...(row.nameAr ? { nameAr: row.nameAr } : {}),
           title: row.title ?? "",
+          ...(row.titleAr ? { titleAr: row.titleAr } : {}),
+          ...(row.department ? { department: row.department } : {}),
+          ...(row.departmentAr ? { departmentAr: row.departmentAr } : {}),
           email,
           isManager: row.isManager,
           legalCompanyId: row.legalCompanyId,
           ...(row.managerId ? { managerId: row.managerId } : {}),
         });
         employeeIds.add(row.employeeId);
-        if (row.managerId) result.managersLinked++;
+        if (row.managerId) {
+          result.managersLinked++;
+        } else if (row.managerEmail) {
+          pendingManagerLinks.push({ employeeId: row.employeeId, managerEmail: row.managerEmail });
+        }
         result.created++;
+      }
+    }
+
+    if (pendingManagerLinks.length > 0) {
+      const emailToId = new Map<string, string>();
+      for (const employee of this.data.employees) {
+        const normalized = employee.email.trim().toLowerCase();
+        if (normalized) emailToId.set(normalized, employee.id);
+      }
+
+      for (const link of pendingManagerLinks) {
+        const managerId = emailToId.get(link.managerEmail);
+        if (!managerId) continue;
+        const employee = this.data.employees.find((e) => e.id === link.employeeId);
+        if (!employee || employee.managerId === managerId) continue;
+        employee.managerId = managerId;
+        result.managersLinked++;
       }
     }
 
@@ -1243,17 +1287,118 @@ export class JsonStorage implements IStorage {
     return result;
   }
 
-  private findPrivilegeByModuleFunction(
+  async clearEmployeeRoster(actorId: string): Promise<EmployeeRosterClearResult> {
+    await this.initialized;
+
+    const result: EmployeeRosterClearResult = {
+      type: "employees_clear",
+      removed: 0,
+      cleared: 0,
+    };
+
+    const assignedIds = new Set(this.data.assignments.map((a) => a.employeeId));
+    const seedIds = new Set(
+      this.data.employees.filter((e) => /^E\d{3}$/.test(e.id) || e.isAdmin).map((e) => e.id),
+    );
+
+    const surviving: Employee[] = [];
+    for (const employee of this.data.employees) {
+      const hasAssignments = assignedIds.has(employee.id);
+      const isSeed = seedIds.has(employee.id);
+
+      if (!hasAssignments && !isSeed) {
+        result.removed++;
+        continue;
+      }
+
+      delete employee.nameAr;
+      delete employee.titleAr;
+      delete employee.department;
+      delete employee.departmentAr;
+      delete employee.managerId;
+      employee.title = "";
+
+      if (!isSeed && employee.email && !employee.email.endsWith("@import.local")) {
+        employee.email = `${employee.id}@import.local`;
+      }
+
+      surviving.push(employee);
+      result.cleared++;
+    }
+
+    this.data.employees = surviving;
+
+    const livingIds = new Set(surviving.map((e) => e.id));
+    for (const employee of this.data.employees) {
+      if (employee.managerId && !livingIds.has(employee.managerId)) {
+        delete employee.managerId;
+      }
+    }
+
+    await this.saveData();
+
+    const actor =
+      this.data.employees.find((e) => e.id === actorId) ||
+      (await this.contacts()).find((c) => c.id === actorId);
+    const actorName = actor?.name || actorId;
+
+    await this.addAuditEntry(
+      actorId,
+      "UPLOAD_CATALOG",
+      `${actorName} cleared employee roster data: ${result.cleared} employees reset, ${result.removed} removed`,
+    );
+
+    return result;
+  }
+
+  private getEmptyData(): AppData {
+    return {
+      companies: [],
+      employees: [],
+      privileges: [],
+      assignments: [],
+      requests: [],
+      contacts: [],
+    };
+  }
+
+  async resetAllData(): Promise<Omit<AppResetResult, "type" | "accessUsersCleared">> {
+    await this.initialized;
+
+    const snapshot = {
+      companies: this.data.companies.length,
+      employees: this.data.employees.length,
+      privileges: this.data.privileges.length,
+      assignments: this.data.assignments.length,
+      requests: this.data.requests.length,
+      contacts: this.data.contacts.length,
+      auditEntries: this.auditLog.length,
+    };
+
+    this.data = this.getEmptyData();
+    this.auditLog = [];
+    await this.saveData();
+    await this.saveAudit();
+
+    return snapshot;
+  }
+
+  private findPrivilegesByModuleFunction(
     module: string,
     functionName: string,
-  ): Privilege | undefined {
-    const mod = module.trim();
-    const fn = functionName.trim();
-    return this.data.privileges.find(
+  ): Privilege[] {
+    const mod = module.trim().toLowerCase();
+    const fn = functionName.trim().toLowerCase();
+    return this.data.privileges.filter(
       (p) =>
-        p.module.trim().toLowerCase() === mod.toLowerCase() &&
-        p.function.trim().toLowerCase() === fn.toLowerCase(),
+        p.module.trim().toLowerCase() === mod &&
+        p.function.trim().toLowerCase() === fn,
     );
+  }
+
+  /** Catalog match grants every privilege under module+function; no match = skip row. */
+  private resolvePrivilegesForUserRoleRow(row: UserRoleImportRow): Privilege[] {
+    return this.findPrivilegesByModuleFunction(row.module, row.function);
   }
 
   private createPrivilegeFromImport(
@@ -1299,6 +1444,8 @@ export class JsonStorage implements IStorage {
       companiesCreated: 0,
       employeesCreated: 0,
       skipped: 0,
+      mode,
+      skippedDetails: [],
       errors: [],
     };
 
@@ -1339,14 +1486,19 @@ export class JsonStorage implements IStorage {
       ensureCompany(row.companyId);
       ensureEmployee(row);
 
-      let privilege = this.findPrivilegeByModuleFunction(row.module, row.function);
-      if (!privilege) {
-        privilege = this.createPrivilegeFromImport(
-          row.module,
-          row.function,
-          row.role,
-        );
-        result.privilegesCreated++;
+      const privileges = this.resolvePrivilegesForUserRoleRow(row);
+      if (privileges.length === 0) {
+        result.skipped++;
+        result.skippedDetails!.push({
+          row: row.sourceRow ?? 0,
+          reason: `No catalog privileges for ${row.module} / ${row.function}`,
+          username: row.employeeId,
+          displayName: row.displayName,
+          companyCode: row.legalCompanyId,
+          companyName: row.companyName,
+          roleName: row.roleName,
+        });
+        continue;
       }
 
       const pairKey = `${row.companyId}:${row.employeeId}`;
@@ -1355,7 +1507,9 @@ export class JsonStorage implements IStorage {
         if (!replaceMap.has(pairKey)) {
           replaceMap.set(pairKey, new Set());
         }
-        replaceMap.get(pairKey)!.add(privilege.id);
+        for (const privilege of privileges) {
+          replaceMap.get(pairKey)!.add(privilege.id);
+        }
       } else {
         let assignment = this.data.assignments.find(
           (a) => a.companyId === row.companyId && a.employeeId === row.employeeId,
@@ -1371,9 +1525,11 @@ export class JsonStorage implements IStorage {
           result.assignmentsUpdated++;
         }
 
-        if (!assignment.privilegeIds.includes(privilege.id)) {
-          assignment.privilegeIds.push(privilege.id);
-          result.assignmentsUpdated++;
+        for (const privilege of privileges) {
+          if (!assignment.privilegeIds.includes(privilege.id)) {
+            assignment.privilegeIds.push(privilege.id);
+            result.assignmentsUpdated++;
+          }
         }
       }
 

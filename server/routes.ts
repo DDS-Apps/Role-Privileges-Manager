@@ -4,11 +4,11 @@ import { storage } from "./storage";
 import { accessUsers } from "./access-users";
 import { isEntraConfigured, verifyEntraIdToken } from "./auth-entra";
 import { api } from "@shared/routes";
-import { applyAssignmentsSchema, uploadCatalogSchema, createRequestSchema, updateRequestSchema, fulfillItTicketSchema, userRoleImportModeSchema, catalogImportModeSchema, RequestStatus, type ViewerContext } from "@shared/schema";
+import { applyAssignmentsSchema, uploadCatalogSchema, createRequestSchema, updateRequestSchema, fulfillItTicketSchema, userRoleImportModeSchema, catalogImportModeSchema, RequestStatus, type UserRoleImportResult, type ViewerContext } from "@shared/schema";
 import { z } from "zod";
 import * as XLSX from "xlsx";
 import multer from "multer";
-import { parseUserRolesExcel } from "./user-roles-import.js";
+import { parseUserRolesExcel, type ParseUserRolesResult } from "./user-roles-import.js";
 import {
   detectExcelImportType,
   parsePrivilegeCatalogExcel,
@@ -16,6 +16,19 @@ import {
 import { parseEmployeeRosterExcel } from "./employees-import.js";
 import { parseAccessUsersExcel } from "./access-users-import.js";
 import { resolveViewerFromContact } from "./viewer-context.js";
+
+function finalizeUserRoleImportResult(
+  importResult: UserRoleImportResult,
+  parseResult: Pick<ParseUserRolesResult, "skipped" | "skippedDetails" | "errors">,
+): UserRoleImportResult {
+  importResult.skipped += parseResult.skipped;
+  importResult.skippedDetails = [
+    ...(parseResult.skippedDetails ?? []),
+    ...(importResult.skippedDetails ?? []),
+  ];
+  importResult.errors.push(...parseResult.errors);
+  return importResult;
+}
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -491,19 +504,20 @@ export async function registerRoutes(
         if (importType === "unknown") {
           return res.status(400).json({
             message:
-              "Unrecognized Excel format. Expected ERP user roles (USERNAME, Company_Code, ...) or privilege catalog (Models, Functions, Privileges).",
+              "Unrecognized Excel format. Expected ERP user roles (USERNAME, Company_Code, ROLE_COMMON_NAME, ...) or privilege catalog (Models, Functions, Privileges).",
           });
         }
 
         const mode = userRoleImportModeSchema.parse(req.query.mode ?? "merge");
         const actorId = getSessionActorId(req);
         const bootstrap = await storage.getBootstrapData();
-        const { rows, errors: parseErrors } = parseUserRolesExcel(
+        const parseResult = parseUserRolesExcel(
           req.file.buffer,
           bootstrap.companies,
+          bootstrap.privileges,
         );
 
-        if (rows.length === 0 && parseErrors.length > 0) {
+        if (parseResult.rows.length === 0 && parseResult.errors.length > 0) {
           return res.status(400).json({
             message: "No valid rows found in Excel file",
             type: "user_roles",
@@ -511,13 +525,17 @@ export async function registerRoutes(
             assignmentsUpdated: 0,
             privilegesCreated: 0,
             companiesCreated: 0,
-            skipped: 0,
-            errors: parseErrors,
+            employeesCreated: 0,
+            skipped: parseResult.skipped,
+            skippedDetails: parseResult.skippedDetails,
+            errors: parseResult.errors,
           });
         }
 
-        const result = await storage.importUserRoles(actorId, rows, mode);
-        result.errors.push(...parseErrors);
+        const result = finalizeUserRoleImportResult(
+          await storage.importUserRoles(actorId, parseResult.rows, mode),
+          parseResult,
+        );
 
         res.json({ type: "user_roles", ...result });
       } catch (err) {
@@ -577,25 +595,29 @@ export async function registerRoutes(
         const mode = userRoleImportModeSchema.parse(req.query.mode ?? "merge");
         const actorId = getSessionActorId(req);
         const bootstrap = await storage.getBootstrapData();
-        const { rows, errors: parseErrors } = parseUserRolesExcel(
+        const parseResult = parseUserRolesExcel(
           req.file.buffer,
           bootstrap.companies,
+          bootstrap.privileges,
         );
-        if (rows.length === 0) {
-          return res.status(400).json({
-            message: "No valid user role rows found",
+        if (parseResult.rows.length === 0) {
+          return res.json({
             type: "user_roles",
             processed: 0,
             assignmentsUpdated: 0,
             privilegesCreated: 0,
             companiesCreated: 0,
             employeesCreated: 0,
-            skipped: 0,
-            errors: parseErrors,
+            skipped: parseResult.skipped,
+            skippedDetails: parseResult.skippedDetails,
+            mode,
+            errors: parseResult.errors,
           });
         }
-        const result = await storage.importUserRoles(actorId, rows, mode);
-        result.errors.push(...parseErrors);
+        const result = finalizeUserRoleImportResult(
+          await storage.importUserRoles(actorId, parseResult.rows, mode),
+          parseResult,
+        );
         res.json({ type: "user_roles", ...result });
       } catch (err) {
         if (err instanceof z.ZodError) {
@@ -603,6 +625,46 @@ export async function registerRoutes(
         }
         console.error("User roles import error:", err);
         res.status(500).json({ message: err instanceof Error ? err.message : "Failed to import user roles" });
+      }
+    },
+  );
+
+  app.post(
+    "/api/imports/employees/clear",
+    requireAuth as any,
+    requireAdmin as any,
+    async (req, res) => {
+      try {
+        const actorId = getSessionActorId(req);
+        const result = await storage.clearEmployeeRoster(actorId);
+        res.json(result);
+      } catch (err) {
+        console.error("Employee roster clear error:", err);
+        res.status(500).json({
+          message: err instanceof Error ? err.message : "Failed to clear employee roster",
+        });
+      }
+    },
+  );
+
+  app.post(
+    "/api/admin/reset",
+    requireAuth as any,
+    requireAdmin as any,
+    async (_req, res) => {
+      try {
+        const accessUsersCleared = await accessUsers.resetAll();
+        const cleared = await storage.resetAllData();
+        res.json({
+          type: "app_reset",
+          ...cleared,
+          accessUsersCleared,
+        });
+      } catch (err) {
+        console.error("Application reset error:", err);
+        res.status(500).json({
+          message: err instanceof Error ? err.message : "Failed to reset application data",
+        });
       }
     },
   );
@@ -619,24 +681,32 @@ export async function registerRoutes(
         }
         const actorId = getSessionActorId(req);
         const bootstrap = await storage.getBootstrapData();
-        const { rows, errors: parseErrors } = parseEmployeeRosterExcel(
+        const parseResult = parseEmployeeRosterExcel(
           req.file.buffer,
           bootstrap.companies,
+          bootstrap.employees,
         );
-        if (rows.length === 0) {
+        if (parseResult.rows.length === 0) {
+          const topErrors = parseResult.errors.slice(0, 5).map((e) => `Row ${e.row}: ${e.message}`);
           return res.status(400).json({
-            message: "No valid employee rows found",
+            message:
+              parseResult.errors.length > 0
+                ? `No valid employee rows found (${parseResult.errors.length} row errors). ${topErrors.join("; ")}`
+                : "No valid employee rows found",
             type: "employees",
             processed: 0,
             created: 0,
             updated: 0,
             managersLinked: 0,
-            skipped: 0,
-            errors: parseErrors,
+            skipped: parseResult.skipped,
+            errorDetails: parseResult.errorDetails,
+            errors: parseResult.errors,
           });
         }
-        const result = await storage.importEmployeeRoster(actorId, rows);
-        result.errors.push(...parseErrors);
+        const result = await storage.importEmployeeRoster(actorId, parseResult.rows);
+        result.errors.push(...parseResult.errors);
+        result.errorDetails = parseResult.errorDetails;
+        result.skipped = parseResult.skipped;
         res.json(result);
       } catch (err) {
         console.error("Employee roster import error:", err);

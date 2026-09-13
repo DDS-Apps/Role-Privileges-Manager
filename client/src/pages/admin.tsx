@@ -87,12 +87,24 @@ const DICT = {
     dataImportTitle: "Data import center",
     dataImportSubtitle: "Upload each Excel file in order. All imports merge into existing data unless noted.",
     recommendedOrder: "Recommended order: 1 Catalog → 2 User roles → 3 Employee roster → 4 Login users. After replacing the catalog, re-import user roles so assignments stay linked.",
-    mergeNote: "Catalog and user-role imports merge by default. Use “Replace entire catalog” only when you intend to reset the master privilege list.",
+    mergeNote: "Imports merge by default. Use replace options when the Excel file should fully overwrite existing catalog entries or assignment privileges for each employee–company pair in the file.",
+    replaceCatalog: "Replace entire catalog (clears existing privileges — re-import user roles after)",
+    replaceUserRoles: "Replace and update assignments (file becomes source of truth per employee–company; removes privileges not in the file for those pairs)",
     selectFile: "Select Excel file",
     uploadImport: "Upload & import",
     uploading: "Importing...",
     importSummary: "Import summary",
     importErrors: "Import errors",
+    exportSkipped: "Export skipped reasons",
+    exportErrors: "Export import errors",
+    clearRoster: "Clear all roster data",
+    clearingRoster: "Clearing...",
+    resetApp: "Reset all application data",
+    resettingApp: "Resetting...",
+    resetAppTitle: "Reset application (dev)",
+    resetAppWarning:
+      "Deletes all companies, employees, privileges, assignments, requests, contacts, audit log, and login users — including demo seed data. Re-import Steps 1–4 afterward. You will need to sign in again after Step 4.",
+    resetAppConfirm: 'Type RESET to confirm',
   },
   ar: {
     title: "لوحة الإدارة",
@@ -143,12 +155,24 @@ const DICT = {
     dataImportTitle: "مركز استيراد البيانات",
     dataImportSubtitle: "ارفع كل ملف Excel بالترتيب. جميع الاستيرادات تُدمج مع البيانات الحالية ما لم يُذكر خلاف ذلك.",
     recommendedOrder: "الترتيب الموصى به: 1 الكatalog → 2 أدوار المستخدمين → 3 سجل الموظفين → 4 مستخدمو الدخول. بعد استبدال الكatalog، أعد استيراد أدوار المستخدمين.",
-    mergeNote: "الاستيراد يدمج افتراضياً. استخدم استبدال الكatalog فقط عند إعادة تعيين قائمة الامتيازات.",
+    mergeNote: "الاستيراد يدمج افتراضياً. استخدم خيارات الاستبدال عندما يجب أن يحل ملف Excel محل الكatalog أو صلاحيات التعيينات الحالية.",
+    replaceCatalog: "استبدال الكatalog بالكامل (يمسح الامتيازات الحالية — أعد استيراد أدوار المستخدمين بعد ذلك)",
+    replaceUserRoles: "استبدال وتحديث التعيينات (الملف مصدر الحقيقة لكل موظف–شركة؛ يزيل الامتيازات غير الموجودة في الملف لتلك الأزواج)",
     selectFile: "اختر ملف Excel",
     uploadImport: "رفع واستيراد",
     uploading: "جاري الاستيراد...",
     importSummary: "ملخص الاستيراد",
     importErrors: "أخطاء الاستيراد",
+    exportSkipped: "تصدير أسباب التخطي",
+    exportErrors: "تصدير أخطاء الاستيراد",
+    clearRoster: "مسح جميع بيانات السجل",
+    clearingRoster: "جاري المسح...",
+    resetApp: "إعادة تعيين جميع بيانات التطبيق",
+    resettingApp: "جاري إعادة التعيين...",
+    resetAppTitle: "إعادة تعيين التطبيق (تطوير)",
+    resetAppWarning:
+      "يحذف جميع الشركات والموظفين والامتيازات والتعيينات والطلبات وجهات الاتصال وسجل التدقيق ومستخدمي الدخول — بما في ذلك بيانات العرض التجريبية. أعد الاستيراد من الخطوات 1–4. ستحتاج لتسجيل الدخول مجدداً بعد الخطوة 4.",
+    resetAppConfirm: 'اكتب RESET للتأكيد',
   }
 };
 
@@ -647,16 +671,36 @@ export default function AdminPage() {
               sectionSubtitle: t.dataImportSubtitle,
               recommendedOrder: t.recommendedOrder,
               mergeNote: t.mergeNote,
+              replaceCatalog: t.replaceCatalog,
+              replaceUserRoles: t.replaceUserRoles,
               selectFile: t.selectFile,
               upload: t.uploadImport,
               uploading: t.uploading,
               summary: t.importSummary,
               errors: t.importErrors,
+              exportSkipped: t.exportSkipped,
+              exportErrors: t.exportErrors,
+              clearRoster: t.clearRoster,
+              clearingRoster: t.clearingRoster,
+              resetApp: t.resetApp,
+              resettingApp: t.resettingApp,
+              resetAppTitle: t.resetAppTitle,
+              resetAppWarning: t.resetAppWarning,
+              resetAppConfirm: t.resetAppConfirm,
             }}
             onSuccess={() => {
               queryClient.invalidateQueries({ queryKey: ["/api/bootstrap"] });
               queryClient.invalidateQueries({ queryKey: ["/api/access-users"] });
               toast({ title: "Import completed" });
+            }}
+            onReset={() => {
+              queryClient.invalidateQueries({ queryKey: ["/api/bootstrap"] });
+              queryClient.invalidateQueries({ queryKey: ["/api/access-users"] });
+              queryClient.invalidateQueries({ queryKey: ["/api/requests"] });
+              toast({
+                title: "Application reset",
+                description: "All data cleared. Re-import Steps 1–4, then sign in again.",
+              });
             }}
           />
         )}

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Upload, FileSpreadsheet, Loader2, CheckCircle2, AlertCircle } from "lucide-react";
+import { Upload, FileSpreadsheet, Loader2, CheckCircle2, AlertCircle, Download, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
@@ -7,8 +7,12 @@ import type {
   CatalogImportResult,
   UserRoleImportResult,
   EmployeeRosterImportResult,
+  EmployeeRosterClearResult,
+  AppResetResult,
   AccessUserImportResult,
   UserRoleImportError,
+  UserRoleImportSkippedRow,
+  EmployeeRosterImportErrorDetail,
 } from "@shared/schema";
 
 type ImportKind = "catalog" | "user_roles" | "employees" | "access_users";
@@ -17,6 +21,7 @@ type ImportResult =
   | CatalogImportResult
   | (UserRoleImportResult & { type?: "user_roles" })
   | EmployeeRosterImportResult
+  | EmployeeRosterClearResult
   | AccessUserImportResult;
 
 interface ImportSlotConfig {
@@ -49,8 +54,103 @@ interface DataImportCenterProps {
     errors: string;
     recommendedOrder: string;
     mergeNote: string;
+    replaceCatalog: string;
+    replaceUserRoles: string;
+    exportSkipped: string;
+    exportErrors: string;
+    clearRoster: string;
+    clearingRoster: string;
+    resetApp: string;
+    resettingApp: string;
+    resetAppTitle: string;
+    resetAppWarning: string;
+    resetAppConfirm: string;
   };
   onSuccess?: () => void;
+  onReset?: () => void;
+}
+
+function csvEscape(value: string | number | undefined): string {
+  const text = value == null ? "" : String(value);
+  return `"${text.replace(/"/g, '""')}"`;
+}
+
+function exportSkippedRowsToCsv(details: UserRoleImportSkippedRow[], filename: string): void {
+  const headers = [
+    "Row",
+    "Reason",
+    "USERNAME",
+    "DISPLAY_NAME",
+    "Company_Code",
+    "Company_Name",
+    "Business Role Name",
+    "ROLE_NAME",
+    "ROLE_COMMON_NAME",
+  ];
+  const lines = [
+    headers.join(","),
+    ...details.map((row) =>
+      [
+        row.row,
+        row.reason,
+        row.username,
+        row.displayName,
+        row.companyCode,
+        row.companyName,
+        row.businessRoleName,
+        row.roleName,
+        row.roleCommonName,
+      ]
+        .map(csvEscape)
+        .join(","),
+    ),
+  ];
+  const blob = new Blob(["\uFEFF" + lines.join("\r\n")], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
+function exportEmployeeErrorsToCsv(details: EmployeeRosterImportErrorDetail[], filename: string): void {
+  const headers = [
+    "Row",
+    "Reason",
+    "USERNAME",
+    "DISPLAY_NAME-English",
+    "DISPLAY_NAME-Arabic",
+    "Company_Code",
+    "Company_Name_English",
+    "Company_Name_Arabic",
+    "Email",
+  ];
+  const lines = [
+    headers.join(","),
+    ...details.map((row) =>
+      [
+        row.row,
+        row.reason,
+        row.username,
+        row.displayNameEn,
+        row.displayNameAr,
+        row.companyCode,
+        row.companyNameEn,
+        row.companyNameAr,
+        row.email,
+      ]
+        .map(csvEscape)
+        .join(","),
+    ),
+  ];
+  const blob = new Blob(["\uFEFF" + lines.join("\r\n")], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
 }
 
 function ImportSummary({
@@ -81,6 +181,7 @@ function ImportSummary({
       { label: "New employees", value: result.employeesCreated },
       { label: "Assignments updated", value: result.assignmentsUpdated },
       { label: "Skipped", value: result.skipped },
+      ...(result.mode ? [{ label: "Mode", value: result.mode }] : []),
     );
   } else if (kind === "employees" && result.type === "employees") {
     rows.push(
@@ -89,6 +190,11 @@ function ImportSummary({
       { label: "Updated", value: result.updated },
       { label: "Managers linked", value: result.managersLinked },
       { label: "Skipped", value: result.skipped },
+    );
+  } else if (kind === "employees" && result.type === "employees_clear") {
+    rows.push(
+      { label: "Employees reset", value: result.cleared },
+      { label: "Roster-only removed", value: result.removed },
     );
   } else if (kind === "access_users" && result.type === "access_users") {
     rows.push(
@@ -113,6 +219,48 @@ function ImportSummary({
           </li>
         ))}
       </ul>
+      {kind === "user_roles" &&
+        "skippedDetails" in result &&
+        result.skippedDetails &&
+        result.skippedDetails.length > 0 && (
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="h-8"
+            onClick={() =>
+              exportSkippedRowsToCsv(
+                result.skippedDetails!,
+                `user-role-import-skipped-${new Date().toISOString().slice(0, 10)}.csv`,
+              )
+            }
+            data-testid="button-export-skipped-user-roles"
+          >
+            <Download className="h-3.5 w-3.5 mr-1.5" />
+            {labels.exportSkipped} ({result.skippedDetails.length.toLocaleString()})
+          </Button>
+        )}
+      {kind === "employees" &&
+        result.type === "employees" &&
+        result.errorDetails &&
+        result.errorDetails.length > 0 && (
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="h-8"
+            onClick={() =>
+              exportEmployeeErrorsToCsv(
+                result.errorDetails!,
+                `employee-roster-import-errors-${new Date().toISOString().slice(0, 10)}.csv`,
+              )
+            }
+            data-testid="button-export-errors-employees"
+          >
+            <Download className="h-3.5 w-3.5 mr-1.5" />
+            {labels.exportErrors} ({result.errorDetails.length.toLocaleString()})
+          </Button>
+        )}
       {errors.length > 0 && (
         <div>
           <p className="font-medium text-destructive flex items-center gap-1">
@@ -148,6 +296,31 @@ function ImportSlot({
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [replaceCatalog, setReplaceCatalog] = useState(false);
+  const [replaceUserRoles, setReplaceUserRoles] = useState(false);
+  const [clearingRoster, setClearingRoster] = useState(false);
+
+  const handleClearRoster = async () => {
+    if (!window.confirm("Remove roster-only employees and clear emails, titles, departments, Arabic names, and manager links for all others?")) {
+      return;
+    }
+    setClearingRoster(true);
+    setError(null);
+    setResult(null);
+    try {
+      const res = await fetch("/api/imports/employees/clear", {
+        method: "POST",
+        credentials: "include",
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Clear failed");
+      setResult(data);
+      onSuccess?.();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Clear failed");
+    } finally {
+      setClearingRoster(false);
+    }
+  };
 
   const handleUpload = async () => {
     if (!file) return;
@@ -160,6 +333,8 @@ function ImportSlot({
       let url = config.endpoint;
       const params = new URLSearchParams();
       if (config.id === "catalog" && replaceCatalog) {
+        params.set("mode", "replace");
+      } else if (config.id === "user_roles" && replaceUserRoles) {
         params.set("mode", "replace");
       } else if (config.queryParams) {
         const extra = new URLSearchParams(config.queryParams);
@@ -174,7 +349,12 @@ function ImportSlot({
         credentials: "include",
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.message || "Import failed");
+      if (!res.ok) {
+        if (Array.isArray(data.errors) && data.errors.length > 0) {
+          setResult(data);
+        }
+        throw new Error(data.message || "Import failed");
+      }
       setResult(data);
       setFile(null);
       onSuccess?.();
@@ -216,8 +396,41 @@ function ImportSlot({
             onChange={(e) => setReplaceCatalog(e.target.checked)}
             className="rounded"
           />
-          Replace entire catalog (clears existing privileges — re-import user roles after)
+          {labels.replaceCatalog}
         </label>
+      )}
+
+      {config.id === "user_roles" && (
+        <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer">
+          <input
+            type="checkbox"
+            checked={replaceUserRoles}
+            onChange={(e) => setReplaceUserRoles(e.target.checked)}
+            className="rounded"
+          />
+          {labels.replaceUserRoles}
+        </label>
+      )}
+
+      {config.id === "employees" && (
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          className="h-8 text-destructive border-destructive/40 hover:bg-destructive/10"
+          onClick={handleClearRoster}
+          disabled={clearingRoster || pending}
+          data-testid="button-clear-employee-roster"
+        >
+          {clearingRoster ? (
+            <>
+              <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+              {labels.clearingRoster}
+            </>
+          ) : (
+            labels.clearRoster
+          )}
+        </Button>
       )}
 
       <div className="flex flex-wrap items-center gap-2">
@@ -263,7 +476,95 @@ function ImportSlot({
   );
 }
 
-export function DataImportCenter({ counts, labels, onSuccess }: DataImportCenterProps) {
+function AppResetPanel({
+  labels,
+  onReset,
+}: {
+  labels: DataImportCenterProps["labels"];
+  onReset?: () => void;
+}) {
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [result, setResult] = useState<AppResetResult | null>(null);
+  const [confirmText, setConfirmText] = useState("");
+
+  const handleReset = async () => {
+    if (confirmText !== "RESET") return;
+    setPending(true);
+    setError(null);
+    setResult(null);
+    try {
+      const res = await fetch("/api/admin/reset", {
+        method: "POST",
+        credentials: "include",
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Reset failed");
+      setResult(data as AppResetResult);
+      setConfirmText("");
+      onReset?.();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Reset failed");
+    } finally {
+      setPending(false);
+    }
+  };
+
+  return (
+    <section className="rounded-lg border border-destructive/40 bg-destructive/5 p-4 space-y-3">
+      <div>
+        <h3 className="text-base font-semibold text-destructive flex items-center gap-2">
+          <Trash2 className="h-4 w-4" />
+          {labels.resetAppTitle}
+        </h3>
+        <p className="text-sm text-muted-foreground mt-1">{labels.resetAppWarning}</p>
+      </div>
+      <div className="flex flex-col sm:flex-row gap-2 sm:items-end">
+        <div className="flex-1 space-y-1">
+          <label className="text-xs text-muted-foreground">{labels.resetAppConfirm}</label>
+          <Input
+            value={confirmText}
+            onChange={(e) => setConfirmText(e.target.value.toUpperCase())}
+            placeholder="RESET"
+            disabled={pending}
+            className="max-w-xs font-mono"
+          />
+        </div>
+        <Button
+          type="button"
+          variant="destructive"
+          disabled={pending || confirmText !== "RESET"}
+          onClick={handleReset}
+        >
+          {pending ? (
+            <>
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              {labels.resettingApp}
+            </>
+          ) : (
+            labels.resetApp
+          )}
+        </Button>
+      </div>
+      {error && (
+        <p className="text-sm text-destructive flex items-center gap-1">
+          <AlertCircle className="h-4 w-4 shrink-0" />
+          {error}
+        </p>
+      )}
+      {result && (
+        <p className="text-sm text-green-700 dark:text-green-400 flex items-center gap-1">
+          <CheckCircle2 className="h-4 w-4 shrink-0" />
+          Cleared {result.companies} companies, {result.employees} employees, {result.privileges}{" "}
+          privileges, {result.assignments} assignments, {result.requests} requests,{" "}
+          {result.auditEntries} audit entries, and {result.accessUsersCleared} login users.
+        </p>
+      )}
+    </section>
+  );
+}
+
+export function DataImportCenter({ counts, labels, onSuccess, onReset }: DataImportCenterProps) {
   const slots: ImportSlotConfig[] = [
     {
       id: "catalog",
@@ -279,9 +580,10 @@ export function DataImportCenter({ counts, labels, onSuccess }: DataImportCenter
       id: "user_roles",
       step: 2,
       title: "User role assignments",
-      description: "Who has which roles in which company (ERP export). Creates employees, companies, and assignments.",
+      description:
+        "Who has which roles in which company (ERP export). Business Role Name must match a catalog Function; unmatched rows are skipped.",
       columns:
-        "USERNAME · DISPLAY_NAME · Company_Code · DATA_ACCESS_COMPANY_CODE · Module_Name · Business Role Name · ROLE_NAME",
+        "Company_Code · Company_Name · USERNAME · DISPLAY_NAME · ROLE_NAME · ROLE_COMMON_NAME · access_to · DATA · DATA_COMPANY_CODE · Business Role Name",
       endpoint: "/api/imports/user-roles",
       currentCount: counts.assignments,
       countLabel: "assignments",
@@ -290,9 +592,10 @@ export function DataImportCenter({ counts, labels, onSuccess }: DataImportCenter
       id: "employees",
       step: 3,
       title: "Employee roster (optional enrich)",
-      description: "Add emails, titles, and manager hierarchy. Updates employees created by step 2.",
+      description:
+        "Add emails, titles, departments, and manager hierarchy in English and Arabic. Company must match Step 2 (unknown companies are skipped and exported as errors). GM/admin login is Step 4.",
       columns:
-        "USERNAME · DISPLAY_NAME · Company_Code · EMAIL · TITLE · MANAGER_USERNAME · IS_MANAGER",
+        "USERNAME · DISPLAY_NAME:English · DISPLAY_NAME:Arabic · Department_English · Department_Arabic · TITLE_English · TITLE_Arabic · Email · managerEmail · Company_Name_English · Company_Name_Arabic (or Company_Code)",
       endpoint: "/api/imports/employees",
       currentCount: counts.employees,
       countLabel: "employees",
@@ -330,6 +633,8 @@ export function DataImportCenter({ counts, labels, onSuccess }: DataImportCenter
       </div>
 
       <p className="text-xs text-muted-foreground">{labels.mergeNote}</p>
+
+      <AppResetPanel labels={labels} onReset={onReset} />
     </section>
   );
 }
