@@ -205,7 +205,6 @@ export function parseEmployeeRosterExcel(
     if (seen.has(employeeId)) continue;
     seen.add(employeeId);
 
-    const hasCompanyHint = !!(legalCompanyCode || companyNameEn || companyNameAr);
     let legalCompanyId: string | null = null;
     let unknownCompany: string | null = null;
 
@@ -223,7 +222,7 @@ export function parseEmployeeRosterExcel(
       }
     }
 
-    if (!legalCompanyId && !hasCompanyHint) {
+    if (!legalCompanyId) {
       legalCompanyId = employeeById.get(employeeId)?.legalCompanyId ?? null;
     }
 

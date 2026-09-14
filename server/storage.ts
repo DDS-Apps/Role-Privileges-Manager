@@ -1206,10 +1206,20 @@ export class JsonStorage implements IStorage {
     for (const row of rows) {
       result.processed++;
 
-      if (!this.data.companies.some((c) => c.id === row.legalCompanyId)) {
+      const rosterCompanyName =
+        row.companyName?.trim() || row.companyNameAr?.trim() || undefined;
+      const existingCompany = this.data.companies.find((c) => c.id === row.legalCompanyId);
+      if (existingCompany) {
+        if (
+          rosterCompanyName &&
+          (existingCompany.name === existingCompany.id || !existingCompany.name.trim())
+        ) {
+          existingCompany.name = rosterCompanyName;
+        }
+      } else {
         this.data.companies.push({
           id: row.legalCompanyId,
-          name: row.companyName?.trim() || row.companyNameAr?.trim() || row.legalCompanyId,
+          name: rosterCompanyName || row.legalCompanyId,
         });
       }
 
@@ -1452,10 +1462,17 @@ export class JsonStorage implements IStorage {
     const employeeIds = new Set(this.data.employees.map((e) => e.id));
 
     const ensureCompany = (companyId: string, name?: string): void => {
-      if (this.data.companies.some((c) => c.id === companyId)) return;
+      const trimmedName = name?.trim();
+      const existing = this.data.companies.find((c) => c.id === companyId);
+      if (existing) {
+        if (trimmedName && (existing.name === existing.id || !existing.name.trim())) {
+          existing.name = trimmedName;
+        }
+        return;
+      }
       this.data.companies.push({
         id: companyId,
-        name: name?.trim() || companyId,
+        name: trimmedName || companyId,
       });
       result.companiesCreated++;
     };
@@ -1483,7 +1500,8 @@ export class JsonStorage implements IStorage {
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i];
 
-      ensureCompany(row.companyId);
+      ensureCompany(row.companyId, row.companyName);
+      ensureCompany(row.legalCompanyId, row.companyName);
       ensureEmployee(row);
 
       const privileges = this.resolvePrivilegesForUserRoleRow(row);

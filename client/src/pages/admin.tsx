@@ -103,7 +103,7 @@ const DICT = {
     resettingApp: "Resetting...",
     resetAppTitle: "Reset application (dev)",
     resetAppWarning:
-      "Deletes all companies, employees, privileges, assignments, requests, contacts, audit log, and login users — including demo seed data. Re-import Steps 1–4 afterward. You will need to sign in again after Step 4.",
+      "Deletes all companies, employees, privileges, assignments, requests, contacts, audit log, and login users — including demo seed data. Keeps bootstrap login spadmin / password. Re-import Steps 1–4 afterward.",
     resetAppConfirm: 'Type RESET to confirm',
   },
   ar: {
@@ -171,7 +171,7 @@ const DICT = {
     resettingApp: "جاري إعادة التعيين...",
     resetAppTitle: "إعادة تعيين التطبيق (تطوير)",
     resetAppWarning:
-      "يحذف جميع الشركات والموظفين والامتيازات والتعيينات والطلبات وجهات الاتصال وسجل التدقيق ومستخدمي الدخول — بما في ذلك بيانات العرض التجريبية. أعد الاستيراد من الخطوات 1–4. ستحتاج لتسجيل الدخول مجدداً بعد الخطوة 4.",
+      "يحذف جميع الشركات والموظفين والامتيازات والتعيينات والطلبات وجهات الاتصال وسجل التدقيق ومستخدمي الدخول — بما في ذلك بيانات العرض التجريبية. يبقى حساب spadmin / password. أعد الاستيراد من الخطوات 1–4.",
     resetAppConfirm: 'اكتب RESET للتأكيد',
   }
 };
@@ -699,7 +699,7 @@ export default function AdminPage() {
               queryClient.invalidateQueries({ queryKey: ["/api/requests"] });
               toast({
                 title: "Application reset",
-                description: "All data cleared. Re-import Steps 1–4, then sign in again.",
+                description: "All data cleared. Bootstrap spadmin kept. Re-import Steps 1–4.",
               });
             }}
           />

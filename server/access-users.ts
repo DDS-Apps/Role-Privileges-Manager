@@ -45,6 +45,10 @@ export class AccessUserStore {
         throw err;
       }
     }
+    if (this.rows.length === 0) {
+      await this.seedBootstrapAdmin();
+      console.log("[access-users] No allow-list rows — created bootstrap spadmin (password: password)");
+    }
   }
 
   private async save(): Promise<void> {
@@ -561,11 +565,34 @@ export class AccessUserStore {
     return result;
   }
 
+  /** Local bootstrap admin kept after full app reset (password: password). */
+  private async seedBootstrapAdmin(): Promise<void> {
+    const passwordHash = await bcrypt.hash("password", BCRYPT_ROUNDS);
+    this.rows = [
+      {
+        id: "AU001",
+        personId: "bootstrap-spadmin",
+        email: "spadmin@dallah.com",
+        name: "System Admin",
+        userId: "spadmin",
+        authType: "local",
+        isAdmin: true,
+        isActive: true,
+        companyCode: null,
+        companyName: null,
+        contactRole: null,
+        managedModules: [],
+        username: "spadmin",
+        passwordHash,
+      },
+    ];
+    await this.save();
+  }
+
   async resetAll(): Promise<number> {
     await this.ready;
     const count = this.rows.length;
-    this.rows = [];
-    await this.save();
+    await this.seedBootstrapAdmin();
     return count;
   }
 

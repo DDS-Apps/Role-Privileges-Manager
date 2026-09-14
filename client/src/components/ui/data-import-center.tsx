@@ -557,7 +557,8 @@ function AppResetPanel({
           <CheckCircle2 className="h-4 w-4 shrink-0" />
           Cleared {result.companies} companies, {result.employees} employees, {result.privileges}{" "}
           privileges, {result.assignments} assignments, {result.requests} requests,{" "}
-          {result.auditEntries} audit entries, and {result.accessUsersCleared} login users.
+          {result.auditEntries} audit entries, and {result.accessUsersCleared} login users. Bootstrap{" "}
+          spadmin / password kept.
         </p>
       )}
     </section>
