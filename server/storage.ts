@@ -1210,10 +1210,15 @@ export class JsonStorage implements IStorage {
         row.companyName?.trim() || row.companyNameAr?.trim() || undefined;
       const existingCompany = this.data.companies.find((c) => c.id === row.legalCompanyId);
       if (existingCompany) {
-        if (
+        const duplicateNameCount = this.data.companies.filter(
+          (c) => c.name === existingCompany!.name,
+        ).length;
+        const needsName =
           rosterCompanyName &&
-          (existingCompany.name === existingCompany.id || !existingCompany.name.trim())
-        ) {
+          (existingCompany.name === existingCompany.id ||
+            !existingCompany.name.trim() ||
+            duplicateNameCount > 1);
+        if (needsName) {
           existingCompany.name = rosterCompanyName;
         }
       } else {
@@ -1500,8 +1505,11 @@ export class JsonStorage implements IStorage {
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i];
 
-      ensureCompany(row.companyId, row.companyName);
+      // Company_Name in ERP is the employee's legal company — do not apply it to access company codes.
       ensureCompany(row.legalCompanyId, row.companyName);
+      if (row.companyId !== row.legalCompanyId) {
+        ensureCompany(row.companyId);
+      }
       ensureEmployee(row);
 
       const privileges = this.resolvePrivilegesForUserRoleRow(row);

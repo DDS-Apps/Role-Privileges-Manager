@@ -122,7 +122,9 @@ export function CompanySwitcher({
                     <p className={`text-sm font-medium truncate ${isActive ? "text-teal-700 dark:text-teal-300" : "text-slate-800 dark:text-slate-100"}`} dir="rtl">
                       {c.name}
                     </p>
-                    <p className="text-xs text-slate-400 capitalize">{c.role}</p>
+                    <p className="text-xs text-slate-400 capitalize">
+                      {c.companyId} · {c.role}
+                    </p>
                   </div>
                 </div>
                 {isActive && <Check className="h-4 w-4 text-teal-500 shrink-0 ml-2" />}
