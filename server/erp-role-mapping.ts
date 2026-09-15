@@ -41,7 +41,7 @@ const ERP_ROLE_RULES: ErpRoleRule[] = [
   { pattern: /payroll|\bpay_/i, function: "Payroll" },
   { pattern: /performance|goal_plan|talent(?!_report)/i, function: "Performance Management" },
   {
-    pattern: /human.?resource|hr_|hcm|benefits|employee|per_employee|line_manager|talent_report/i,
+    pattern: /human.?resource|hr_|hcm|benefits|per_employee|line_manager|employee_self|emp_self|talent_report/i,
     function: "Employee Relation",
   },
   { pattern: /treasury|cash_manager|db_ce|\bce_/i, function: "Treasury Management" },
@@ -96,9 +96,9 @@ export function resolveFunctionNameCandidates(row: Record<string, unknown>, pick
     candidates.push(trimmed);
   };
 
+  // New user-roles template: only Business Role Name — ignore legacy ROLE_NAME columns
+  // that may still exist in ERP exports and cause false matches (e.g. Employee Relation).
   add(pickColumn(row, ["business_role_name", "business_role"]));
-  add(pickColumn(row, ["role_name"]));
-  add(pickColumn(row, ["role_common_name"]));
 
   return candidates;
 }

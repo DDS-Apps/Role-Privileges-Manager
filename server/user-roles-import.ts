@@ -287,13 +287,9 @@ export function parseUserRolesExcel(
     ]);
     const moduleRaw = pickColumn(row, ["module_name", "module"]);
     const businessRoleName = pickColumn(row, ["business_role_name", "business_role"]);
-    const roleName = pickColumn(row, ["role_name"]);
-    const roleCommonName = pickColumn(row, ["role_common_name"]);
     const displayName = pickColumn(row, ["display_name"]);
     const hasRoleHint =
-      (!isPlaceholderBusinessRoleName(businessRoleName) && !!businessRoleName) ||
-      !!roleName ||
-      !!roleCommonName;
+      !isPlaceholderBusinessRoleName(businessRoleName) && !!businessRoleName;
 
     if (!employeeId && !hasRoleHint) {
       continue; // blank row
@@ -357,8 +353,6 @@ export function parseUserRolesExcel(
         businessRoleName: isPlaceholderBusinessRoleName(businessRoleName)
           ? undefined
           : businessRoleName,
-        roleName: roleName || undefined,
-        roleCommonName: roleCommonName || undefined,
       });
       continue;
     }
@@ -373,8 +367,7 @@ export function parseUserRolesExcel(
         companyName: companyName || undefined,
         module: catalogMatch.module,
         function: catalogMatch.function,
-        role: roleName || catalogMatch.function,
-        roleName: roleName || undefined,
+        role: catalogMatch.function,
         displayName: displayName || undefined,
         sourceRow: rowNum,
       });
