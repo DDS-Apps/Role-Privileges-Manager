@@ -1652,23 +1652,44 @@ export class JsonStorage implements IStorage {
     await this.initialized;
     const contacts = await this.contacts();
 
-    // Get manager — accept any employee (contacts are pre-authenticated as managers)
-    // Also try matching via contact userId for contacts whose SAP id differs from actingUserId
-    const manager = this.data.employees.find(e => e.id === input.managerId)
-      || (() => {
-        const contact = contacts.find(c => c.id === input.managerId);
-        return contact?.userId
-          ? this.data.employees.find(e => e.id === contact.userId)
-          : undefined;
-      })();
-    if (!manager) {
-      throw new Error("Manager not found");
-    }
-
-    // Get target employee
-    const employee = this.data.employees.find(e => e.id === input.employeeId);
+    const employee = this.data.employees.find((e) => e.id === input.employeeId);
     if (!employee) {
       throw new Error("Employee not found");
+    }
+
+    const submitterContact =
+      contacts.find((c) => c.id === input.managerId) ||
+      contacts.find((c) => c.userId === input.managerId) ||
+      (input.managerUserId
+        ? contacts.find(
+            (c) => c.userId === input.managerUserId || c.id === input.managerUserId,
+          )
+        : undefined);
+
+    // Submitter may be a login contact (admin/GM) not in the employee roster.
+    let manager: Employee | undefined =
+      this.data.employees.find((e) => e.id === input.managerId) ||
+      (submitterContact?.userId
+        ? this.data.employees.find((e) => e.id === submitterContact.userId)
+        : undefined) ||
+      (employee.managerId
+        ? this.data.employees.find((e) => e.id === employee.managerId)
+        : undefined);
+
+    if (!manager && submitterContact) {
+      manager = {
+        id: submitterContact.userId || submitterContact.id,
+        name: submitterContact.name,
+        email: submitterContact.email,
+        title: "",
+        isManager: true,
+        isAdmin: submitterContact.isAdmin,
+        legalCompanyId: employee.legalCompanyId,
+      };
+    }
+
+    if (!manager) {
+      throw new Error("Manager not found");
     }
 
     // Validate company exists
@@ -1736,10 +1757,6 @@ export class JsonStorage implements IStorage {
 
     // ── Auto-approve if the submitter is a GM of the employee's legal company ──
     const employeeLegalCompanyId = employee.legalCompanyId;
-    const submitterContact =
-      contacts.find(c => c.userId === input.managerId) ||
-      contacts.find(c => c.id === input.managerId) ||
-      (input.managerUserId ? contacts.find(c => c.userId === input.managerUserId || c.id === input.managerUserId) : undefined);
 
     const isGMofEmployeeCompany = submitterContact?.companies.some(
       cc => cc.companyId === employeeLegalCompanyId && cc.role === "GM"
