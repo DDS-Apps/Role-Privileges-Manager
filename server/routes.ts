@@ -958,6 +958,20 @@ export async function registerRoutes(
     }
   });
 
+  // IT email poller — manual trigger (admin)
+  app.post("/api/admin/it-email/poll", requireAuth as any, requireAdmin as any, async (_req, res) => {
+    try {
+      const { pollItEmailsOnce } = await import("./it-email-poller.js");
+      await pollItEmailsOnce();
+      res.json({ ok: true });
+    } catch (err) {
+      console.error("Manual IT email poll error:", err);
+      res.status(500).json({
+        message: err instanceof Error ? err.message : "IT email poll failed",
+      });
+    }
+  });
+
   // IT fulfillment — manually mark resolved (admin)
   app.post("/api/requests/:requestId/mark-resolved", requireAuth as any, requireAdmin as any, async (req, res) => {
     try {

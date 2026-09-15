@@ -7,13 +7,13 @@ import path from "path";
 import { storage } from "./storage.js";
 
 import {
-
+  isAckEmail,
+  isResolvedEmail,
+} from "./it-email-parser.js";
+import {
   isGraphMailConfigured,
-
   listRecentInboxMessages,
-
   markGraphMessageRead,
-
 } from "./graph-mail-client.js";
 
 
@@ -114,27 +114,23 @@ async function processMessage(
 
   let handled = false;
 
-  if (/##RE-\d+##/i.test(subject) || /The title of the request is/i.test(body)) {
-
+  if (isAckEmail(subject, body)) {
     handled = await storage.processItAckEmail(subject, body, from);
-
+    if (handled) {
+      pollerLog(`Linked ticket from ack: ${subject.slice(0, 80)}`);
+    }
   }
 
-  if (!handled && /\bResolved\b/i.test(body)) {
-
+  if (!handled && isResolvedEmail(subject, body)) {
     handled = await storage.processItResolvedEmail(subject, body, from);
-
+    if (handled) {
+      pollerLog(`Fulfilled request from resolved email: ${subject.slice(0, 80)}`);
+    }
   }
-
-
 
   if (handled) {
-
     processed.add(id);
-
   }
-
-
 
   return handled;
 
@@ -142,15 +138,21 @@ async function processMessage(
 
 
 
+function getLookbackDays(): number {
+  const raw = Number(process.env.IT_EMAIL_LOOKBACK_DAYS || "30");
+  return Number.isFinite(raw) && raw > 0 ? raw : 30;
+}
+
 async function pollItEmailsViaGraph(): Promise<void> {
 
   const processed = await loadProcessedIds();
 
-  const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+  const since = new Date(Date.now() - getLookbackDays() * 24 * 60 * 60 * 1000);
 
   const messages = await listRecentInboxMessages(since);
-
-
+  if (messages.length > 0) {
+    pollerLog(`Scanning ${messages.length} inbox message(s) since ${since.toISOString().slice(0, 10)}`);
+  }
 
   for (const msg of messages) {
 
@@ -236,7 +238,7 @@ async function pollItEmailsViaImap(): Promise<void> {
 
     try {
 
-      const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+      const since = new Date(Date.now() - getLookbackDays() * 24 * 60 * 60 * 1000);
 
       for await (const msg of client.fetch(
 

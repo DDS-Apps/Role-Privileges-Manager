@@ -32,6 +32,7 @@ import { accessUsers } from "./access-users.js";
 import {
   parseSupportTicketId,
   parseAckRequestTitle,
+  parseRequestIdFromAckBody,
   isResolvedEmail,
   bodyContainsRequestId,
   ticketIdMatches,
@@ -602,8 +603,49 @@ export class JsonStorage implements IStorage {
   }
 
   private getItEmailAllowlist(): string[] {
-    const raw = process.env.IT_EMAIL_FROM_ALLOWLIST || "support";
+    const raw =
+      process.env.IT_EMAIL_FROM_ALLOWLIST || "support,dallah,servicedesk";
     return raw.split(",").map((s) => s.trim()).filter(Boolean);
+  }
+
+  private findPendingItRequest(
+    ticketId: string,
+    body: string,
+    ackTitle: string | null,
+  ): PrivilegeRequest | undefined {
+    const pending = this.data.requests.filter(
+      (r) => r.status === "approved_pending_it",
+    );
+    const requestIdFromBody = parseRequestIdFromAckBody(body);
+
+    if (requestIdFromBody) {
+      const byId = pending.find((r) => r.id === requestIdFromBody);
+      if (byId) return byId;
+    }
+
+    const byTicket = pending.find(
+      (r) => r.supportTicketId && ticketIdMatches(r.supportTicketId, ticketId),
+    );
+    if (byTicket) return byTicket;
+
+    const byTitleInBody = pending.find(
+      (r) => r.supportRequestTitle && body.includes(r.supportRequestTitle),
+    );
+    if (byTitleInBody) return byTitleInBody;
+
+    if (ackTitle) {
+      const byAckTitle = pending.find(
+        (r) => r.supportRequestTitle && r.supportRequestTitle === ackTitle,
+      );
+      if (byAckTitle) return byAckTitle;
+    }
+
+    for (const r of pending) {
+      if (bodyContainsRequestId(body, r.id)) return r;
+    }
+
+    const numeric = ticketId.replace(/^RE-/i, "");
+    return pending.find((r) => r.supportRequestTitle?.includes(`[${numeric}]`));
   }
 
   private buildItEmailContext(
@@ -785,19 +827,7 @@ export class JsonStorage implements IStorage {
     if (!ticketId) return false;
 
     const ackTitle = parseAckRequestTitle(body);
-    const pending = this.data.requests.filter((r) => r.status === "approved_pending_it");
-
-    let request = pending.find((r) => {
-      if (r.supportTicketId && ticketIdMatches(r.supportTicketId, ticketId)) return true;
-      if (ackTitle && r.supportRequestTitle && ackTitle === r.supportRequestTitle) return true;
-      if (r.supportRequestTitle && body.includes(r.supportRequestTitle)) return true;
-      return bodyContainsRequestId(body, r.id);
-    });
-
-    if (!request) {
-      const numeric = ticketId.replace(/^RE-/i, "");
-      request = pending.find((r) => r.supportRequestTitle?.includes(`[${numeric}]`));
-    }
+    const request = this.findPendingItRequest(ticketId, body, ackTitle);
 
     if (!request || request.supportTicketId) return false;
 
@@ -807,12 +837,22 @@ export class JsonStorage implements IStorage {
 
   async processItResolvedEmail(subject: string, body: string, from: string): Promise<boolean> {
     if (!isAllowedSupportSender(from, this.getItEmailAllowlist())) return false;
-    if (!isResolvedEmail(body)) return false;
+    if (!isResolvedEmail(subject, body)) return false;
 
     const ticketId = parseSupportTicketId(subject) || parseSupportTicketId(body);
     if (!ticketId) return false;
 
-    const fulfilled = await this.fulfillRequestByTicket(ticketId);
+    let fulfilled = await this.fulfillRequestByTicket(ticketId);
+    if (fulfilled) return true;
+
+    const ackTitle = parseAckRequestTitle(body);
+    const request = this.findPendingItRequest(ticketId, body, ackTitle);
+    if (!request) return false;
+
+    if (!request.supportTicketId) {
+      await this.registerItTicket(request.id, ticketId, "system-email");
+    }
+    fulfilled = await this.fulfillRequestByTicket(ticketId);
     return fulfilled !== null;
   }
 

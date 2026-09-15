@@ -108,9 +108,13 @@ async function graphFetch(path: string, init?: RequestInit): Promise<Response> {
   return res;
 }
 
+function unreadOnly(): boolean {
+  return process.env.IT_EMAIL_UNREAD_ONLY === "true";
+}
+
 export async function listRecentInboxMessages(
   since: Date,
-  top = 25,
+  top = 50,
 ): Promise<GraphMailMessage[]> {
   const sinceIso = since.toISOString();
   const query = new URLSearchParams({
@@ -139,7 +143,7 @@ export async function listRecentInboxMessages(
   }
 
   return (data.value || [])
-    .filter((m) => !m.isRead)
+    .filter((m) => (unreadOnly() ? !m.isRead : true))
     .map((m) => {
       const rawBody =
         m.body?.contentType?.toLowerCase() === "html"
