@@ -958,6 +958,29 @@ export async function registerRoutes(
     }
   });
 
+  // Resend IT fulfillment email to Support (admin / GM)
+  app.post("/api/requests/:requestId/resend-it-email", requireAuth as any, async (req, res) => {
+    try {
+      const { requestId } = req.params;
+      const actorId = getSessionActorId(req) || "";
+      if (!actorId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      const request = await storage.resendItFulfillmentEmail(requestId, actorId);
+      res.json(request);
+    } catch (err) {
+      if (err instanceof Error) {
+        const code = err.message.includes("not found")
+          ? 404
+          : err.message.includes("not eligible")
+            ? 400
+            : 500;
+        return res.status(code).json({ message: err.message });
+      }
+      res.status(500).json({ message: "Failed to resend IT email" });
+    }
+  });
+
   // IT email poller — manual trigger (admin)
   app.post("/api/admin/it-email/poll", requireAuth as any, requireAdmin as any, async (_req, res) => {
     try {

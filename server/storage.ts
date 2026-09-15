@@ -80,6 +80,7 @@ export interface IStorage {
   getRequests(filters?: { managerId?: string; employeeId?: string; status?: RequestStatus; targetCompanyIds?: string[]; managedModules?: string[] | null }): Promise<PrivilegeRequest[]>;
   updateRequestStatus(requestId: string, status: RequestStatus, adminComments: string | null, adminId: string): Promise<PrivilegeRequest>;
   submitRequestToItFulfillment(requestId: string, actorId: string, approverName?: string): Promise<PrivilegeRequest>;
+  resendItFulfillmentEmail(requestId: string, actorId: string): Promise<PrivilegeRequest>;
   registerItTicket(requestId: string, ticketId: string, actorId: string): Promise<PrivilegeRequest>;
   fulfillRequestByTicket(ticketId: string): Promise<PrivilegeRequest | null>;
   markRequestItResolved(requestId: string, adminId: string): Promise<PrivilegeRequest>;
@@ -733,6 +734,28 @@ export class JsonStorage implements IStorage {
     );
 
     return request;
+  }
+
+  async resendItFulfillmentEmail(
+    requestId: string,
+    actorId: string,
+  ): Promise<PrivilegeRequest> {
+    await this.initialized;
+    const request = this.data.requests.find((r) => r.id === requestId);
+    if (!request) throw new Error("Request not found");
+    if (request.status !== "approved_pending_it" && request.status !== "pending") {
+      throw new Error("Request is not eligible for IT email resend");
+    }
+    if (request.supportTicketId) {
+      throw new Error("Request already has a ServiceDesk ticket linked");
+    }
+
+    const actor =
+      this.data.employees.find((e) => e.id === actorId) ||
+      (await this.contacts()).find((c) => c.id === actorId);
+    const actorName = actor?.name || actorId;
+
+    return this.submitRequestToItFulfillment(requestId, actorId, actorName);
   }
 
   async registerItTicket(

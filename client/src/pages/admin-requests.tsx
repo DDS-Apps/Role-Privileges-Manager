@@ -6,6 +6,7 @@ import {
   useUpdateRequest,
   useRegisterItTicket,
   useMarkItResolved,
+  useResendItEmail,
 } from "@/hooks/use-app-data";
 import { useAuth } from "@/hooks/use-auth";
 import {
@@ -82,6 +83,11 @@ const DICT = {
     ticketId: "Ticket ID",
     registerTicket: "Register ticket",
     markItResolved: "Mark IT resolved",
+    resendToSupport: "Resend email to Support",
+    resendingEmail: "Sending…",
+    emailSentAt: "Email sent",
+    emailNotSent: "Email not sent to Support yet",
+    resendEmailSuccess: "Email sent to Support@dallah.com",
     ticketPlaceholder: "##RE-20217##",
     searchPlaceholder: "Search employee, manager, module, company, ticket…",
     allCompanies: "All companies",
@@ -128,6 +134,11 @@ const DICT = {
     ticketId: "رقم التذكرة",
     registerTicket: "تسجيل التذكرة",
     markItResolved: "تأكيد إنجاز IT",
+    resendToSupport: "إعادة إرسال البريد إلى Support",
+    resendingEmail: "جاري الإرسال…",
+    emailSentAt: "تم إرسال البريد",
+    emailNotSent: "لم يُرسل البريد إلى Support بعد",
+    resendEmailSuccess: "تم إرسال البريد إلى Support@dallah.com",
     ticketPlaceholder: "##RE-20217##",
     searchPlaceholder: "ابحث بالموظف أو المدير أو الوحدة أو الشركة أو التذكرة…",
     allCompanies: "جميع الشركات",
@@ -207,6 +218,7 @@ export default function AdminRequestsPage() {
   const updateRequest = useUpdateRequest();
   const registerItTicket = useRegisterItTicket();
   const markItResolved = useMarkItResolved();
+  const resendItEmail = useResendItEmail();
   const { toast } = useToast();
 
   const t = DICT[language];
@@ -336,6 +348,19 @@ export default function AdminRequestsPage() {
     } catch (err) {
       toast({
         title: "Failed to register ticket",
+        description: err instanceof Error ? err.message : "",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleResendItEmail = async (request: PrivilegeRequest) => {
+    try {
+      await resendItEmail.mutateAsync(request.id);
+      toast({ title: t.resendEmailSuccess });
+    } catch (err) {
+      toast({
+        title: "Failed to send email to Support",
         description: err instanceof Error ? err.message : "",
         variant: "destructive",
       });
@@ -704,6 +729,11 @@ export default function AdminRequestsPage() {
                                             </span>
                                           </p>
                                         )}
+                                        <p className="text-xs text-slate-500">
+                                          {request.itEmailSentAt
+                                            ? `${t.emailSentAt}: ${formatDate(request.itEmailSentAt)}`
+                                            : t.emailNotSent}
+                                        </p>
                                         <div>
                                           <label className="text-sm font-medium">
                                             {t.ticketId}
@@ -726,6 +756,20 @@ export default function AdminRequestsPage() {
                                           />
                                         </div>
                                         <div className="flex flex-wrap gap-2">
+                                          {!request.supportTicketId && (
+                                            <Button
+                                              variant="outline"
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleResendItEmail(request);
+                                              }}
+                                              disabled={resendItEmail.isPending}
+                                            >
+                                              {resendItEmail.isPending
+                                                ? t.resendingEmail
+                                                : t.resendToSupport}
+                                            </Button>
+                                          )}
                                           <Button
                                             variant="outline"
                                             onClick={(e) => {

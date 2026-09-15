@@ -164,6 +164,24 @@ export function useMarkItResolved() {
   });
 }
 
+export function useResendItEmail() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (requestId: string) => {
+      const res = await apiRequest("POST", `/api/requests/${requestId}/resend-it-email`, {});
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.message || "Failed to resend IT email");
+      }
+      return res.json() as Promise<PrivilegeRequest>;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/requests"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/bootstrap"] });
+    },
+  });
+}
+
 export function useRegisterItTicket() {
   const queryClient = useQueryClient();
   return useMutation({

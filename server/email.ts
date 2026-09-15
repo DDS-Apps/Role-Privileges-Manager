@@ -4,6 +4,10 @@ import { buildItRequestTitle } from "./it-email-parser.js";
 
 export { buildItRequestTitle };
 
+function isSmtpConfigured(): boolean {
+  return Boolean(process.env.SMTP_USER && process.env.SMTP_PASS);
+}
+
 const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST || "smtp.office365.com",
   port: Number(process.env.SMTP_PORT) || 587,
@@ -12,8 +16,20 @@ const transporter = nodemailer.createTransport({
     user: process.env.SMTP_USER || "",
     pass: process.env.SMTP_PASS || "",
   },
-  tls: { ciphers: "SSLv3" },
+  requireTLS: true,
 });
+
+export function logItEmailConfigStatus(): void {
+  if (isSmtpConfigured()) {
+    console.log(
+      `[email] IT fulfillment outbound configured (${process.env.SMTP_FROM || process.env.SMTP_USER} → ${SUPPORT_EMAIL})`,
+    );
+  } else {
+    console.warn(
+      `[email] IT fulfillment DISABLED — set SMTP_USER and SMTP_PASS in .env to email ${SUPPORT_EMAIL}`,
+    );
+  }
+}
 
 export const SUPPORT_EMAIL = "Support@dallah.com";
 const FROM_ADDRESS =
@@ -90,9 +106,10 @@ export async function sendItFulfillmentEmail(
     .filter(Boolean)
     .join("\n");
 
-  if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
-    console.log("[email] IT fulfillment skipped — SMTP_USER / SMTP_PASS not configured");
-    return subject;
+  if (!isSmtpConfigured()) {
+    throw new Error(
+      "SMTP_USER and SMTP_PASS must be configured in .env to email Support@dallah.com",
+    );
   }
 
   try {
@@ -105,7 +122,9 @@ export async function sendItFulfillmentEmail(
     });
     console.log(`[email] IT fulfillment request sent → ${SUPPORT_EMAIL}`);
   } catch (err) {
-    console.error("[email] Failed to send IT fulfillment email:", err);
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("[email] Failed to send IT fulfillment email:", message);
+    throw new Error(`Failed to send email to Support@dallah.com: ${message}`);
   }
 
   return subject;
