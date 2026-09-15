@@ -18,6 +18,7 @@ import {
   UserRoleImportResult,
   UserRoleImportMode,
   CatalogImportResult,
+  CompanyImportResult,
   EmployeeRosterImportRow,
   EmployeeRosterImportResult,
   EmployeeRosterClearResult,
@@ -55,6 +56,11 @@ export interface IStorage {
     catalog: { module: string; function: string; role: string }[],
     mode?: "merge" | "replace",
   ): Promise<CatalogImportResult>;
+  importCompanies(
+    actorId: string,
+    rows: { id: string; name: string }[],
+    mode?: "merge" | "replace",
+  ): Promise<CompanyImportResult>;
   importUserRoles(actorId: string, rows: UserRoleImportRow[], mode: UserRoleImportMode): Promise<UserRoleImportResult>;
   importEmployeeRoster(actorId: string, rows: EmployeeRosterImportRow[]): Promise<EmployeeRosterImportResult>;
   clearEmployeeRoster(actorId: string): Promise<EmployeeRosterClearResult>;
@@ -1168,6 +1174,58 @@ export class JsonStorage implements IStorage {
     return result;
   }
 
+  async importCompanies(
+    actorId: string,
+    rows: { id: string; name: string }[],
+    mode: "merge" | "replace" = "merge",
+  ): Promise<CompanyImportResult> {
+    await this.initialized;
+
+    const result: CompanyImportResult = {
+      type: "companies",
+      processed: 0,
+      created: 0,
+      updated: 0,
+      mode,
+      errors: [],
+    };
+
+    if (mode === "replace") {
+      this.data.companies = [];
+    }
+
+    for (const row of rows) {
+      result.processed++;
+      const existing = this.data.companies.find((c) => c.id === row.id);
+      if (existing) {
+        if (existing.name !== row.name) {
+          existing.name = row.name;
+          result.updated++;
+        }
+      } else {
+        this.data.companies.push({ id: row.id, name: row.name });
+        result.created++;
+      }
+    }
+
+    if (result.created > 0 || result.updated > 0 || mode === "replace") {
+      await this.saveData();
+    }
+
+    const actor =
+      this.data.employees.find((e) => e.id === actorId) ||
+      (await this.contacts()).find((c) => c.id === actorId);
+    const actorName = actor?.name || actorId;
+
+    await this.addAuditEntry(
+      actorId,
+      "UPLOAD_CATALOG",
+      `${actorName} imported company master (${mode}): ${result.created} created, ${result.updated} updated`,
+    );
+
+    return result;
+  }
+
   async importEmployeeRoster(
     actorId: string,
     rows: EmployeeRosterImportRow[],
@@ -1186,6 +1244,7 @@ export class JsonStorage implements IStorage {
 
     const employeeIds = new Set(this.data.employees.map((e) => e.id));
     const pendingManagerLinks: { employeeId: string; managerEmail: string }[] = [];
+    const pendingManagerByName: { employeeId: string; managerName: string }[] = [];
 
     const applyBilingualFields = (
       employee: Employee,
@@ -1206,28 +1265,6 @@ export class JsonStorage implements IStorage {
     for (const row of rows) {
       result.processed++;
 
-      const rosterCompanyName =
-        row.companyName?.trim() || row.companyNameAr?.trim() || undefined;
-      const existingCompany = this.data.companies.find((c) => c.id === row.legalCompanyId);
-      if (existingCompany) {
-        const duplicateNameCount = this.data.companies.filter(
-          (c) => c.name === existingCompany!.name,
-        ).length;
-        const needsName =
-          rosterCompanyName &&
-          (existingCompany.name === existingCompany.id ||
-            !existingCompany.name.trim() ||
-            duplicateNameCount > 1);
-        if (needsName) {
-          existingCompany.name = rosterCompanyName;
-        }
-      } else {
-        this.data.companies.push({
-          id: row.legalCompanyId,
-          name: rosterCompanyName || row.legalCompanyId,
-        });
-      }
-
       const existing = this.data.employees.find((e) => e.id === row.employeeId);
       const email =
         row.email ||
@@ -1241,6 +1278,8 @@ export class JsonStorage implements IStorage {
           result.managersLinked++;
         } else if (row.managerEmail) {
           pendingManagerLinks.push({ employeeId: row.employeeId, managerEmail: row.managerEmail });
+        } else if (row.managerName) {
+          pendingManagerByName.push({ employeeId: row.employeeId, managerName: row.managerName });
         }
         result.updated++;
       } else {
@@ -1262,8 +1301,27 @@ export class JsonStorage implements IStorage {
           result.managersLinked++;
         } else if (row.managerEmail) {
           pendingManagerLinks.push({ employeeId: row.employeeId, managerEmail: row.managerEmail });
+        } else if (row.managerName) {
+          pendingManagerByName.push({ employeeId: row.employeeId, managerName: row.managerName });
         }
         result.created++;
+      }
+    }
+
+    if (pendingManagerByName.length > 0) {
+      const nameToId = new Map<string, string>();
+      for (const employee of this.data.employees) {
+        const key = employee.name.trim().toLowerCase();
+        if (key) nameToId.set(key, employee.id);
+      }
+
+      for (const link of pendingManagerByName) {
+        const managerId = nameToId.get(link.managerName.trim().toLowerCase());
+        if (!managerId) continue;
+        const employee = this.data.employees.find((e) => e.id === link.employeeId);
+        if (!employee || employee.managerId === managerId) continue;
+        employee.managerId = managerId;
+        result.managersLinked++;
       }
     }
 
@@ -1466,26 +1524,8 @@ export class JsonStorage implements IStorage {
 
     const employeeIds = new Set(this.data.employees.map((e) => e.id));
 
-    const ensureCompany = (companyId: string, name?: string): void => {
-      const trimmedName = name?.trim();
-      const existing = this.data.companies.find((c) => c.id === companyId);
-      if (existing) {
-        if (trimmedName && (existing.name === existing.id || !existing.name.trim())) {
-          existing.name = trimmedName;
-        }
-        return;
-      }
-      this.data.companies.push({
-        id: companyId,
-        name: trimmedName || companyId,
-      });
-      result.companiesCreated++;
-    };
-
     const ensureEmployee = (row: UserRoleImportRow): void => {
       if (employeeIds.has(row.employeeId)) return;
-
-      ensureCompany(row.legalCompanyId, row.companyName);
 
       this.data.employees.push({
         id: row.employeeId,
@@ -1505,11 +1545,6 @@ export class JsonStorage implements IStorage {
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i];
 
-      // Company_Name in ERP is the employee's legal company — do not apply it to access company codes.
-      ensureCompany(row.legalCompanyId, row.companyName);
-      if (row.companyId !== row.legalCompanyId) {
-        ensureCompany(row.companyId);
-      }
       ensureEmployee(row);
 
       const privileges = this.resolvePrivilegesForUserRoleRow(row);
@@ -1595,7 +1630,7 @@ export class JsonStorage implements IStorage {
     await this.addAuditEntry(
       actorId,
       "UPLOAD_USER_ROLES",
-      `${actorName} imported user roles (${mode}): ${result.processed} rows, ${result.companiesCreated} new companies, ${result.employeesCreated} new employees, ${result.privilegesCreated} new privileges, ${result.assignmentsUpdated} assignment updates, ${result.skipped} skipped`,
+      `${actorName} imported user roles (${mode}): ${result.processed} rows, ${result.employeesCreated} new employees, ${result.privilegesCreated} new privileges, ${result.assignmentsUpdated} assignment updates, ${result.skipped} skipped`,
     );
 
     return result;

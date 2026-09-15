@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import type {
   CatalogImportResult,
+  CompanyImportResult,
   UserRoleImportResult,
   EmployeeRosterImportResult,
   EmployeeRosterClearResult,
@@ -15,10 +16,11 @@ import type {
   EmployeeRosterImportErrorDetail,
 } from "@shared/schema";
 
-type ImportKind = "catalog" | "user_roles" | "employees" | "access_users";
+type ImportKind = "catalog" | "companies" | "user_roles" | "employees" | "access_users";
 
 type ImportResult =
   | CatalogImportResult
+  | CompanyImportResult
   | (UserRoleImportResult & { type?: "user_roles" })
   | EmployeeRosterImportResult
   | EmployeeRosterClearResult
@@ -55,6 +57,7 @@ interface DataImportCenterProps {
     recommendedOrder: string;
     mergeNote: string;
     replaceCatalog: string;
+    replaceCompanies: string;
     replaceUserRoles: string;
     exportSkipped: string;
     exportErrors: string;
@@ -118,13 +121,10 @@ function exportEmployeeErrorsToCsv(details: EmployeeRosterImportErrorDetail[], f
   const headers = [
     "Row",
     "Reason",
-    "USERNAME",
-    "DISPLAY_NAME-English",
-    "DISPLAY_NAME-Arabic",
     "Company_Code",
-    "Company_Name_English",
-    "Company_Name_Arabic",
-    "Email",
+    "USERNAME",
+    "DISPLAY_NAME",
+    "EMAIL_ADDRESS",
   ];
   const lines = [
     headers.join(","),
@@ -132,12 +132,9 @@ function exportEmployeeErrorsToCsv(details: EmployeeRosterImportErrorDetail[], f
       [
         row.row,
         row.reason,
+        row.companyCode,
         row.username,
         row.displayNameEn,
-        row.displayNameAr,
-        row.companyCode,
-        row.companyNameEn,
-        row.companyNameAr,
         row.email,
       ]
         .map(csvEscape)
@@ -173,11 +170,17 @@ function ImportSummary({
       { label: "Already in catalog", value: result.privilegesSkipped },
       { label: "Mode", value: result.mode },
     );
+  } else if (kind === "companies" && result.type === "companies") {
+    rows.push(
+      { label: "Rows processed", value: result.processed },
+      { label: "Created", value: result.created },
+      { label: "Updated", value: result.updated },
+      { label: "Mode", value: result.mode },
+    );
   } else if (kind === "user_roles" && "assignmentsUpdated" in result) {
     rows.push(
       { label: "Rows processed", value: result.processed },
       { label: "New privileges", value: result.privilegesCreated },
-      { label: "New companies", value: result.companiesCreated },
       { label: "New employees", value: result.employeesCreated },
       { label: "Assignments updated", value: result.assignmentsUpdated },
       { label: "Skipped", value: result.skipped },
@@ -296,6 +299,7 @@ function ImportSlot({
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [replaceCatalog, setReplaceCatalog] = useState(false);
+  const [replaceCompanies, setReplaceCompanies] = useState(false);
   const [replaceUserRoles, setReplaceUserRoles] = useState(false);
   const [clearingRoster, setClearingRoster] = useState(false);
 
@@ -333,6 +337,8 @@ function ImportSlot({
       let url = config.endpoint;
       const params = new URLSearchParams();
       if (config.id === "catalog" && replaceCatalog) {
+        params.set("mode", "replace");
+      } else if (config.id === "companies" && replaceCompanies) {
         params.set("mode", "replace");
       } else if (config.id === "user_roles" && replaceUserRoles) {
         params.set("mode", "replace");
@@ -397,6 +403,18 @@ function ImportSlot({
             className="rounded"
           />
           {labels.replaceCatalog}
+        </label>
+      )}
+
+      {config.id === "companies" && (
+        <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer">
+          <input
+            type="checkbox"
+            checked={replaceCompanies}
+            onChange={(e) => setReplaceCompanies(e.target.checked)}
+            className="rounded"
+          />
+          {labels.replaceCompanies}
         </label>
       )}
 
@@ -578,32 +596,43 @@ export function DataImportCenter({ counts, labels, onSuccess, onReset }: DataImp
       countLabel: "privileges",
     },
     {
-      id: "user_roles",
+      id: "companies",
       step: 2,
+      title: "Companies master",
+      description:
+        "Company code → name lookup used for legal company (Company_Code) and assignment company (DATA_COMPANY_CODE) in later steps.",
+      columns: "Company Code · Company name",
+      endpoint: "/api/imports/companies",
+      currentCount: counts.companies,
+      countLabel: "companies",
+    },
+    {
+      id: "user_roles",
+      step: 3,
       title: "User role assignments",
       description:
-        "Who has which roles in which company (ERP export). Business Role Name must match a catalog Function; unmatched rows are skipped.",
+        "Who has which roles in which company. Company_Code = employee legal company; DATA_COMPANY_CODE = where the privilege applies. Codes must exist in Step 2.",
       columns:
-        "Company_Code · Company_Name · USERNAME · DISPLAY_NAME · ROLE_NAME · ROLE_COMMON_NAME · access_to · DATA · DATA_COMPANY_CODE · Business Role Name",
+        "Company_Code · USERNAME · DISPLAY_NAME · DATA_COMPANY_CODE · Business Role Name",
       endpoint: "/api/imports/user-roles",
       currentCount: counts.assignments,
       countLabel: "assignments",
     },
     {
       id: "employees",
-      step: 3,
+      step: 4,
       title: "Employee roster (optional enrich)",
       description:
-        "Add emails, titles, departments, and manager hierarchy in English and Arabic. Company must match Step 2 (unknown companies are skipped and exported as errors). GM/admin login is Step 4.",
+        "Add emails, titles, departments, and manager links. Company_Code must exist in Step 2. GM/admin login is Step 5.",
       columns:
-        "USERNAME · DISPLAY_NAME:English · DISPLAY_NAME:Arabic · Department_English · Department_Arabic · TITLE_English · TITLE_Arabic · Email · managerEmail · Company_Name_English · Company_Name_Arabic (or Company_Code)",
+        "Company_Code · Department_Name · USERNAME · DISPLAY_NAME · EMAIL_ADDRESS · Job_Title · Manager_Name",
       endpoint: "/api/imports/employees",
       currentCount: counts.employees,
       countLabel: "employees",
     },
     {
       id: "access_users",
-      step: 4,
+      step: 5,
       title: "Login users (allow-list)",
       description: "Who can sign in as GM, admin, or scoped viewer. Local accounts default password: password.",
       columns:

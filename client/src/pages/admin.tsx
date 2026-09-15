@@ -86,9 +86,10 @@ const DICT = {
     ticketPlaceholder: "##RE-20217##",
     dataImportTitle: "Data import center",
     dataImportSubtitle: "Upload each Excel file in order. All imports merge into existing data unless noted.",
-    recommendedOrder: "Recommended order: 1 Catalog → 2 User roles → 3 Employee roster → 4 Login users. After replacing the catalog, re-import user roles so assignments stay linked.",
+    recommendedOrder: "Recommended order: 1 Catalog → 2 Companies → 3 User roles → 4 Employee roster → 5 Login users. After replacing the catalog, re-import user roles so assignments stay linked.",
     mergeNote: "Imports merge by default. Use replace options when the Excel file should fully overwrite existing catalog entries or assignment privileges for each employee–company pair in the file.",
     replaceCatalog: "Replace entire catalog (clears existing privileges — re-import user roles after)",
+    replaceCompanies: "Replace entire company master (clears existing companies — re-import user roles and roster after)",
     replaceUserRoles: "Replace and update assignments (file becomes source of truth per employee–company; removes privileges not in the file for those pairs)",
     selectFile: "Select Excel file",
     uploadImport: "Upload & import",
@@ -103,7 +104,7 @@ const DICT = {
     resettingApp: "Resetting...",
     resetAppTitle: "Reset application (dev)",
     resetAppWarning:
-      "Deletes all companies, employees, privileges, assignments, requests, contacts, audit log, and login users — including demo seed data. Keeps bootstrap login spadmin / password. Re-import Steps 1–4 afterward.",
+      "Deletes all companies, employees, privileges, assignments, requests, contacts, audit log, and login users — including demo seed data. Keeps bootstrap login spadmin / password. Re-import Steps 1–5 afterward.",
     resetAppConfirm: 'Type RESET to confirm',
   },
   ar: {
@@ -154,9 +155,10 @@ const DICT = {
     ticketPlaceholder: "##RE-20217##",
     dataImportTitle: "مركز استيراد البيانات",
     dataImportSubtitle: "ارفع كل ملف Excel بالترتيب. جميع الاستيرادات تُدمج مع البيانات الحالية ما لم يُذكر خلاف ذلك.",
-    recommendedOrder: "الترتيب الموصى به: 1 الكatalog → 2 أدوار المستخدمين → 3 سجل الموظفين → 4 مستخدمو الدخول. بعد استبدال الكatalog، أعد استيراد أدوار المستخدمين.",
+    recommendedOrder: "الترتيب الموصى به: 1 الكatalog → 2 الشركات → 3 أدوار المستخدمين → 4 سجل الموظفين → 5 مستخدمو الدخول. بعد استبدال الكatalog، أعد استيراد أدوار المستخدمين.",
     mergeNote: "الاستيراد يدمج افتراضياً. استخدم خيارات الاستبدال عندما يجب أن يحل ملف Excel محل الكatalog أو صلاحيات التعيينات الحالية.",
     replaceCatalog: "استبدال الكatalog بالكامل (يمسح الامتيازات الحالية — أعد استيراد أدوار المستخدمين بعد ذلك)",
+    replaceCompanies: "استبدال قائمة الشركات بالكامل (يمسح الشركات الحالية — أعد استيراد الأدوار والسجل بعد ذلك)",
     replaceUserRoles: "استبدال وتحديث التعيينات (الملف مصدر الحقيقة لكل موظف–شركة؛ يزيل الامتيازات غير الموجودة في الملف لتلك الأزواج)",
     selectFile: "اختر ملف Excel",
     uploadImport: "رفع واستيراد",
@@ -672,6 +674,7 @@ export default function AdminPage() {
               recommendedOrder: t.recommendedOrder,
               mergeNote: t.mergeNote,
               replaceCatalog: t.replaceCatalog,
+              replaceCompanies: t.replaceCompanies,
               replaceUserRoles: t.replaceUserRoles,
               selectFile: t.selectFile,
               upload: t.uploadImport,
@@ -699,7 +702,7 @@ export default function AdminPage() {
               queryClient.invalidateQueries({ queryKey: ["/api/requests"] });
               toast({
                 title: "Application reset",
-                description: "All data cleared. Bootstrap spadmin kept. Re-import Steps 1–4.",
+                description: "All data cleared. Bootstrap spadmin kept. Re-import Steps 1–5.",
               });
             }}
           />

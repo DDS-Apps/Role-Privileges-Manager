@@ -84,6 +84,11 @@ export const api = {
       path: '/api/imports/catalog',
       responses: { 200: z.any(), 400: errorSchemas.validation, 403: errorSchemas.forbidden },
     },
+    companies: {
+      method: 'POST' as const,
+      path: '/api/imports/companies',
+      responses: { 200: z.any(), 400: errorSchemas.validation, 403: errorSchemas.forbidden },
+    },
     userRoles: {
       method: 'POST' as const,
       path: '/api/imports/user-roles',

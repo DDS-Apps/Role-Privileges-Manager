@@ -14,6 +14,7 @@ import {
   parsePrivilegeCatalogExcel,
 } from "./catalog-import.js";
 import { parseEmployeeRosterExcel } from "./employees-import.js";
+import { parseCompaniesExcel } from "./companies-import.js";
 import { parseAccessUsersExcel } from "./access-users-import.js";
 import { resolveViewerFromContact } from "./viewer-context.js";
 
@@ -578,6 +579,46 @@ export async function registerRoutes(
         }
         console.error("Catalog import error:", err);
         res.status(500).json({ message: err instanceof Error ? err.message : "Failed to import catalog" });
+      }
+    },
+  );
+
+  app.post(
+    api.imports.companies.path,
+    requireAuth as any,
+    requireAdmin as any,
+    upload.single("file"),
+    async (req, res) => {
+      try {
+        if (!req.file?.buffer) {
+          return res.status(400).json({ message: "Excel file is required (field: file)" });
+        }
+        const mode = catalogImportModeSchema.parse(req.query.mode ?? "merge");
+        const actorId = getSessionActorId(req);
+        const parseResult = parseCompaniesExcel(req.file.buffer);
+        if (parseResult.rows.length === 0) {
+          return res.status(400).json({
+            message:
+              parseResult.errors.length > 0
+                ? `No valid company rows found. ${parseResult.errors[0].message}`
+                : "No valid company rows found",
+            type: "companies",
+            processed: 0,
+            created: 0,
+            updated: 0,
+            mode,
+            errors: parseResult.errors,
+          });
+        }
+        const result = await storage.importCompanies(actorId, parseResult.rows, mode);
+        result.errors.push(...parseResult.errors);
+        res.json(result);
+      } catch (err) {
+        if (err instanceof z.ZodError) {
+          return res.status(400).json({ message: err.errors[0].message });
+        }
+        console.error("Companies import error:", err);
+        res.status(500).json({ message: err instanceof Error ? err.message : "Failed to import companies" });
       }
     },
   );

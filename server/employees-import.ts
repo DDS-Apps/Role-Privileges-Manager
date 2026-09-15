@@ -59,38 +59,13 @@ function resolveCompanyId(rawCode: string, companyCodeSet: Set<string>): string 
   return companyCode;
 }
 
-function resolveCompanyFromName(name: string, companies: Company[]): string | null {
-  const val = name.trim();
-  if (!val) return null;
-
-  const lower = val.toLowerCase();
-  for (const company of companies) {
-    if (company.id.toLowerCase() === lower) return company.id;
-    if (company.name.toLowerCase() === lower) return company.id;
-  }
-
-  const stripped = val.replace(/^\d+\s+/, "").trim().toLowerCase();
-  for (const company of companies) {
-    const companyName = company.name.trim().toLowerCase();
-    if (companyName === stripped) return company.id;
-    if (stripped && (stripped.includes(companyName) || companyName.includes(stripped))) {
-      return company.id;
-    }
-  }
-
-  return null;
-}
-
 function resolveKnownCompanyCode(
   rawCode: string,
   companyCodeSet: Set<string>,
-  companies: Company[],
 ): string | null {
+  if (!rawCode.trim()) return null;
   const resolved = resolveCompanyId(rawCode, companyCodeSet);
-  if (companyCodeSet.has(resolved)) return resolved;
-  const trimmed = rawCode.trim();
-  if (companies.some((c) => c.id === trimmed || c.id === resolved)) return resolved;
-  return null;
+  return companyCodeSet.has(resolved) ? resolved : null;
 }
 
 export interface ParseEmployeeRosterResult {
@@ -136,6 +111,13 @@ export function parseEmployeeRosterExcel(
   const errorDetails: EmployeeRosterImportErrorDetail[] = [];
   const seen = new Set<string>();
 
+  if (companies.length === 0) {
+    errors.push({
+      row: 0,
+      message: "Company master list is empty — import Step 2 (Companies) before employee roster",
+    });
+  }
+
   const recordError = (
     rowNum: number,
     reason: string,
@@ -156,11 +138,10 @@ export function parseEmployeeRosterExcel(
     const employeeId = normalizeUsername(
       pickColumn(mapped, ["username", "user_name", "employee_id", "userid"]),
     );
-    const nameEn = pickColumn(mapped, [
+    const displayName = pickColumn(mapped, [
+      "display_name",
       "display_name_english",
       "display_nameenglish",
-      "display_name_en",
-      "display_name",
       "name",
       "employee_name",
     ]);
@@ -169,35 +150,29 @@ export function parseEmployeeRosterExcel(
       "display_namearabic",
       "display_name_ar",
     ]);
-    const legalCompanyCode = pickColumn(mapped, ["company_code", "legal_company_code"]);
-    const companyNameEn = pickColumn(mapped, ["company_name_english", "company_nameenglish", "company_name"]);
-    const companyNameAr = pickColumn(mapped, ["company_name_arabic", "company_namearabic"]);
-    const email = pickColumn(mapped, ["email", "email_address", "work_email"]).toLowerCase();
-    const titleEn = pickColumn(mapped, ["title_english", "titleenglish", "title", "job_title", "position"]);
-    const titleAr = pickColumn(mapped, ["title_arabic", "titlearabic"]);
-    const departmentEn = pickColumn(mapped, [
-      "department_english",
-      "departmentenglish",
+    const companyCode = pickColumn(mapped, ["company_code", "legal_company_code"]);
+    const department = pickColumn(mapped, [
+      "department_name",
       "department",
+      "department_english",
     ]);
-    const departmentAr = pickColumn(mapped, ["department_arabic", "departmentarabic"]);
+    const email = pickColumn(mapped, ["email_address", "email", "work_email"]).toLowerCase();
+    const title = pickColumn(mapped, ["job_title", "title", "title_english"]);
+    const managerName = pickColumn(mapped, ["manager_name", "managername"]);
     const managerId = normalizeUsername(
       pickColumn(mapped, ["manager_username", "manager_id", "manager_user_name"]),
     );
     const managerEmail = pickColumn(mapped, ["manageremail", "manager_email"]).toLowerCase();
     const isManagerRaw = pickColumn(mapped, ["is_manager", "manager"]);
 
-    if (!employeeId && !nameEn && !nameAr && !legalCompanyCode && !companyNameEn && !companyNameAr) {
+    if (!employeeId && !displayName && !companyCode) {
       continue;
     }
 
     if (!employeeId) {
-      recordError(rowNum, "Missing USERNAME / employee ID", {
-        displayNameEn: nameEn || undefined,
-        displayNameAr: nameAr || undefined,
-        companyCode: legalCompanyCode || undefined,
-        companyNameEn: companyNameEn || undefined,
-        companyNameAr: companyNameAr || undefined,
+      recordError(rowNum, "Missing USERNAME", {
+        displayNameEn: displayName || undefined,
+        companyCode: companyCode || undefined,
         email: email || undefined,
       });
       continue;
@@ -205,57 +180,40 @@ export function parseEmployeeRosterExcel(
     if (seen.has(employeeId)) continue;
     seen.add(employeeId);
 
-    let legalCompanyId: string | null = null;
-    let unknownCompany: string | null = null;
-
-    if (legalCompanyCode) {
-      legalCompanyId = resolveKnownCompanyCode(legalCompanyCode, companyCodeSet, companies);
-      if (!legalCompanyId) unknownCompany = legalCompanyCode;
-    }
-
-    if (!legalCompanyId && (companyNameEn || companyNameAr)) {
-      legalCompanyId =
-        resolveCompanyFromName(companyNameEn, companies) ??
-        resolveCompanyFromName(companyNameAr, companies);
-      if (!legalCompanyId) {
-        unknownCompany = companyNameEn || companyNameAr;
-      }
-    }
-
-    if (!legalCompanyId) {
-      legalCompanyId = employeeById.get(employeeId)?.legalCompanyId ?? null;
-    }
-
-    if (!legalCompanyId) {
-      const reason = unknownCompany
-        ? `Unknown company — EN: "${companyNameEn || ""}", AR: "${companyNameAr || ""}"`
-        : "Missing Company_Code / Company_Name (could not resolve company)";
-      recordError(rowNum, reason, {
+    if (!companyCode) {
+      recordError(rowNum, "Missing Company_Code", {
         username: employeeId,
-        displayNameEn: nameEn || undefined,
-        displayNameAr: nameAr || undefined,
-        companyCode: legalCompanyCode || undefined,
-        companyNameEn: companyNameEn || undefined,
-        companyNameAr: companyNameAr || undefined,
+        displayNameEn: displayName || undefined,
         email: email || undefined,
       });
       continue;
     }
 
+    const legalCompanyId = resolveKnownCompanyCode(companyCode, companyCodeSet);
+    if (!legalCompanyId) {
+      recordError(rowNum, `Unknown Company_Code: ${companyCode}`, {
+        username: employeeId,
+        displayNameEn: displayName || undefined,
+        companyCode,
+        email: email || undefined,
+      });
+      continue;
+    }
+
+    const companyRecord = companies.find((c) => c.id === legalCompanyId);
+
     rows.push({
       employeeId,
-      name: nameEn || nameAr || employeeId,
+      name: displayName || nameAr || employeeById.get(employeeId)?.name || employeeId,
       nameAr: nameAr || undefined,
       legalCompanyId,
-      companyName: companyNameEn || companyNameAr || undefined,
-      companyNameAr: companyNameAr || undefined,
+      companyName: companyRecord?.name,
       email: email || undefined,
-      title: titleEn || undefined,
-      titleAr: titleAr || undefined,
-      department: departmentEn || undefined,
-      departmentAr: departmentAr || undefined,
+      title: title || undefined,
+      department: department || undefined,
       managerId: managerId || undefined,
       managerEmail: managerEmail || undefined,
+      managerName: managerName || undefined,
       isManager: parseBool(isManagerRaw),
     });
   }

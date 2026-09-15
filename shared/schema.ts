@@ -317,6 +317,15 @@ export interface CatalogImportResult {
   errors: UserRoleImportError[];
 }
 
+export interface CompanyImportResult {
+  type: "companies";
+  processed: number;
+  created: number;
+  updated: number;
+  mode: "merge" | "replace";
+  errors: UserRoleImportError[];
+}
+
 export interface EmployeeRosterImportRow {
   employeeId: string;
   name: string;
@@ -331,6 +340,7 @@ export interface EmployeeRosterImportRow {
   departmentAr?: string;
   managerId?: string;
   managerEmail?: string;
+  managerName?: string;
   isManager: boolean;
 }
 

@@ -83,28 +83,13 @@ function resolveCompanyId(rawCode: string, companyCodeSet: Set<string>): string 
   return companyCode;
 }
 
-function resolveCompanyFromData(dataVal: string, companies: Company[]): string | null {
-  const val = dataVal.trim();
-  if (!val) return null;
-
-  const nameToId = new Map<string, string>();
-  for (const c of companies) {
-    nameToId.set(c.name.toLowerCase().trim(), c.id);
-    nameToId.set(c.id.toLowerCase(), c.id);
-  }
-
-  const lower = val.toLowerCase();
-  if (nameToId.has(lower)) return nameToId.get(lower)!;
-
-  const stripped = val.replace(/^\d+\s+/, "").trim().toLowerCase();
-  if (nameToId.has(stripped)) return nameToId.get(stripped)!;
-
-  for (const [name, id] of Array.from(nameToId.entries())) {
-    if (stripped && (stripped.includes(name) || name.includes(stripped))) {
-      return id;
-    }
-  }
-  return null;
+function resolveKnownCompanyId(
+  rawCode: string,
+  companyCodeSet: Set<string>,
+): string | null {
+  if (!rawCode.trim()) return null;
+  const resolved = resolveCompanyId(rawCode, companyCodeSet);
+  return companyCodeSet.has(resolved) ? resolved : null;
 }
 
 function splitBusinessRoleSegments(raw: string): string[] {
@@ -280,6 +265,14 @@ export function parseUserRolesExcel(
     });
   }
 
+  if (companies.length === 0) {
+    errors.push({
+      row: 0,
+      message:
+        "Company master list is empty — import Step 2 (Companies) before user roles",
+    });
+  }
+
   for (let i = 0; i < normalizedRows.length; i++) {
     const row = normalizedRows[i];
     const rowNum = i + 2; // header is row 1
@@ -289,23 +282,20 @@ export function parseUserRolesExcel(
     );
     const legalCompanyCode = pickColumn(row, ["company_code"]);
     const accessCompanyCode = pickColumn(row, [
-      "data_access_company_code",
       "data_company_code",
+      "data_access_company_code",
     ]);
-    const accessTo = pickColumn(row, ["access_to"]);
-    const dataVal = pickColumn(row, ["data"]);
     const moduleRaw = pickColumn(row, ["module_name", "module"]);
     const businessRoleName = pickColumn(row, ["business_role_name", "business_role"]);
     const roleName = pickColumn(row, ["role_name"]);
     const roleCommonName = pickColumn(row, ["role_common_name"]);
     const displayName = pickColumn(row, ["display_name"]);
-    const companyName = pickColumn(row, ["company_name"]);
     const hasRoleHint =
       (!isPlaceholderBusinessRoleName(businessRoleName) && !!businessRoleName) ||
       !!roleName ||
       !!roleCommonName;
 
-    if (!employeeId && !moduleRaw && !hasRoleHint) {
+    if (!employeeId && !hasRoleHint) {
       continue; // blank row
     }
 
@@ -322,9 +312,36 @@ export function parseUserRolesExcel(
     if (!hasRoleHint) {
       errors.push({
         row: rowNum,
-        message: "Missing role (Business Role Name, ROLE_NAME, or ROLE_COMMON_NAME)",
+        message: "Missing Business Role Name",
       });
       continue;
+    }
+
+    const resolvedLegalCompanyId = resolveKnownCompanyId(
+      legalCompanyCode,
+      companyCodeSet,
+    );
+    if (!resolvedLegalCompanyId) {
+      errors.push({
+        row: rowNum,
+        message: `Unknown Company_Code (legal company): ${legalCompanyCode}`,
+      });
+      continue;
+    }
+
+    let resolvedAccessCompanyId: string;
+    if (accessCompanyCode) {
+      const accessId = resolveKnownCompanyId(accessCompanyCode, companyCodeSet);
+      if (!accessId) {
+        errors.push({
+          row: rowNum,
+          message: `Unknown DATA_COMPANY_CODE (assignment company): ${accessCompanyCode}`,
+        });
+        continue;
+      }
+      resolvedAccessCompanyId = accessId;
+    } else {
+      resolvedAccessCompanyId = resolvedLegalCompanyId;
     }
 
     const catalogMatches = resolveCatalogMatchesForRow(row, moduleRaw, privileges);
@@ -336,7 +353,7 @@ export function parseUserRolesExcel(
         username: employeeId,
         displayName: displayName || undefined,
         companyCode: legalCompanyCode,
-        companyName: companyName || undefined,
+        companyName: companies.find((c) => c.id === resolvedLegalCompanyId)?.name,
         businessRoleName: isPlaceholderBusinessRoleName(businessRoleName)
           ? undefined
           : businessRoleName,
@@ -346,17 +363,7 @@ export function parseUserRolesExcel(
       continue;
     }
 
-    const resolvedLegalCompanyId = resolveCompanyId(legalCompanyCode, companyCodeSet);
-
-    let resolvedAccessCompanyId: string;
-    if (accessCompanyCode) {
-      resolvedAccessCompanyId = resolveCompanyId(accessCompanyCode, companyCodeSet);
-    } else if (!accessTo.trim() || !dataVal.trim()) {
-      resolvedAccessCompanyId = resolvedLegalCompanyId;
-    } else {
-      resolvedAccessCompanyId =
-        resolveCompanyFromData(dataVal, companies) ?? resolvedLegalCompanyId;
-    }
+    const companyName = companies.find((c) => c.id === resolvedLegalCompanyId)?.name;
 
     for (const catalogMatch of catalogMatches) {
       rows.push({
