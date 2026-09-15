@@ -643,6 +643,7 @@ export default function DashboardPage() {
         <CompanyAccessOverview
           privileges={data.privileges}
           assignments={data.assignments}
+          requests={data.requests}
           employees={data.employees}
           companies={data.companies}
           companyId={selectedCompanyId}
@@ -702,6 +703,7 @@ export default function DashboardPage() {
             newPrivilege: t.newPrivilege,
             deletePrivilege: t.deletePrivilege,
             actions: t.actions,
+            noEndDate: t.noEndDate,
           }}
         />
 

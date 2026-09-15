@@ -35,7 +35,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import type { Employee, Privilege, Assignment, Company } from "@shared/schema";
+import type { Employee, Privilege, Assignment, Company, PrivilegeRequest } from "@shared/schema";
 import {
   employeeDisplayDepartment,
   employeeDisplayName,
@@ -66,10 +66,14 @@ export interface CompanyAccessRow {
   function: string;
   role: string;
   rowType: AccessRowType;
+  startDate?: string;
+  endDate?: string | null;
 }
 
 interface RoleLeaf {
   role: string;
+  startDate?: string;
+  endDate?: string | null;
 }
 
 interface FunctionNode {
@@ -119,6 +123,7 @@ type ViewTab = "internal" | "external" | "all" | "no_access";
 interface CompanyAccessOverviewProps {
   privileges: Privilege[];
   assignments: Assignment[];
+  requests: PrivilegeRequest[];
   employees: Employee[];
   companies: Company[];
   companyId: string;
@@ -174,6 +179,7 @@ interface CompanyAccessOverviewProps {
     newPrivilege: string;
     deletePrivilege: string;
     actions: string;
+    noEndDate: string;
   };
 }
 
@@ -215,6 +221,32 @@ function buildCompanyMap(companies: Company[]) {
   return map;
 }
 
+function buildPrivilegeDateIndex(
+  requests: PrivilegeRequest[],
+): Map<string, { startDate: string; endDate: string | null }> {
+  const index = new Map<string, { startDate: string; endDate: string | null }>();
+  const eligible = requests
+    .filter(
+      (r) =>
+        (r.requestType ?? "grant") === "grant" &&
+        (r.status === "active" || r.status === "approved_pending_it"),
+    )
+    .sort(
+      (a, b) =>
+        new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
+    );
+
+  for (const req of eligible) {
+    for (const privId of req.rolesSelected) {
+      const key = `${req.employeeId}|${req.companyId}|${privId}`;
+      if (!index.has(key)) {
+        index.set(key, { startDate: req.startDate, endDate: req.endDate });
+      }
+    }
+  }
+  return index;
+}
+
 function buildAccessRows(
   companyId: string,
   companyName: string,
@@ -223,6 +255,7 @@ function buildAccessRows(
   employeeMap: Map<string, Employee>,
   companyMap: Map<string, Company>,
   privilegeMap: Map<string, Privilege>,
+  privilegeDateIndex: Map<string, { startDate: string; endDate: string | null }>,
   language: "en" | "ar",
 ): { accessRows: CompanyAccessRow[]; noAccessIds: Set<string> } {
   const rows: CompanyAccessRow[] = [];
@@ -241,6 +274,9 @@ function buildAccessRows(
     for (const privId of assignment.privilegeIds) {
       const priv = privilegeMap.get(privId);
       if (!priv) continue;
+      const dates = privilegeDateIndex.get(
+        `${emp.id}|${assignment.companyId}|${privId}`,
+      );
       rows.push({
         key: `${emp.id}-${assignment.companyId}-${privId}-${rowType}`,
         employeeId: emp.id,
@@ -255,6 +291,8 @@ function buildAccessRows(
         function: priv.function,
         role: priv.role,
         rowType,
+        startDate: dates?.startDate,
+        endDate: dates?.endDate,
       });
     }
   };
@@ -347,18 +385,26 @@ function buildModulesFromRows(
 
   const modules: ModuleInstance[] = [];
   for (const [moduleName, modRows] of Array.from(byModule.entries())) {
-    const fnMap = new Map<string, Set<string>>();
+    const fnMap = new Map<string, Map<string, RoleLeaf>>();
     for (const row of modRows) {
-      if (!fnMap.has(row.function)) fnMap.set(row.function, new Set());
-      fnMap.get(row.function)!.add(row.role);
+      if (!fnMap.has(row.function)) fnMap.set(row.function, new Map());
+      const roleMap = fnMap.get(row.function)!;
+      const existing = roleMap.get(row.role);
+      if (!existing || (row.startDate && !existing.startDate)) {
+        roleMap.set(row.role, {
+          role: row.role,
+          startDate: row.startDate,
+          endDate: row.endDate,
+        });
+      }
     }
     const functions: FunctionNode[] = Array.from(fnMap.entries())
       .sort(([a], [b]) => a.localeCompare(b, language))
       .map(([fn, roles]) => ({
         function: fn,
-        roles: Array.from(roles)
-          .sort((a, b) => a.localeCompare(b, language))
-          .map((role) => ({ role })),
+        roles: Array.from(roles.values()).sort((a, b) =>
+          a.role.localeCompare(b.role, language),
+        ),
       }));
     const privilegeCount = functions.reduce((n, f) => n + f.roles.length, 0);
     modules.push({
@@ -565,6 +611,7 @@ function ExpandIcon({ expanded }: { expanded: boolean }) {
 export function CompanyAccessOverview({
   privileges,
   assignments,
+  requests,
   employees,
   companies,
   companyId,
@@ -602,6 +649,10 @@ export function CompanyAccessOverview({
   const privilegeMap = useMemo(() => buildPrivilegeMap(privileges), [privileges]);
   const employeeMap = useMemo(() => buildEmployeeMap(employees), [employees]);
   const companyMap = useMemo(() => buildCompanyMap(companies), [companies]);
+  const privilegeDateIndex = useMemo(
+    () => buildPrivilegeDateIndex(requests),
+    [requests],
+  );
   const companyName = companyMap.get(companyId)?.name ?? companyId;
 
   const catalogModules = useMemo(
@@ -621,6 +672,7 @@ export function CompanyAccessOverview({
       employeeMap,
       companyMap,
       privilegeMap,
+      privilegeDateIndex,
       language,
     );
   }, [
@@ -632,6 +684,7 @@ export function CompanyAccessOverview({
     language,
     companyMap,
     privilegeMap,
+    privilegeDateIndex,
   ]);
 
   const filteredRows = useMemo(() => {
@@ -1382,6 +1435,7 @@ function EmployeeTree({
                 onDeletePrivilege(module, functionName)
               }
               deleteLabel={t.deletePrivilege}
+              noEndDate={t.noEndDate}
             />
           </TableCell>
         </TableRow>
@@ -1501,6 +1555,7 @@ function InCompanyAccessTree({
   onToggleFunction,
   onDeleteFunction,
   deleteLabel,
+  noEndDate,
 }: {
   modules: ModuleInstance[];
   empKey: string;
@@ -1511,6 +1566,7 @@ function InCompanyAccessTree({
   onToggleFunction: (key: string) => void;
   onDeleteFunction?: (module: string, functionName: string) => void;
   deleteLabel?: string;
+  noEndDate: string;
 }) {
   if (modules.length === 0) {
     return (
@@ -1595,7 +1651,12 @@ function InCompanyAccessTree({
                             className="flex gap-2.5 py-1.5 text-sm leading-snug text-slate-600"
                           >
                             <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-teal-500" />
-                            <span>{leaf.role}</span>
+                            <span className="min-w-0 flex-1">{leaf.role}</span>
+                            {leaf.startDate && (
+                              <span className="shrink-0 text-xs text-teal-600">
+                                {leaf.startDate} - {leaf.endDate || noEndDate}
+                              </span>
+                            )}
                           </div>
                         ))}
                       </div>
