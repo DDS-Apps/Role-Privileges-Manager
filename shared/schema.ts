@@ -25,6 +25,7 @@ export interface Contact {
   companies: ContactCompany[];
   managedModules?: string[];  // e.g. ["HR"], ["Finance"] — department head scope
   authType?: AuthType;
+  username?: string;          // local login username (when authType is local)
 }
 
 // ============================================

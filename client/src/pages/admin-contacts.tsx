@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
@@ -150,10 +150,13 @@ function ContactDialog({
   onSave: (v: FormValues) => void;
   saving: boolean;
 }) {
-  const [form, setForm] = useState<FormValues>(initial || EMPTY);
+  const [form, setForm] = useState<FormValues>(EMPTY);
 
-  // reset on open
-  useState(() => { setForm(initial || EMPTY); });
+  useEffect(() => {
+    if (open) {
+      setForm(initial || EMPTY);
+    }
+  }, [open, initial]);
 
   const f = (patch: Partial<FormValues>) => setForm(p => ({ ...p, ...patch }));
 
@@ -345,7 +348,7 @@ export default function AdminContactsPage() {
       companies: editTarget.companies,
       managedModules: editTarget.managedModules ?? [],
       authType: editTarget.authType || "sso",
-      username: "",
+      username: editTarget.username || "",
       password: "",
     };
   }, [editTarget]);

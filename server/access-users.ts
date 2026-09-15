@@ -180,6 +180,7 @@ export class AccessUserStore {
       companies,
       managedModules: first.managedModules ?? [],
       authType: first.authType,
+      username: first.username,
     };
   }
 
