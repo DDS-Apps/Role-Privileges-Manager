@@ -2,8 +2,11 @@ import type { PrivilegeRequest } from "@shared/schema";
 
 function formatModuleForSupportTitle(module: string): string {
   const trimmed = module.trim();
-  const withoutPrefix = trimmed.replace(/^oracle\s*[-–—]?\s*/i, "").trim();
-  return `Oracle - ${withoutPrefix || trimmed}`;
+  const withoutPrefix = trimmed
+    .replace(/^oracle\s+prm\s*[-–—]?\s*/i, "")
+    .replace(/^oracle\s*[-–—]?\s*/i, "")
+    .trim();
+  return `Oracle PRM - ${withoutPrefix || trimmed}`;
 }
 
 /** Canonical subject sent to Support — echoed in ServiceDesk ack body as ticket title */
