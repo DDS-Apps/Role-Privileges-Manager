@@ -1,19 +1,16 @@
 import { useState, useMemo } from "react";
 import { Link } from "wouter";
-import { useBootstrapData, useRequests, useUpdateRequest, useTerminateEmployee, useRegisterItTicket, useMarkItResolved } from "@/hooks/use-app-data";
+import { useBootstrapData, useTerminateEmployee } from "@/hooks/use-app-data";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { DataImportCenter } from "@/components/ui/data-import-center";
 import { useAuth } from "@/hooks/use-auth";
 import {
-  Loader2, Globe, ArrowLeft, ShieldCheck, Search, Users,
-  UserX, ChevronDown, ChevronRight, Check, X, AlertTriangle
+  Loader2, Globe, ArrowLeft, Search, Users,
+  UserX, AlertTriangle, ClipboardList,
 } from "lucide-react";
 import { DallahLogo } from "@/components/ui/dallah-logo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Badge } from "@/components/ui/badge";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
   DialogContent,
@@ -29,11 +26,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import type { PrivilegeRequest, RequestStatus } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
-import { getRequestTypeLabel, formatRevokeExecutionState, getItTicketLabel } from "@/lib/request-utils";
-import { StatusBadge } from "@/components/ui/status-badge";
-import { cn } from "@/lib/utils";
 
 type Language = "en" | "ar";
 
@@ -42,27 +35,8 @@ const DICT = {
     title: "Admin Panel",
     backToDashboard: "Back to Dashboard",
     requestManagement: "Request Management",
+    requestManagementDesc: "Search, filter, approve, and track privilege requests.",
     employeeTermination: "Employee Termination",
-    all: "All",
-    pending: "Pending",
-    active: "Approved",
-    rejected: "Rejected",
-    employee: "Employee",
-    manager: "Manager",
-    moduleFunction: "Module / Function",
-    rolesCount: "Roles Count",
-    startDate: "Start Date",
-    endDate: "End Date",
-    status: "Status",
-    createdDate: "Created Date",
-    noRequests: "No requests found",
-    roles: "Roles",
-    adminComment: "Admin Comment",
-    addComment: "Add comment (optional)...",
-    approve: "Approve",
-    reject: "Reject",
-    approving: "Approving...",
-    rejecting: "Rejecting...",
     searchEmployee: "Search by name or ID...",
     selectEmployee: "Select Employee",
     terminateEmployee: "Terminate Employee",
@@ -71,19 +45,6 @@ const DICT = {
     cancel: "Cancel",
     confirm: "Confirm",
     terminating: "Terminating...",
-    noEndDate: "No end date",
-    loading: "Loading...",
-    grant: "Grant",
-    delete: "Delete",
-    scheduled: "Scheduled",
-    revoked: "Revoked",
-    reinstated: "Reinstated",
-    revokedUntil: "Revoked until {date}",
-    awaitingIt: "Awaiting IT",
-    ticketId: "Ticket ID",
-    registerTicket: "Register ticket",
-    markItResolved: "Mark IT resolved",
-    ticketPlaceholder: "##RE-20217##",
     dataImportTitle: "Data import center",
     dataImportSubtitle: "Upload each Excel file in order. All imports merge into existing data unless noted.",
     recommendedOrder: "Recommended order: 1 Catalog → 2 Companies → 3 User roles → 4 Employee roster → 5 Login users. After replacing the catalog, re-import user roles so assignments stay linked.",
@@ -111,27 +72,8 @@ const DICT = {
     title: "لوحة الإدارة",
     backToDashboard: "العودة إلى لوحة التحكم",
     requestManagement: "إدارة الطلبات",
+    requestManagementDesc: "ابحث وصفِّ ووافق على طلبات الامتيازات وتتبعها.",
     employeeTermination: "إنهاء خدمة الموظف",
-    all: "الكل",
-    pending: "معلق",
-    active: "معتمد",
-    rejected: "مرفوض",
-    employee: "الموظف",
-    manager: "المدير",
-    moduleFunction: "الوحدة / الوظيفة",
-    rolesCount: "عدد الأدوار",
-    startDate: "تاريخ البدء",
-    endDate: "تاريخ الانتهاء",
-    status: "الحالة",
-    createdDate: "تاريخ الإنشاء",
-    noRequests: "لا توجد طلبات",
-    roles: "الأدوار",
-    adminComment: "تعليق المسؤول",
-    addComment: "أضف تعليق (اختياري)...",
-    approve: "موافقة",
-    reject: "رفض",
-    approving: "جاري الموافقة...",
-    rejecting: "جاري الرفض...",
     searchEmployee: "ابحث بالاسم أو الرقم...",
     selectEmployee: "اختر موظف",
     terminateEmployee: "إنهاء خدمة الموظف",
@@ -140,19 +82,6 @@ const DICT = {
     cancel: "إلغاء",
     confirm: "تأكيد",
     terminating: "جاري الإنهاء...",
-    noEndDate: "لا يوجد تاريخ انتهاء",
-    loading: "جاري التحميل...",
-    grant: "منح",
-    delete: "حذف",
-    scheduled: "مجدول",
-    revoked: "ملغى",
-    reinstated: "مُستعاد",
-    revokedUntil: "ملغى حتى {date}",
-    awaitingIt: "بانتظار IT",
-    ticketId: "رقم التذكرة",
-    registerTicket: "تسجيل التذكرة",
-    markItResolved: "تأكيد إنجاز IT",
-    ticketPlaceholder: "##RE-20217##",
     dataImportTitle: "مركز استيراد البيانات",
     dataImportSubtitle: "ارفع كل ملف Excel بالترتيب. جميع الاستيرادات تُدمج مع البيانات الحالية ما لم يُذكر خلاف ذلك.",
     recommendedOrder: "الترتيب الموصى به: 1 الكatalog → 2 الشركات → 3 أدوار المستخدمين → 4 سجل الموظفين → 5 مستخدمو الدخول. بعد استبدال الكatalog، أعد استيراد أدوار المستخدمين.",
@@ -178,34 +107,8 @@ const DICT = {
   }
 };
 
-// ADMIN_USER_ID is now derived from the session
-
-function getStatusColor(status: RequestStatus) {
-  switch (status) {
-    case "pending":
-      return "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-300";
-    case "approved_pending_it":
-      return "bg-indigo-100 text-indigo-800 dark:bg-indigo-900/50 dark:text-indigo-300";
-    case "active":
-      return "bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300";
-    case "rejected":
-      return "bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300";
-    default:
-      return "bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-300";
-  }
-}
-
-function formatDate(dateStr: string) {
-  return new Date(dateStr).toLocaleDateString();
-}
-
 export default function AdminPage() {
   const [language, setLanguage] = useState<Language>("en");
-  const [statusFilter, setStatusFilter] = useState<RequestStatus | "all">("all");
-  const [expandedRequestId, setExpandedRequestId] = useState<string | null>(null);
-  const [adminComments, setAdminComments] = useState<Record<string, string>>({});
-  const [itTicketInputs, setItTicketInputs] = useState<Record<string, string>>({});
-  
   const [employeeSearch, setEmployeeSearch] = useState("");
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>("");
   const [showTerminateDialog, setShowTerminateDialog] = useState(false);
@@ -221,22 +124,7 @@ export default function AdminPage() {
     },
   });
 
-  // The ID sent as adminId for approve/reject (contact id or employee SAP id)
   const adminId = authUser?.id || "";
-
-  // GM companies: contacts with role "GM" — used to filter visible requests
-  const gmCompanyIds = authUser?.isAdmin
-    ? undefined  // system admin sees all
-    : authUser?.companies.filter(c => c.role === "GM").map(c => c.companyId);
-
-  const { data: requests, isLoading: isRequestsLoading } = useRequests(
-    statusFilter === "all"
-      ? (gmCompanyIds?.length ? { targetCompanyIds: gmCompanyIds } : undefined)
-      : { status: statusFilter, ...(gmCompanyIds?.length ? { targetCompanyIds: gmCompanyIds } : {}) }
-  );
-  const updateRequest = useUpdateRequest();
-  const registerItTicket = useRegisterItTicket();
-  const markItResolved = useMarkItResolved();
   const terminateEmployee = useTerminateEmployee();
   const { toast } = useToast();
 
@@ -247,25 +135,6 @@ export default function AdminPage() {
     setLanguage(newLang);
     document.documentElement.dir = newLang === "ar" ? "rtl" : "ltr";
   };
-
-  const getEmployeeName = (id: string) => {
-    return data?.employees.find(e => e.id === id)?.name || id;
-  };
-
-  const getCompanyName = (id: string) => {
-    return data?.companies.find(c => c.id === id)?.name || id;
-  };
-
-  const getPrivilegeDetails = (privilegeIds: string[]) => {
-    if (!data) return [];
-    return privilegeIds.map(id => data.privileges.find(p => p.id === id)).filter(Boolean);
-  };
-
-  const filteredRequests = useMemo(() => {
-    if (!requests) return [];
-    if (statusFilter === "all") return requests;
-    return requests.filter(r => r.status === statusFilter);
-  }, [requests, statusFilter]);
 
   const filteredEmployees = useMemo(() => {
     if (!data) return [];
@@ -280,80 +149,6 @@ export default function AdminPage() {
     data?.employees.find(e => e.id === selectedEmployeeId),
     [data, selectedEmployeeId]
   );
-
-  const handleApprove = async (request: PrivilegeRequest) => {
-    try {
-      await updateRequest.mutateAsync({
-        requestId: request.id,
-        adminId: adminId,
-        data: {
-          status: "active",
-          adminComments: adminComments[request.id] || null,
-        }
-      });
-      toast({ title: "GM approval recorded — sent to IT Support" });
-      setExpandedRequestId(null);
-    } catch (err) {
-      toast({ 
-        title: "Failed to approve request", 
-        description: err instanceof Error ? err.message : "Unknown error",
-        variant: "destructive" 
-      });
-    }
-  };
-
-  const handleReject = async (request: PrivilegeRequest) => {
-    try {
-      await updateRequest.mutateAsync({
-        requestId: request.id,
-        adminId: adminId,
-        data: {
-          status: "rejected",
-          adminComments: adminComments[request.id] || null,
-        }
-      });
-      toast({ title: "Request rejected" });
-      setExpandedRequestId(null);
-    } catch (err) {
-      toast({ 
-        title: "Failed to reject request", 
-        description: err instanceof Error ? err.message : "Unknown error",
-        variant: "destructive" 
-      });
-    }
-  };
-
-  const handleRegisterTicket = async (request: PrivilegeRequest) => {
-    const ticketId = itTicketInputs[request.id]?.trim();
-    if (!ticketId) {
-      toast({ title: "Enter a ticket ID", variant: "destructive" });
-      return;
-    }
-    try {
-      await registerItTicket.mutateAsync({ requestId: request.id, ticketId });
-      toast({ title: "Ticket registered" });
-    } catch (err) {
-      toast({
-        title: "Failed to register ticket",
-        description: err instanceof Error ? err.message : "",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleMarkItResolved = async (request: PrivilegeRequest) => {
-    try {
-      await markItResolved.mutateAsync(request.id);
-      toast({ title: "Request marked resolved — privileges applied" });
-      setExpandedRequestId(null);
-    } catch (err) {
-      toast({
-        title: "Failed to mark resolved",
-        description: err instanceof Error ? err.message : "",
-        variant: "destructive",
-      });
-    }
-  };
 
   const handleTerminate = async () => {
     if (!selectedEmployeeId) return;
@@ -400,6 +195,13 @@ export default function AdminPage() {
               </Button>
             </Link>
 
+            <Link href="/admin/requests">
+              <Button variant="ghost" size="sm" className="text-white/90 hover:bg-white/20 gap-1.5">
+                <ClipboardList className="h-4 w-4" />
+                {t.requestManagement}
+              </Button>
+            </Link>
+
             <Link href="/admin/contacts">
               <Button variant="ghost" size="sm" className="text-white/90 hover:bg-white/20 gap-1.5">
                 <Users className="h-4 w-4" />
@@ -422,242 +224,19 @@ export default function AdminPage() {
       </header>
 
       <main className="mx-auto max-w-7xl p-4 md:p-6 space-y-8">
-        <section className="space-y-4">
-          <h2 className="text-xl font-semibold" data-testid="text-request-management-title">{t.requestManagement}</h2>
-          
-          <div className="rounded-lg border border-slate-400 dark:border-slate-500 bg-slate-100 dark:bg-slate-700 p-4">
-            <Tabs value={statusFilter} onValueChange={(v) => setStatusFilter(v as RequestStatus | "all")}>
-              <TabsList className="mb-4" data-testid="tabs-status-filter">
-                <TabsTrigger value="all" data-testid="tab-all">{t.all}</TabsTrigger>
-                <TabsTrigger value="pending" data-testid="tab-pending">{t.pending}</TabsTrigger>
-                <TabsTrigger value="approved_pending_it" data-testid="tab-awaiting-it">{t.awaitingIt}</TabsTrigger>
-                <TabsTrigger value="active" data-testid="tab-active">{t.active}</TabsTrigger>
-                <TabsTrigger value="rejected" data-testid="tab-rejected">{t.rejected}</TabsTrigger>
-              </TabsList>
-
-              <TabsContent value={statusFilter}>
-                {isRequestsLoading ? (
-                  <div className="flex items-center justify-center py-8">
-                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                  </div>
-                ) : filteredRequests.length === 0 ? (
-                  <div className="text-center py-8 text-muted-foreground" data-testid="text-no-requests">
-                    {t.noRequests}
-                  </div>
-                ) : (
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
-                      <thead>
-                        <tr className="border-b border-slate-300 dark:border-slate-600">
-                          <th className="text-left py-2 px-3 font-medium">{t.employee}</th>
-                          <th className="text-left py-2 px-3 font-medium">{t.manager}</th>
-                          <th className="text-left py-2 px-3 font-medium">Company</th>
-                          <th className="text-left py-2 px-3 font-medium">{t.moduleFunction}</th>
-                          <th className="text-left py-2 px-3 font-medium">{t.rolesCount}</th>
-                          <th className="text-left py-2 px-3 font-medium">{t.startDate}</th>
-                          <th className="text-left py-2 px-3 font-medium">{t.endDate}</th>
-                          <th className="text-left py-2 px-3 font-medium">{t.status}</th>
-                          <th className="text-left py-2 px-3 font-medium">{t.createdDate}</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {filteredRequests.map((request) => {
-                          const isExpanded = expandedRequestId === request.id;
-                          const privileges = getPrivilegeDetails(request.rolesSelected);
-                          const isRevoke = (request.requestType ?? "grant") === "revoke";
-                          const typeLabel = getRequestTypeLabel(request, {
-                            grant: t.grant,
-                            delete: t.delete,
-                          });
-                          const executionState = formatRevokeExecutionState(request, {
-                            scheduled: t.scheduled,
-                            revoked: t.revoked,
-                            reinstated: t.reinstated,
-                            revokedUntil: t.revokedUntil,
-                            noEndDate: t.noEndDate,
-                          });
-                          
-                          return (
-                            <>
-                              <tr 
-                                key={request.id}
-                                className="border-b border-slate-200 dark:border-slate-600 cursor-pointer hover:bg-slate-200/50 dark:hover:bg-slate-600/50 transition-colors"
-                                onClick={() => setExpandedRequestId(isExpanded ? null : request.id)}
-                                data-testid={`row-request-${request.id}`}
-                              >
-                                <td className="py-3 px-3">
-                                  <div className="flex items-center gap-2">
-                                    {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-                                    <div>
-                                      <div>{getEmployeeName(request.employeeId)}</div>
-                                      <div className="text-xs text-slate-400 font-mono">{request.employeeId}</div>
-                                    </div>
-                                  </div>
-                                </td>
-                                <td className="py-3 px-3">
-                                  <div>{getEmployeeName(request.managerId)}</div>
-                                  {request.managerUserId && (
-                                    <div className="text-xs text-slate-400 font-mono">{request.managerUserId}</div>
-                                  )}
-                                </td>
-                                <td className="py-3 px-3">
-                                  <span className="text-xs font-medium text-teal-700 dark:text-teal-400" dir="rtl">
-                                    {getCompanyName(request.companyId)}
-                                  </span>
-                                </td>
-                                <td className="py-3 px-3">
-                                  <div className="flex flex-col gap-1">
-                                    <div className="flex flex-wrap items-center gap-1.5">
-                                      <span
-                                        className={cn(
-                                          "inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase",
-                                          isRevoke
-                                            ? "bg-rose-100 text-rose-800"
-                                            : "bg-teal-100 text-teal-800",
-                                        )}
-                                      >
-                                        {typeLabel}
-                                      </span>
-                                      {executionState && (
-                                        <span className="text-[10px] font-medium text-slate-500">
-                                          {executionState}
-                                        </span>
-                                      )}
-                                    </div>
-                                    <span>{request.module} / {request.function}</span>
-                                  </div>
-                                </td>
-                                <td className="py-3 px-3">{request.rolesSelected.length}</td>
-                                <td className="py-3 px-3">{formatDate(request.startDate)}</td>
-                                <td className="py-3 px-3">{request.endDate ? formatDate(request.endDate) : t.noEndDate}</td>
-                                <td className="py-3 px-3">
-                                  <div className="flex flex-col gap-1">
-                                    <StatusBadge status={request.status} size="sm" />
-                                    {getItTicketLabel(request) && (
-                                      <span className="text-[10px] font-mono text-indigo-700">
-                                        {getItTicketLabel(request)}
-                                      </span>
-                                    )}
-                                  </div>
-                                </td>
-                                <td className="py-3 px-3">{formatDate(request.createdAt)}</td>
-                              </tr>
-                              
-                              {isExpanded && (
-                                <tr className="bg-slate-50 dark:bg-slate-800/50">
-                                  <td colSpan={8} className="p-4">
-                                    <div className="space-y-4">
-                                      <div>
-                                        <h4 className="font-medium mb-2">{t.roles}:</h4>
-                                        <div className="flex flex-wrap gap-2">
-                                          {privileges.map((priv) => (
-                                            <Badge key={priv?.id} variant="secondary" data-testid={`badge-role-${priv?.id}`}>
-                                              {priv?.role}
-                                            </Badge>
-                                          ))}
-                                        </div>
-                                      </div>
-
-                                      {request.status === "pending" ? (
-                                        <div className="space-y-3">
-                                          <div>
-                                            <label className="text-sm font-medium">{t.adminComment}</label>
-                                            <Textarea
-                                              placeholder={t.addComment}
-                                              value={adminComments[request.id] || ""}
-                                              onChange={(e) => setAdminComments(prev => ({
-                                                ...prev,
-                                                [request.id]: e.target.value
-                                              }))}
-                                              className="mt-1"
-                                              data-testid={`input-admin-comment-${request.id}`}
-                                            />
-                                          </div>
-                                          <div className="flex gap-2">
-                                            <Button
-                                              onClick={(e) => { e.stopPropagation(); handleApprove(request); }}
-                                              disabled={updateRequest.isPending}
-                                              data-testid={`button-approve-${request.id}`}
-                                            >
-                                              {updateRequest.isPending ? (
-                                                <><Loader2 className="h-4 w-4 animate-spin mr-1" />{t.approving}</>
-                                              ) : (
-                                                <><Check className="h-4 w-4 mr-1" />{t.approve}</>
-                                              )}
-                                            </Button>
-                                            <Button
-                                              variant="destructive"
-                                              onClick={(e) => { e.stopPropagation(); handleReject(request); }}
-                                              disabled={updateRequest.isPending}
-                                              data-testid={`button-reject-${request.id}`}
-                                            >
-                                              {updateRequest.isPending ? (
-                                                <><Loader2 className="h-4 w-4 animate-spin mr-1" />{t.rejecting}</>
-                                              ) : (
-                                                <><X className="h-4 w-4 mr-1" />{t.reject}</>
-                                              )}
-                                            </Button>
-                                          </div>
-                                        </div>
-                                      ) : request.status === "approved_pending_it" ? (
-                                        <div className="space-y-3">
-                                          {request.supportRequestTitle && (
-                                            <p className="text-xs text-slate-500">
-                                              Support title: <span className="font-medium text-slate-700">{request.supportRequestTitle}</span>
-                                            </p>
-                                          )}
-                                          <div>
-                                            <label className="text-sm font-medium">{t.ticketId}</label>
-                                            <Input
-                                              placeholder={t.ticketPlaceholder}
-                                              value={itTicketInputs[request.id] ?? request.supportTicketId ?? ""}
-                                              onChange={(e) => setItTicketInputs((prev) => ({
-                                                ...prev,
-                                                [request.id]: e.target.value,
-                                              }))}
-                                              className="mt-1 max-w-xs font-mono text-sm"
-                                              onClick={(e) => e.stopPropagation()}
-                                            />
-                                          </div>
-                                          <div className="flex flex-wrap gap-2">
-                                            <Button
-                                              variant="outline"
-                                              onClick={(e) => { e.stopPropagation(); handleRegisterTicket(request); }}
-                                              disabled={registerItTicket.isPending}
-                                            >
-                                              {t.registerTicket}
-                                            </Button>
-                                            <Button
-                                              onClick={(e) => { e.stopPropagation(); handleMarkItResolved(request); }}
-                                              disabled={markItResolved.isPending}
-                                            >
-                                              {t.markItResolved}
-                                            </Button>
-                                          </div>
-                                        </div>
-                                      ) : request.adminComments ? (
-                                        <div>
-                                          <h4 className="font-medium mb-1">{t.adminComment}:</h4>
-                                          <p className="text-muted-foreground" data-testid={`text-admin-comment-${request.id}`}>
-                                            {request.adminComments}
-                                          </p>
-                                        </div>
-                                      ) : null}
-                                    </div>
-                                  </td>
-                                </tr>
-                              )}
-                            </>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </TabsContent>
-            </Tabs>
+        <Link href="/admin/requests">
+          <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm hover:border-teal-300 hover:bg-teal-50/30 transition-colors cursor-pointer">
+            <div className="flex items-start gap-4">
+              <div className="rounded-lg bg-teal-100 p-3">
+                <ClipboardList className="h-6 w-6 text-teal-700" />
+              </div>
+              <div>
+                <h2 className="text-lg font-semibold text-slate-900">{t.requestManagement}</h2>
+                <p className="mt-1 text-sm text-slate-500">{t.requestManagementDesc}</p>
+              </div>
+            </div>
           </div>
-        </section>
+        </Link>
 
         {data && (
           <DataImportCenter

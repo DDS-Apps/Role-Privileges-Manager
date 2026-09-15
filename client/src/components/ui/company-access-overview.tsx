@@ -72,13 +72,13 @@ export interface CompanyAccessRow {
 
 interface RoleLeaf {
   role: string;
-  startDate?: string;
-  endDate?: string | null;
 }
 
 interface FunctionNode {
   function: string;
   roles: RoleLeaf[];
+  startDate?: string;
+  endDate?: string | null;
 }
 
 export interface ModuleInstance {
@@ -385,27 +385,31 @@ function buildModulesFromRows(
 
   const modules: ModuleInstance[] = [];
   for (const [moduleName, modRows] of Array.from(byModule.entries())) {
-    const fnMap = new Map<string, Map<string, RoleLeaf>>();
+    const fnMap = new Map<string, Set<string>>();
+    const fnDates = new Map<string, { startDate: string; endDate: string | null }>();
     for (const row of modRows) {
-      if (!fnMap.has(row.function)) fnMap.set(row.function, new Map());
-      const roleMap = fnMap.get(row.function)!;
-      const existing = roleMap.get(row.role);
-      if (!existing || (row.startDate && !existing.startDate)) {
-        roleMap.set(row.role, {
-          role: row.role,
+      if (!fnMap.has(row.function)) fnMap.set(row.function, new Set());
+      fnMap.get(row.function)!.add(row.role);
+      if (row.startDate && !fnDates.has(row.function)) {
+        fnDates.set(row.function, {
           startDate: row.startDate,
-          endDate: row.endDate,
+          endDate: row.endDate ?? null,
         });
       }
     }
     const functions: FunctionNode[] = Array.from(fnMap.entries())
       .sort(([a], [b]) => a.localeCompare(b, language))
-      .map(([fn, roles]) => ({
-        function: fn,
-        roles: Array.from(roles.values()).sort((a, b) =>
-          a.role.localeCompare(b.role, language),
-        ),
-      }));
+      .map(([fn, roles]) => {
+        const dates = fnDates.get(fn);
+        return {
+          function: fn,
+          roles: Array.from(roles)
+            .sort((a, b) => a.localeCompare(b, language))
+            .map((role) => ({ role })),
+          startDate: dates?.startDate,
+          endDate: dates?.endDate,
+        };
+      });
     const privilegeCount = functions.reduce((n, f) => n + f.roles.length, 0);
     modules.push({
       key: `${moduleName}::${selectedCompanyId}`,
@@ -1627,6 +1631,11 @@ function InCompanyAccessTree({
                         <span className="rounded bg-slate-200 px-1.5 py-0.5 text-xs text-slate-600">
                           {roleCount}
                         </span>
+                        {fn.startDate && (
+                          <span className="ml-auto shrink-0 text-xs text-teal-600">
+                            {fn.startDate} - {fn.endDate || noEndDate}
+                          </span>
+                        )}
                       </button>
                       {onDeleteFunction && (
                         <Button
@@ -1651,12 +1660,7 @@ function InCompanyAccessTree({
                             className="flex gap-2.5 py-1.5 text-sm leading-snug text-slate-600"
                           >
                             <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-teal-500" />
-                            <span className="min-w-0 flex-1">{leaf.role}</span>
-                            {leaf.startDate && (
-                              <span className="shrink-0 text-xs text-teal-600">
-                                {leaf.startDate} - {leaf.endDate || noEndDate}
-                              </span>
-                            )}
+                            <span>{leaf.role}</span>
                           </div>
                         ))}
                       </div>

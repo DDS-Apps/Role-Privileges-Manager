@@ -6,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import Dashboard from "@/pages/dashboard";
 import AdminPage from "@/pages/admin";
 import AdminContactsPage from "@/pages/admin-contacts";
+import AdminRequestsPage from "@/pages/admin-requests";
 import LoginPage from "@/pages/login";
 import NotFound from "@/pages/not-found";
 import { useAuth } from "@/hooks/use-auth";
@@ -51,6 +52,9 @@ function Router() {
       </Route>
       <Route path="/admin/contacts">
         {() => <ProtectedRoute component={AdminContactsPage} adminOnly />}
+      </Route>
+      <Route path="/admin/requests">
+        {() => <ProtectedRoute component={AdminRequestsPage} adminOnly />}
       </Route>
       <Route component={NotFound} />
     </Switch>
