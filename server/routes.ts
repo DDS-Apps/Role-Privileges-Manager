@@ -995,6 +995,23 @@ export async function registerRoutes(
     }
   });
 
+  // IT fulfillment — reject in-progress request (admin)
+  app.post("/api/requests/:requestId/reject-it", requireAuth as any, requireAdmin as any, async (req, res) => {
+    try {
+      const { requestId } = req.params;
+      const adminId = getSessionActorId(req);
+      const adminComments =
+        typeof req.body?.adminComments === "string" ? req.body.adminComments : null;
+      const request = await storage.rejectItRequest(requestId, adminId, adminComments);
+      res.json(request);
+    } catch (err) {
+      if (err instanceof Error) {
+        return res.status(err.message.includes("not found") ? 404 : 400).json({ message: err.message });
+      }
+      res.status(500).json({ message: "Failed to reject IT request" });
+    }
+  });
+
   // IT fulfillment — manually mark resolved (admin)
   app.post("/api/requests/:requestId/mark-resolved", requireAuth as any, requireAdmin as any, async (req, res) => {
     try {

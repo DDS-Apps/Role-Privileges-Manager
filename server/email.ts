@@ -38,6 +38,7 @@ const FROM_ADDRESS =
 export interface ItFulfillmentEmailContext {
   managerName: string;
   managerUserId?: string;
+  requesterEmail?: string;
   employeeName: string;
   employeeId: string;
   companyName: string;
@@ -71,7 +72,7 @@ export async function sendItFulfillmentEmail(
   <h2 style="color: #0f766e;">RPM — ${isRevoke ? "Delete Privilege Request" : "Grant Privilege Request"}</h2>
   <p>GM approval complete. Please process this request in ServiceDesk.</p>
   <table style="border-collapse: collapse; width: 100%; max-width: 560px;">
-    <tr><td style="padding: 6px 0; color: #64748b;">Submitted by</td><td><strong>${ctx.managerName}</strong>${ctx.managerUserId ? ` (${ctx.managerUserId})` : ""}</td></tr>
+    <tr><td style="padding: 6px 0; color: #64748b;">Submitted by</td><td><strong>${ctx.managerName}</strong>${ctx.managerUserId ? ` (${ctx.managerUserId})` : ""}${ctx.requesterEmail ? `<br /><a href="mailto:${ctx.requesterEmail}">${ctx.requesterEmail}</a>` : ""}</td></tr>
     <tr><td style="padding: 6px 0; color: #64748b;">Employee</td><td><strong>${ctx.employeeName}</strong> (${ctx.employeeId})</td></tr>
     <tr><td style="padding: 6px 0; color: #64748b;">Company</td><td>${ctx.companyName}</td></tr>
     <tr><td style="padding: 6px 0; color: #64748b;">Module / Function</td><td>${request.module} / ${request.function}</td></tr>
@@ -89,7 +90,7 @@ export async function sendItFulfillmentEmail(
   const text = [
     `RPM ${isRevoke ? "Delete" : "Grant"} Privilege Request — GM approved`,
     "",
-    `Submitted by : ${ctx.managerName}${ctx.managerUserId ? ` (${ctx.managerUserId})` : ""}`,
+    `Submitted by : ${ctx.managerName}${ctx.managerUserId ? ` (${ctx.managerUserId})` : ""}${ctx.requesterEmail ? ` <${ctx.requesterEmail}>` : ""}`,
     `Employee     : ${ctx.employeeName} (${ctx.employeeId})`,
     `Company      : ${ctx.companyName}`,
     `Module       : ${request.module} / ${request.function}`,
@@ -113,14 +114,18 @@ export async function sendItFulfillmentEmail(
   }
 
   try {
+    const cc = ctx.requesterEmail ? [ctx.requesterEmail] : undefined;
     await transporter.sendMail({
       from: FROM_ADDRESS,
       to: SUPPORT_EMAIL,
+      ...(cc ? { cc } : {}),
       subject,
       text,
       html,
     });
-    console.log(`[email] IT fulfillment request sent → ${SUPPORT_EMAIL}`);
+    console.log(
+      `[email] IT fulfillment request sent → ${SUPPORT_EMAIL}${cc ? ` (cc: ${cc.join(", ")})` : ""}`,
+    );
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.error("[email] Failed to send IT fulfillment email:", message);

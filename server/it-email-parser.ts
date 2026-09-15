@@ -1,12 +1,19 @@
 import type { PrivilegeRequest } from "@shared/schema";
 
+function formatModuleForSupportTitle(module: string): string {
+  const trimmed = module.trim();
+  const withoutPrefix = trimmed.replace(/^oracle\s*[-–—]?\s*/i, "").trim();
+  return `Oracle - ${withoutPrefix || trimmed}`;
+}
+
 /** Canonical subject sent to Support — echoed in ServiceDesk ack body as ticket title */
 export function buildItRequestTitle(
   request: PrivilegeRequest,
   employeeName: string,
 ): string {
   const typeLabel = (request.requestType ?? "grant") === "revoke" ? "Delete" : "Grant";
-  return `[RPM] ${typeLabel} — ${employeeName} | ${request.module} / ${request.function} [${request.id}]`;
+  const moduleLabel = formatModuleForSupportTitle(request.module);
+  return `[RPM] ${typeLabel} — ${employeeName} | ${moduleLabel} / ${request.function} [${request.id}]`;
 }
 
 /** Parse ##RE-20217## or RE-20217 from subject/body */

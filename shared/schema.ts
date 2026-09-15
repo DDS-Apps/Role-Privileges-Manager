@@ -170,6 +170,7 @@ export type AuditActionType =
   | "IT_EMAIL_SENT"
   | "IT_TICKET_LOGGED"
   | "IT_TICKET_RESOLVED"
+  | "IT_REQUEST_REJECTED"
   | "EMPLOYEE_TERMINATED";
 
 export interface AuditEntry {

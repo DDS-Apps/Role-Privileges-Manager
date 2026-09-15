@@ -4,9 +4,9 @@ import {
   useBootstrapData,
   useRequests,
   useUpdateRequest,
-  useRegisterItTicket,
   useMarkItResolved,
   useResendItEmail,
+  useRejectItRequest,
 } from "@/hooks/use-app-data";
 import { useAuth } from "@/hooks/use-auth";
 import {
@@ -52,9 +52,9 @@ const DICT = {
     backToAdmin: "Admin Panel",
     all: "All",
     pending: "Pending",
-    active: "Approved",
+    active: "Complete",
     rejected: "Rejected",
-    awaitingIt: "Awaiting IT",
+    awaitingIt: "In Progress",
     employee: "Employee",
     manager: "Manager",
     company: "Company",
@@ -81,14 +81,17 @@ const DICT = {
     reinstated: "Reinstated",
     revokedUntil: "Revoked until {date}",
     ticketId: "Ticket ID",
-    registerTicket: "Register ticket",
-    markItResolved: "Mark IT resolved",
+    ticketPending: "Waiting for ServiceDesk ticket…",
+    markComplete: "Complete",
+    markItRejected: "Reject",
+    completing: "Completing…",
+    itRejectSuccess: "Request rejected",
+    completeSuccess: "Request completed — privileges applied",
     resendToSupport: "Resend email to Support",
     resendingEmail: "Sending…",
     emailSentAt: "Email sent",
     emailNotSent: "Email not sent to Support yet",
     resendEmailSuccess: "Email sent to Support@dallah.com",
-    ticketPlaceholder: "##RE-20217##",
     searchPlaceholder: "Search employee, manager, module, company, ticket…",
     allCompanies: "All companies",
     allModules: "All modules",
@@ -103,9 +106,9 @@ const DICT = {
     backToAdmin: "لوحة الإدارة",
     all: "الكل",
     pending: "معلق",
-    active: "معتمد",
+    active: "مكتمل",
     rejected: "مرفوض",
-    awaitingIt: "بانتظار IT",
+    awaitingIt: "قيد التنفيذ",
     employee: "الموظف",
     manager: "المدير",
     company: "الشركة",
@@ -132,14 +135,17 @@ const DICT = {
     reinstated: "مُستعاد",
     revokedUntil: "ملغى حتى {date}",
     ticketId: "رقم التذكرة",
-    registerTicket: "تسجيل التذكرة",
-    markItResolved: "تأكيد إنجاز IT",
+    ticketPending: "بانتظار تذكرة ServiceDesk…",
+    markComplete: "إكمال",
+    markItRejected: "رفض",
+    completing: "جاري الإكمال…",
+    itRejectSuccess: "تم رفض الطلب",
+    completeSuccess: "تم إكمال الطلب — طُبقت الصلاحيات",
     resendToSupport: "إعادة إرسال البريد إلى Support",
     resendingEmail: "جاري الإرسال…",
     emailSentAt: "تم إرسال البريد",
     emailNotSent: "لم يُرسل البريد إلى Support بعد",
     resendEmailSuccess: "تم إرسال البريد إلى Support@dallah.com",
-    ticketPlaceholder: "##RE-20217##",
     searchPlaceholder: "ابحث بالموظف أو المدير أو الوحدة أو الشركة أو التذكرة…",
     allCompanies: "جميع الشركات",
     allModules: "جميع الوحدات",
@@ -194,7 +200,7 @@ export default function AdminRequestsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [expandedRequestId, setExpandedRequestId] = useState<string | null>(null);
   const [adminComments, setAdminComments] = useState<Record<string, string>>({});
-  const [itTicketInputs, setItTicketInputs] = useState<Record<string, string>>({});
+  const [itComments, setItComments] = useState<Record<string, string>>({});
 
   const { data: authUser } = useAuth();
   const { data, isLoading: isBootstrapLoading } = useBootstrapData();
@@ -216,9 +222,9 @@ export default function AdminRequestsPage() {
   );
 
   const updateRequest = useUpdateRequest();
-  const registerItTicket = useRegisterItTicket();
   const markItResolved = useMarkItResolved();
   const resendItEmail = useResendItEmail();
+  const rejectItRequest = useRejectItRequest();
   const { toast } = useToast();
 
   const t = DICT[language];
@@ -336,24 +342,6 @@ export default function AdminRequestsPage() {
     }
   };
 
-  const handleRegisterTicket = async (request: PrivilegeRequest) => {
-    const ticketId = itTicketInputs[request.id]?.trim();
-    if (!ticketId) {
-      toast({ title: "Enter a ticket ID", variant: "destructive" });
-      return;
-    }
-    try {
-      await registerItTicket.mutateAsync({ requestId: request.id, ticketId });
-      toast({ title: "Ticket registered" });
-    } catch (err) {
-      toast({
-        title: "Failed to register ticket",
-        description: err instanceof Error ? err.message : "",
-        variant: "destructive",
-      });
-    }
-  };
-
   const handleResendItEmail = async (request: PrivilegeRequest) => {
     try {
       await resendItEmail.mutateAsync(request.id);
@@ -367,14 +355,31 @@ export default function AdminRequestsPage() {
     }
   };
 
-  const handleMarkItResolved = async (request: PrivilegeRequest) => {
+  const handleMarkComplete = async (request: PrivilegeRequest) => {
     try {
       await markItResolved.mutateAsync(request.id);
-      toast({ title: "Request marked resolved — privileges applied" });
+      toast({ title: t.completeSuccess });
       setExpandedRequestId(null);
     } catch (err) {
       toast({
-        title: "Failed to mark resolved",
+        title: "Failed to complete request",
+        description: err instanceof Error ? err.message : "",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleRejectIt = async (request: PrivilegeRequest) => {
+    try {
+      await rejectItRequest.mutateAsync({
+        requestId: request.id,
+        adminComments: itComments[request.id] || null,
+      });
+      toast({ title: t.itRejectSuccess });
+      setExpandedRequestId(null);
+    } catch (err) {
+      toast({
+        title: "Failed to reject request",
         description: err instanceof Error ? err.message : "",
         variant: "destructive",
       });
@@ -735,23 +740,33 @@ export default function AdminRequestsPage() {
                                             : t.emailNotSent}
                                         </p>
                                         <div>
+                                          <span className="text-sm font-medium">
+                                            {t.ticketId}:{" "}
+                                          </span>
+                                          {request.supportTicketId ? (
+                                            <span className="font-mono text-sm font-semibold text-indigo-700">
+                                              {request.supportTicketId}
+                                            </span>
+                                          ) : (
+                                            <span className="text-sm text-slate-500">
+                                              {t.ticketPending}
+                                            </span>
+                                          )}
+                                        </div>
+                                        <div>
                                           <label className="text-sm font-medium">
-                                            {t.ticketId}
+                                            {t.adminComment}
                                           </label>
-                                          <Input
-                                            placeholder={t.ticketPlaceholder}
-                                            value={
-                                              itTicketInputs[request.id] ??
-                                              request.supportTicketId ??
-                                              ""
-                                            }
+                                          <Textarea
+                                            placeholder={t.addComment}
+                                            value={itComments[request.id] || ""}
                                             onChange={(e) =>
-                                              setItTicketInputs((prev) => ({
+                                              setItComments((prev) => ({
                                                 ...prev,
                                                 [request.id]: e.target.value,
                                               }))
                                             }
-                                            className="mt-1 max-w-xs font-mono text-sm"
+                                            className="mt-1"
                                             onClick={(e) => e.stopPropagation()}
                                           />
                                         </div>
@@ -771,23 +786,27 @@ export default function AdminRequestsPage() {
                                             </Button>
                                           )}
                                           <Button
-                                            variant="outline"
                                             onClick={(e) => {
                                               e.stopPropagation();
-                                              handleRegisterTicket(request);
-                                            }}
-                                            disabled={registerItTicket.isPending}
-                                          >
-                                            {t.registerTicket}
-                                          </Button>
-                                          <Button
-                                            onClick={(e) => {
-                                              e.stopPropagation();
-                                              handleMarkItResolved(request);
+                                              handleMarkComplete(request);
                                             }}
                                             disabled={markItResolved.isPending}
                                           >
-                                            {t.markItResolved}
+                                            {markItResolved.isPending
+                                              ? t.completing
+                                              : t.markComplete}
+                                          </Button>
+                                          <Button
+                                            variant="destructive"
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              handleRejectIt(request);
+                                            }}
+                                            disabled={rejectItRequest.isPending}
+                                          >
+                                            {rejectItRequest.isPending
+                                              ? t.rejecting
+                                              : t.markItRejected}
                                           </Button>
                                         </div>
                                       </div>

@@ -84,6 +84,7 @@ export interface IStorage {
   registerItTicket(requestId: string, ticketId: string, actorId: string): Promise<PrivilegeRequest>;
   fulfillRequestByTicket(ticketId: string): Promise<PrivilegeRequest | null>;
   markRequestItResolved(requestId: string, adminId: string): Promise<PrivilegeRequest>;
+  rejectItRequest(requestId: string, adminId: string, adminComments: string | null): Promise<PrivilegeRequest>;
   processItAckEmail(subject: string, body: string, from: string): Promise<boolean>;
   processItResolvedEmail(subject: string, body: string, from: string): Promise<boolean>;
   getGMsForCompany(companyId: string): Promise<Contact[]>;
@@ -649,22 +650,32 @@ export class JsonStorage implements IStorage {
     return pending.find((r) => r.supportRequestTitle?.includes(`[${numeric}]`));
   }
 
-  private buildItEmailContext(
+  private async buildItEmailContext(
     request: PrivilegeRequest,
     approverName?: string,
-  ): {
+  ): Promise<{
     managerName: string;
     managerUserId?: string;
+    requesterEmail?: string;
     employeeName: string;
     employeeId: string;
     companyName: string;
     roles: { module: string; function: string; role: string }[];
     approverName?: string;
     approverComments?: string | null;
-  } {
+  }> {
+    const contacts = await this.contacts();
     const manager =
       this.data.employees.find((e) => e.id === request.managerId) ||
       this.data.employees.find((e) => e.id === request.managerUserId || "");
+    const managerContact =
+      contacts.find((c) => c.id === request.managerId) ||
+      contacts.find((c) => c.userId === request.managerId) ||
+      (request.managerUserId
+        ? contacts.find(
+            (c) => c.id === request.managerUserId || c.userId === request.managerUserId,
+          )
+        : undefined);
     const employee = this.data.employees.find((e) => e.id === request.employeeId);
     const company = this.data.companies.find((c) => c.id === request.companyId);
     const roles = request.rolesSelected
@@ -676,9 +687,12 @@ export class JsonStorage implements IStorage {
         role: p!.role,
       }));
 
+    const requesterEmail = (manager?.email || managerContact?.email || "").trim() || undefined;
+
     return {
-      managerName: manager?.name || request.managerId,
+      managerName: manager?.name || managerContact?.name || request.managerId,
       managerUserId: request.managerUserId,
+      requesterEmail,
       employeeName: employee?.name || request.employeeId,
       employeeId: request.employeeId,
       companyName: company?.name || request.companyId,
@@ -711,7 +725,7 @@ export class JsonStorage implements IStorage {
       throw new Error("Request is not eligible for IT fulfillment");
     }
 
-    const ctx = this.buildItEmailContext(request, approverName);
+    const ctx = await this.buildItEmailContext(request, approverName);
     const subject = await sendItFulfillmentEmail(request, ctx);
     const now = new Date().toISOString();
 
@@ -772,10 +786,21 @@ export class JsonStorage implements IStorage {
 
     const request = this.data.requests[requestIdx];
     if (request.status !== "approved_pending_it") {
-      throw new Error("Request is not awaiting IT fulfillment");
+      throw new Error("Request is not in progress with IT");
     }
 
-    request.supportTicketId = ticketId.startsWith("RE-") ? ticketId : `RE-${ticketId.replace(/\D/g, "")}`;
+    const normalized = ticketId.startsWith("RE-")
+      ? ticketId
+      : `RE-${ticketId.replace(/\D/g, "")}`;
+
+    if (request.supportTicketId) {
+      if (ticketIdMatches(request.supportTicketId, normalized)) {
+        return request;
+      }
+      throw new Error("Request already has a ServiceDesk ticket linked");
+    }
+
+    request.supportTicketId = normalized;
     request.itTicketLoggedAt = new Date().toISOString();
     request.updatedAt = request.itTicketLoggedAt;
     this.data.requests[requestIdx] = request;
@@ -816,7 +841,7 @@ export class JsonStorage implements IStorage {
     const request = this.data.requests[requestIdx];
     if (request.status === "active") return request;
     if (request.status !== "approved_pending_it") {
-      throw new Error("Request is not awaiting IT resolution");
+      throw new Error("Request is not in progress with IT");
     }
 
     const now = new Date().toISOString();
@@ -835,7 +860,47 @@ export class JsonStorage implements IStorage {
     await this.addAuditEntry(
       adminId,
       "IT_TICKET_RESOLVED",
-      `IT fulfilled ${requestType === "revoke" ? "delete" : "grant"} request ${request.supportTicketId || request.id} — ${employee?.name} in ${company?.name}; privileges ${requestType === "revoke" ? "removed" : "applied"}`,
+      `IT completed ${requestType === "revoke" ? "delete" : "grant"} request ${request.supportTicketId || request.id} — ${employee?.name} in ${company?.name}; privileges ${requestType === "revoke" ? "removed" : "applied"}`,
+      request.companyId,
+      request.employeeId,
+    );
+
+    return request;
+  }
+
+  async rejectItRequest(
+    requestId: string,
+    adminId: string,
+    adminComments: string | null,
+  ): Promise<PrivilegeRequest> {
+    await this.initialized;
+    const requestIdx = this.data.requests.findIndex((r) => r.id === requestId);
+    if (requestIdx < 0) throw new Error("Request not found");
+
+    const request = this.data.requests[requestIdx];
+    if (request.status !== "approved_pending_it") {
+      throw new Error("Only in-progress IT requests can be rejected");
+    }
+
+    const actor =
+      this.data.employees.find((e) => e.id === adminId) ||
+      (await this.contacts()).find((c) => c.id === adminId);
+    const actorName = actor?.name || adminId;
+    const now = new Date().toISOString();
+
+    request.status = "rejected";
+    request.adminComments = adminComments;
+    request.updatedAt = now;
+    this.data.requests[requestIdx] = request;
+    await this.saveData();
+
+    const employee = this.data.employees.find((e) => e.id === request.employeeId);
+    const company = this.data.companies.find((c) => c.id === request.companyId);
+    const requestType = request.requestType ?? "grant";
+    await this.addAuditEntry(
+      adminId,
+      "IT_REQUEST_REJECTED",
+      `${actorName} rejected in-progress ${requestType === "revoke" ? "delete" : "grant"} request ${request.supportTicketId || request.id} — ${employee?.name} in ${company?.name}${adminComments ? ` - Comment: ${adminComments}` : ""}`,
       request.companyId,
       request.employeeId,
     );

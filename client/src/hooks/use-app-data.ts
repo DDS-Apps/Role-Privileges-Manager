@@ -146,6 +146,32 @@ export function useUpdateRequest() {
   });
 }
 
+export function useRejectItRequest() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      requestId,
+      adminComments,
+    }: {
+      requestId: string;
+      adminComments?: string | null;
+    }) => {
+      const res = await apiRequest("POST", `/api/requests/${requestId}/reject-it`, {
+        adminComments: adminComments ?? null,
+      });
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.message || "Failed to reject IT request");
+      }
+      return res.json() as Promise<PrivilegeRequest>;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/requests"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/bootstrap"] });
+    },
+  });
+}
+
 export function useMarkItResolved() {
   const queryClient = useQueryClient();
   return useMutation({

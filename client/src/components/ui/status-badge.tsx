@@ -19,14 +19,14 @@ const statusConfig: Record<RequestStatus, {
     className: 'bg-amber-50 text-amber-800 border border-amber-200 dark:bg-amber-950/50 dark:text-amber-200 dark:border-amber-800',
   },
   approved_pending_it: {
-    label: 'Awaiting IT',
-    labelAr: 'بانتظار IT',
+    label: 'In Progress',
+    labelAr: 'قيد التنفيذ',
     icon: Headphones,
     className: 'bg-indigo-50 text-indigo-800 border border-indigo-200 dark:bg-indigo-950/50 dark:text-indigo-200 dark:border-indigo-800',
   },
   active: {
-    label: 'Approved',
-    labelAr: 'معتمد',
+    label: 'Complete',
+    labelAr: 'مكتمل',
     icon: CheckCircle2,
     className: 'bg-teal-50 text-teal-800 border border-teal-200 dark:bg-teal-950/50 dark:text-teal-200 dark:border-teal-800',
   },
