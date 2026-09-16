@@ -197,6 +197,13 @@ function establishSession(
   });
 }
 
+/** Persist session fields before sending auth responses (IIS/ARR may drop late cookie writes). */
+function saveSession(req: Request): Promise<void> {
+  return new Promise((resolve, reject) => {
+    req.session.save((err) => (err ? reject(err) : resolve()));
+  });
+}
+
 async function enrichAuthUser(
   resolved: NonNullable<ReturnType<typeof accessUsers.resolveByEmail>>,
   selectedCompanyId: string | null,
@@ -278,6 +285,7 @@ export async function registerRoutes(
       await establishSession(req, resolved);
       const authUser = await enrichAuthUser(resolved, null);
       req.session.selectedCompanyId = authUser.selectedCompanyId || "";
+      await saveSession(req);
       return res.json(authUser);
     } catch (err) {
       console.error("Login error:", err);
@@ -312,6 +320,7 @@ export async function registerRoutes(
       await establishSession(req, resolved);
       const authUser = await enrichAuthUser(resolved, null);
       req.session.selectedCompanyId = authUser.selectedCompanyId || "";
+      await saveSession(req);
       return res.json(authUser);
     } catch (err) {
       console.error("SSO login error:", err);
@@ -365,6 +374,7 @@ export async function registerRoutes(
     }
 
     req.session.selectedCompanyId = companyId;
+    await saveSession(req);
     res.json({ ok: true, selectedCompanyId: companyId });
   });
 
@@ -374,7 +384,8 @@ export async function registerRoutes(
 
   app.get("/api/auth/me", async (req, res) => {
     if (!req.session.email && !req.session.contactId) {
-      return res.status(401).json({ message: "Not authenticated" });
+      // 200 + null avoids red console noise on the login page (no session yet).
+      return res.json(null);
     }
     try {
       await accessUsers.ensureReady();
@@ -387,7 +398,10 @@ export async function registerRoutes(
           .find((c) => c.id === req.session.contactId);
         if (contact) resolved = accessUsers.resolveByEmail(contact.email);
       }
-      if (!resolved) return res.status(401).json({ message: "User not found" });
+      if (!resolved) {
+        req.session.destroy(() => {});
+        return res.json(null);
+      }
 
       // Refresh session fields
       req.session.email = resolved.email;
@@ -401,6 +415,7 @@ export async function registerRoutes(
         req.session.selectedCompanyId || null,
       );
       req.session.selectedCompanyId = authUser.selectedCompanyId || "";
+      await saveSession(req);
       return res.json(authUser);
     } catch {
       res.status(500).json({ message: "Failed to get session" });

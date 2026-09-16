@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  IIS + ARR reverse proxy to Node (default port 6500).
+  Copy to the site root as web.config and adjust the rewrite URL if needed.
+
+  In IIS Manager → URL Rewrite → View Server Variables, allow:
+    HTTP_X_FORWARDED_PROTO
+    HTTP_X_FORWARDED_HOST
+
+  Ensure ARR "Preserve host header" is enabled so Set-Cookie from Node is not stripped.
+-->
+<configuration>
+  <system.webServer>
+    <rewrite>
+      <rules>
+        <rule name="ReverseProxyToNode" stopProcessing="true">
+          <match url="(.*)" />
+          <action type="Rewrite" url="http://127.0.0.1:6500/{R:1}" />
+          <serverVariables>
+            <set name="HTTP_X_FORWARDED_PROTO" value="https" />
+            <set name="HTTP_X_FORWARDED_HOST" value="{HTTP_HOST}" />
+          </serverVariables>
+        </rule>
+      </rules>
+    </rewrite>
+  </system.webServer>
+</configuration>

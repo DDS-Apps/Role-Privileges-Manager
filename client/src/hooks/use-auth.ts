@@ -26,9 +26,9 @@ export function useAuth() {
     queryKey: ["/api/auth/me"],
     queryFn: async () => {
       const res = await fetch("/api/auth/me", { credentials: "include", cache: "no-store" });
-      if (res.status === 401) return null;
       if (!res.ok) throw new Error("Auth check failed");
-      return res.json();
+      const data = await res.json();
+      return data ?? null;
     },
     staleTime: 0,
     refetchOnMount: "always",
