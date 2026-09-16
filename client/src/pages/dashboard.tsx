@@ -52,6 +52,8 @@ const DICT = {
     searchEmployee: "Search by ID or name (English / Arabic)...",
     searchHintLargeRoster: "employees — type ID or name to search",
     noPriorAccess: "No privileges yet",
+    filterCompany: "Company",
+    allCompanies: "All companies",
     selectEmployee: "Select an employee",
     externalEmployee: "External employee",
     privilegeRequests: "Privilege requests",
@@ -161,6 +163,8 @@ const DICT = {
     searchEmployee: "ابحث بالرقم أو الاسم (عربي / إنجليزي)...",
     searchHintLargeRoster: "موظف — اكتب الرقم أو الاسم للبحث",
     noPriorAccess: "لا توجد صلاحيات بعد",
+    filterCompany: "الشركة",
+    allCompanies: "كل الشركات",
     selectEmployee: "اختر موظفاً",
     externalEmployee: "موظف خارجي",
     privilegeRequests: "طلبات الامتيازات",
@@ -843,6 +847,8 @@ export default function DashboardPage() {
           alreadyAssigned: t.alreadyAssigned,
           searchHintLargeRoster: t.searchHintLargeRoster,
           noPriorAccess: t.noPriorAccess,
+          filterCompany: t.filterCompany,
+          allCompanies: t.allCompanies,
         }}
       />
 

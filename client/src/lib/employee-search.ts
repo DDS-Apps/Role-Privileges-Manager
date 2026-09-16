@@ -37,6 +37,8 @@ export function searchCompanyEmployees(
   options: {
     companyId?: string;
     externalOnly?: boolean;
+    /** Filter by employee legal company id; omit or "all" for no filter */
+    legalCompanyFilter?: string;
     query?: string;
     language?: AppLanguage;
     limitWithoutQuery?: number;
@@ -46,6 +48,7 @@ export function searchCompanyEmployees(
   const {
     companyId = "",
     externalOnly = false,
+    legalCompanyFilter = "",
     query = "",
     language = "en",
     limitWithoutQuery = 50,
@@ -53,6 +56,11 @@ export function searchCompanyEmployees(
   } = options;
 
   let result = filterEmployeesByCompanyContext(employees, companyId, externalOnly);
+  if (legalCompanyFilter && legalCompanyFilter !== "all") {
+    result = result.filter(
+      (employee) => employee.legalCompanyId === legalCompanyFilter,
+    );
+  }
   result.sort((a, b) => a.name.localeCompare(b.name, language));
 
   const trimmed = query.trim();

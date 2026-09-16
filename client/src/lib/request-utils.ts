@@ -20,13 +20,22 @@ export function getApprovalStage(request: PrivilegeRequest): ApprovalStage {
   return request.approvalStage ?? "none";
 }
 
+export function isExternalEmployeeRequest(
+  request: PrivilegeRequest,
+  employees: { id: string; legalCompanyId: string }[],
+): boolean {
+  const employee = employees.find((e) => e.id === request.employeeId);
+  return Boolean(
+    employee && employee.legalCompanyId.trim() !== request.companyId.trim(),
+  );
+}
+
+/** @deprecated Use isExternalEmployeeRequest */
 export function isExternalGrantRequest(
   request: PrivilegeRequest,
   employees: { id: string; legalCompanyId: string }[],
 ): boolean {
-  if ((request.requestType ?? "grant") !== "grant") return false;
-  const employee = employees.find((e) => e.id === request.employeeId);
-  return Boolean(employee && employee.legalCompanyId !== request.companyId);
+  return isExternalEmployeeRequest(request, employees);
 }
 
 export function buildOwnerIds(
@@ -62,9 +71,9 @@ export function isPendingForUserApproval(
 
   if (stage === "pending_requester_gm") {
     if (options.isAdmin) {
-      return options.accessibleCompanyIds.has(request.managerLegalCompanyId);
+      return options.accessibleCompanyIds.has(request.companyId);
     }
-    return options.gmLegalCompanyIds.includes(request.managerLegalCompanyId);
+    return options.gmLegalCompanyIds.includes(request.companyId);
   }
 
   if (stage === "pending_target_gm") {
@@ -95,7 +104,7 @@ export function getExternalApprovalLabel(
     awaitingTargetGm: string;
   },
 ): string | null {
-  if (!isExternalGrantRequest(request, employees)) return null;
+  if (!isExternalEmployeeRequest(request, employees)) return null;
   const stage = getApprovalStage(request);
   if (request.status !== "pending") return t.external;
   if (stage === "pending_requester_gm") return t.awaitingRequesterGm;
@@ -108,7 +117,7 @@ export function getApprovalStepBadge(
   employees: { id: string; legalCompanyId: string }[],
   t: { external: string; step1of2: string; step2of2: string },
 ): string | null {
-  if (!isExternalGrantRequest(request, employees)) return null;
+  if (!isExternalEmployeeRequest(request, employees)) return null;
   if (request.status !== "pending") return t.external;
   const stage = getApprovalStage(request);
   if (stage === "pending_requester_gm") return t.step1of2;

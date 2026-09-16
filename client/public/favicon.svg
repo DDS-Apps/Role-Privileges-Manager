@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="RPM">
+  <rect width="32" height="32" rx="6" fill="#0f172a"/>
+  <!-- Dallah-style D (teal + blue blocks) -->
+  <rect x="5" y="5" width="5" height="5" rx="1" fill="#2563eb"/>
+  <rect x="5" y="13.5" width="5" height="5" rx="1" fill="#2dd4bf"/>
+  <rect x="5" y="22" width="5" height="5" rx="1" fill="#2563eb"/>
+  <path
+    d="M12 5h7.5c4.4 0 8 3.6 8 8s-3.6 8-8 8H12V5z"
+    fill="#2dd4bf"
+  />
+  <path
+    d="M12 5h7.5c4.4 0 8 3.6 8 8s-3.6 8-8 8H12V5zm2 2v18h5.5a6 6 0 0 0 0-18H14z"
+    fill="#0d9488"
+  />
+</svg>

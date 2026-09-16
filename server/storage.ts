@@ -713,13 +713,18 @@ export class JsonStorage implements IStorage {
     return this.data.requests.find((r) => r.id === requestId);
   }
 
+  /** Company whose GM must act at step 1 (requester's / access company). */
+  private requesterCompanyIdForApproval(request: PrivilegeRequest): string {
+    return request.companyId;
+  }
+
   private approverCompanyIdForRequest(
     request: PrivilegeRequest,
     employee: Employee,
   ): string {
     const stage = request.approvalStage ?? "none";
     if (stage === "pending_requester_gm") {
-      return request.managerLegalCompanyId;
+      return this.requesterCompanyIdForApproval(request);
     }
     return employee.legalCompanyId;
   }
@@ -730,7 +735,7 @@ export class JsonStorage implements IStorage {
       return "requester's company GM — step 1 of 2";
     }
     if (stage === "pending_target_gm") {
-      return "employee's company GM — step 2 of 2";
+      return "requestee's company GM — step 2 of 2";
     }
     return "employee's company GM";
   }
@@ -769,12 +774,21 @@ export class JsonStorage implements IStorage {
       return;
     }
 
+    const employeeLegalCompany = this.data.companies.find(
+      (c) => c.id === employee.legalCompanyId,
+    );
+    const accessCompany = this.data.companies.find((c) => c.id === request.companyId);
+    const isExternal = this.isExternalEmployeeRequest(employee, request.companyId);
+
     const ctx = await this.buildItEmailContext(request);
     const emailCtx = {
       managerName: ctx.managerName,
       employeeName: ctx.employeeName,
       employeeId: ctx.employeeId,
-      companyName: ctx.companyName,
+      employeeCompanyName:
+        employeeLegalCompany?.name || employee.legalCompanyId,
+      accessCompanyName: accessCompany?.name || request.companyId,
+      isExternal,
       roles: ctx.roles,
       approvalStepLabel: this.approvalStepLabel(request),
     };
@@ -1106,14 +1120,12 @@ export class JsonStorage implements IStorage {
     return { ...data, privileges, assignments, requests };
   }
 
-  private isExternalGrant(
-    request: PrivilegeRequest,
+  /** Employee's legal company differs from the access company on the request. */
+  private isExternalEmployeeRequest(
     employee: Employee,
+    accessCompanyId: string,
   ): boolean {
-    return (
-      (request.requestType ?? "grant") === "grant" &&
-      employee.legalCompanyId !== request.companyId
-    );
+    return employee.legalCompanyId.trim() !== accessCompanyId.trim();
   }
 
   private async contacts(): Promise<Contact[]> {
@@ -1135,7 +1147,7 @@ export class JsonStorage implements IStorage {
       return isContactGMOfCompany(
         contacts,
         adminId,
-        request.managerLegalCompanyId,
+        this.requesterCompanyIdForApproval(request),
       );
     }
 
@@ -1969,9 +1981,11 @@ export class JsonStorage implements IStorage {
     }
 
     const now = new Date().toISOString();
-    const isExternalGrant =
-      requestType === "grant" && employee.legalCompanyId !== input.companyId;
-    const approvalStage: ApprovalStage = isExternalGrant
+    const isExternalRequest = this.isExternalEmployeeRequest(
+      employee,
+      input.companyId,
+    );
+    const approvalStage: ApprovalStage = isExternalRequest
       ? "pending_requester_gm"
       : "none";
 
@@ -1979,7 +1993,8 @@ export class JsonStorage implements IStorage {
       id: randomUUID(),
       managerId: submitterId,
       ...(submitterUserId ? { managerUserId: submitterUserId } : {}),
-      managerLegalCompanyId: manager.legalCompanyId,
+      // Requester's company context (access company) — step-1 GM approves here.
+      managerLegalCompanyId: input.companyId,
       employeeId: input.employeeId,
       companyId: input.companyId,
       module: input.module,
@@ -2013,7 +2028,7 @@ export class JsonStorage implements IStorage {
         cc.role.trim().toUpperCase() === "GM",
     );
 
-    if (!isExternalGrant && isGMofEmployeeCompany) {
+    if (!isExternalRequest && isGMofEmployeeCompany) {
       request.adminComments = "Auto-approved by GM";
       request.updatedAt = new Date().toISOString();
       await this.saveData();

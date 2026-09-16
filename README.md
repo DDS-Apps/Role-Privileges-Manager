@@ -66,7 +66,7 @@ Legacy direct assignment: `POST /api/assignments/apply` (still available for man
 ### Authorization
 
 - **Manager → employee:** same `legalCompanyId` and `employee.managerId === managerId`.
-- **Approval:** system admin, or GM of the target employee’s legal company (internal grants); external grants use a two-step GM chain (requester company → employee legal company). Requester cannot approve own request.
+- **Approval:** system admin, or GM of the target employee’s legal company (internal grants); external employee requests (grant or revoke) use a two-step GM chain: **step 1** = GM of the requester/access company (`companyId`), **step 2** = GM of the requestee’s legal company. Requester cannot approve own request.
 - **Module visibility:** GMs and system admins see all modules. Other contacts are scoped by `managedModules` on their contact record — assign via **Admin → Contacts** (multi-select). Bootstrap data and requests are filtered server-side for scoped viewers.
 
 ## Environment

@@ -21,7 +21,10 @@ import type { Assignment, Company, Employee, Privilege } from "@shared/schema";
 import type { AppLanguage } from "@shared/employee-display";
 import { employeeDisplayName } from "@shared/employee-display";
 import { cn } from "@/lib/utils";
-import { searchCompanyEmployees } from "@/lib/employee-search";
+import {
+  filterEmployeesByCompanyContext,
+  searchCompanyEmployees,
+} from "@/lib/employee-search";
 import { CurrentPrivilegesPanel } from "@/components/ui/current-privileges-panel";
 
 interface NewRequestModalProps {
@@ -66,6 +69,8 @@ interface NewRequestModalProps {
     alreadyAssigned: string;
     searchHintLargeRoster: string;
     noPriorAccess: string;
+    filterCompany: string;
+    allCompanies: string;
   };
 }
 
@@ -92,6 +97,7 @@ export function NewRequestModal({
   const [endDate, setEndDate] = useState("");
   const [employeeSearch, setEmployeeSearch] = useState("");
   const [externalEmployeeOnly, setExternalEmployeeOnly] = useState(false);
+  const [legalCompanyFilter, setLegalCompanyFilter] = useState("all");
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   const isExternalEmployee = (emp: Employee) =>
@@ -107,24 +113,50 @@ export function NewRequestModal({
     return new Set(assignment?.privilegeIds ?? []);
   }, [assignments, companyId, employeeId]);
 
+  const employeesInScope = useMemo(
+    () =>
+      filterEmployeesByCompanyContext(
+        employees,
+        companyId,
+        externalEmployeeOnly,
+      ),
+    [employees, companyId, externalEmployeeOnly],
+  );
+
+  const companyFilterOptions = useMemo(() => {
+    const ids = new Set(employeesInScope.map((e) => e.legalCompanyId));
+    return companies
+      .filter((c) => ids.has(c.id))
+      .sort((a, b) => a.name.localeCompare(b.name, language));
+  }, [employeesInScope, companies, language]);
+
   const filteredEmployees = useMemo(
     () =>
       searchCompanyEmployees(employees, {
         companyId,
         externalOnly: externalEmployeeOnly,
+        legalCompanyFilter,
         query: employeeSearch,
         language,
       }),
-    [employees, employeeSearch, companyId, externalEmployeeOnly, language],
+    [
+      employees,
+      employeeSearch,
+      companyId,
+      externalEmployeeOnly,
+      legalCompanyFilter,
+      language,
+    ],
   );
 
-  const companyEmployeeCount = useMemo(
-    () =>
-      employees.filter((e) =>
-        externalEmployeeOnly ? isExternalEmployee(e) : !isExternalEmployee(e),
-      ).length,
-    [employees, companyId, externalEmployeeOnly],
-  );
+  const companyEmployeeCount = useMemo(() => {
+    if (legalCompanyFilter && legalCompanyFilter !== "all") {
+      return employeesInScope.filter(
+        (e) => e.legalCompanyId === legalCompanyFilter,
+      ).length;
+    }
+    return employeesInScope.length;
+  }, [employeesInScope, legalCompanyFilter]);
 
   useEffect(() => {
     if (!open) {
@@ -135,6 +167,7 @@ export function NewRequestModal({
       setEndDate("");
       setEmployeeSearch("");
       setExternalEmployeeOnly(false);
+      setLegalCompanyFilter("all");
       return;
     }
     if (requireEmployeeSearch) {
@@ -157,7 +190,23 @@ export function NewRequestModal({
     if (!requireEmployeeSearch || !employeeId) return;
     const stillVisible = filteredEmployees.some((e) => e.id === employeeId);
     if (!stillVisible) onEmployeeIdChange?.("");
-  }, [externalEmployeeOnly, filteredEmployees, employeeId, requireEmployeeSearch, onEmployeeIdChange]);
+  }, [
+    externalEmployeeOnly,
+    legalCompanyFilter,
+    filteredEmployees,
+    employeeId,
+    requireEmployeeSearch,
+    onEmployeeIdChange,
+  ]);
+
+  useEffect(() => {
+    if (
+      legalCompanyFilter !== "all" &&
+      !companyFilterOptions.some((c) => c.id === legalCompanyFilter)
+    ) {
+      setLegalCompanyFilter("all");
+    }
+  }, [legalCompanyFilter, companyFilterOptions]);
 
   const modules = useMemo(() => {
     const mods = new Set(privileges.map(p => p.module));
@@ -252,17 +301,39 @@ export function NewRequestModal({
                   {t.externalEmployee}
                 </Label>
               </div>
-              <div className="relative">
-                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                <Input
-                  ref={searchInputRef}
-                  value={employeeSearch}
-                  onChange={(e) => setEmployeeSearch(e.target.value)}
-                  placeholder={t.searchEmployee}
-                  className="pl-9"
-                  data-testid="modal-search-employee"
-                  autoComplete="off"
-                />
+              <div className="flex gap-2">
+                <div className="relative min-w-0 flex-1">
+                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                  <Input
+                    ref={searchInputRef}
+                    value={employeeSearch}
+                    onChange={(e) => setEmployeeSearch(e.target.value)}
+                    placeholder={t.searchEmployee}
+                    className="pl-9"
+                    data-testid="modal-search-employee"
+                    autoComplete="off"
+                  />
+                </div>
+                <Select
+                  value={legalCompanyFilter}
+                  onValueChange={setLegalCompanyFilter}
+                >
+                  <SelectTrigger
+                    className="w-[11.5rem] shrink-0"
+                    data-testid="modal-filter-company"
+                    aria-label={t.filterCompany}
+                  >
+                    <SelectValue placeholder={t.filterCompany} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">{t.allCompanies}</SelectItem>
+                    {companyFilterOptions.map((company) => (
+                      <SelectItem key={company.id} value={company.id}>
+                        {company.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               {!employeeSearch.trim() && companyEmployeeCount > 50 && (
                 <p className="mt-1 text-xs text-amber-700">

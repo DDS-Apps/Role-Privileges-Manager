@@ -46,7 +46,7 @@ export function canViewerAccessRequest(
   const gmIds = gmCompanyIds(contact);
 
   if (stage === "pending_requester_gm") {
-    return gmIds.includes(request.managerLegalCompanyId);
+    return gmIds.includes(request.companyId);
   }
 
   if (stage === "pending_target_gm") {

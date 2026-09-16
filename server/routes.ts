@@ -115,7 +115,11 @@ async function resolveSessionContact(req: Request) {
   return accessUsers.getAllContacts().find((c) => c.id === personId) ?? null;
 }
 
-async function handleEmailApprovalAction(token: string, res: Response) {
+async function handleEmailApprovalAction(
+  token: string,
+  res: Response,
+  adminComments: string | null = null,
+) {
   const payload = await verifyApprovalEmailToken(token);
   const request = await storage.getRequestById(payload.requestId);
   if (!request) {
@@ -151,7 +155,7 @@ async function handleEmailApprovalAction(token: string, res: Response) {
   await storage.updateRequestStatus(
     payload.requestId,
     nextStatus,
-    null,
+    adminComments,
     payload.approverContactId,
   );
 
@@ -1024,16 +1028,49 @@ export async function registerRoutes(
         );
       }
 
-      const employee = (await storage.getBootstrapData()).employees.find(
-        (e) => e.id === request.employeeId,
+      const bootstrap = await storage.getBootstrapData();
+      const employee = bootstrap.employees.find((e) => e.id === request.employeeId);
+      const employeeLegalCompany = bootstrap.companies.find(
+        (c) => c.id === employee?.legalCompanyId,
       );
+      const accessCompany = bootstrap.companies.find((c) => c.id === request.companyId);
+      const isExternal = Boolean(
+        employee && employee.legalCompanyId.trim() !== request.companyId.trim(),
+      );
+      const managerEmp =
+        bootstrap.employees.find((e) => e.id === request.managerId) ||
+        bootstrap.employees.find((e) => e.id === request.managerUserId || "");
+      await accessUsers.ensureReady();
+      const submitterContact = accessUsers.getAllContacts().find(
+        (c) =>
+          c.id === request.managerId ||
+          c.userId === request.managerId ||
+          c.id === request.managerUserId ||
+          c.userId === request.managerUserId,
+      );
+
+      const stageLabels: Record<string, string> = {
+        pending_requester_gm: "requester's company GM — step 1 of 2",
+        pending_target_gm: "requestee's company GM — step 2 of 2",
+      };
+      const approvalStepLabel =
+        stageLabels[request.approvalStage ?? "none"] ?? "employee's company GM";
 
       return res.send(
         renderApprovalConfirmPage({
           action: payload.action,
           employeeName: employee?.name || request.employeeId,
+          employeeId: request.employeeId,
+          managerName:
+            managerEmp?.name || submitterContact?.name || request.managerId,
+          employeeCompanyName:
+            employeeLegalCompany?.name || employee?.legalCompanyId || "—",
+          accessCompanyName: accessCompany?.name || request.companyId,
+          isExternal,
           module: request.module,
           functionName: request.function,
+          requestType: (request.requestType ?? "grant") as "grant" | "revoke",
+          approvalStepLabel,
           token,
         }),
       );
@@ -1055,7 +1092,11 @@ export async function registerRoutes(
       if (!token) {
         return res.status(400).send(renderApprovalErrorPage("Missing approval link token."));
       }
-      return await handleEmailApprovalAction(token, res);
+      const adminComments =
+        typeof req.body?.adminComments === "string"
+          ? req.body.adminComments.trim() || null
+          : null;
+      return await handleEmailApprovalAction(token, res, adminComments);
     } catch (err) {
       console.error("Email approval action error:", err);
       const message = err instanceof Error ? err.message : "Approval action failed";

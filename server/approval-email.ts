@@ -16,7 +16,11 @@ export interface ApproverEmailContext {
   managerName: string;
   employeeName: string;
   employeeId: string;
-  companyName: string;
+  /** Employee legal / home company */
+  employeeCompanyName: string;
+  /** Access company (where privileges are granted) */
+  accessCompanyName: string;
+  isExternal: boolean;
   roles: { module: string; function: string; role: string }[];
   approvalStepLabel: string;
 }
@@ -44,6 +48,14 @@ function buttonHtml(href: string, label: string, color: string): string {
   return `<a href="${href}" style="display:inline-block;padding:12px 24px;margin:8px 8px 8px 0;border-radius:8px;background:${color};color:#ffffff;text-decoration:none;font-weight:600;font-size:15px;">${label}</a>`;
 }
 
+function buildCompanyRows(ctx: ApproverEmailContext): string {
+  if (ctx.isExternal) {
+    return `<tr><td style="padding: 6px 0; color: #64748b;">Company</td><td>${escapeHtml(ctx.employeeCompanyName)}</td></tr>
+    <tr><td style="padding: 6px 0; color: #64748b;">Access to</td><td>${escapeHtml(ctx.accessCompanyName)}</td></tr>`;
+  }
+  return `<tr><td style="padding: 6px 0; color: #64748b;">Company</td><td>${escapeHtml(ctx.accessCompanyName)}</td></tr>`;
+}
+
 export async function sendApproverNotificationEmail(
   request: PrivilegeRequest,
   approver: Contact,
@@ -63,10 +75,14 @@ export async function sendApproverNotificationEmail(
   const approveUrl = await buildActionUrl(request, approver, "approve");
   const rejectUrl = await buildActionUrl(request, approver, "reject");
   const isRevoke = (request.requestType ?? "grant") === "revoke";
+  const requestTypeLabel = isRevoke ? "delete" : "grant";
   const subject = `RPM — Approval needed: ${request.module} / ${request.function} (${ctx.employeeName})`;
   const roleLines = ctx.roles
     .map((r) => `• ${r.module} / ${r.function} / ${r.role}`)
     .join("<br />");
+  const effectiveLabel = request.endDate
+    ? `${request.startDate} → ${request.endDate}`
+    : `${request.startDate} (no end date)`;
 
   const html = `
 <!DOCTYPE html>
@@ -75,18 +91,21 @@ export async function sendApproverNotificationEmail(
 <body style="font-family: Arial, sans-serif; color: #1e293b; line-height: 1.5;">
   <h2 style="color: #0f766e;">Privilege request awaiting your approval</h2>
   <p>Hello ${escapeHtml(approver.name)},</p>
-  <p>A new ${isRevoke ? "delete" : "grant"} request requires your action as GM (${escapeHtml(ctx.approvalStepLabel)}).</p>
+  <p>A new ${requestTypeLabel} request requires your action as GM (${escapeHtml(ctx.approvalStepLabel)}).</p>
   <table style="border-collapse: collapse; width: 100%; max-width: 560px;">
     <tr><td style="padding: 6px 0; color: #64748b;">Submitted by</td><td><strong>${escapeHtml(ctx.managerName)}</strong></td></tr>
     <tr><td style="padding: 6px 0; color: #64748b;">Employee</td><td><strong>${escapeHtml(ctx.employeeName)}</strong> (${escapeHtml(ctx.employeeId)})</td></tr>
-    <tr><td style="padding: 6px 0; color: #64748b;">Company</td><td>${escapeHtml(ctx.companyName)}</td></tr>
+    ${buildCompanyRows(ctx)}
     <tr><td style="padding: 6px 0; color: #64748b;">Module / Function</td><td>${escapeHtml(request.module)} / ${escapeHtml(request.function)}</td></tr>
     <tr><td style="padding: 6px 0; color: #64748b;">Type</td><td>${isRevoke ? "Delete / Revoke" : "Grant"}</td></tr>
-    <tr><td style="padding: 6px 0; color: #64748b;">Effective</td><td>${request.startDate}${request.endDate ? ` → ${request.endDate}` : " (no end date)"}</td></tr>
+    <tr><td style="padding: 6px 0; color: #64748b;">Effective</td><td>${effectiveLabel}</td></tr>
   </table>
   <p style="margin-top: 16px;"><strong>Roles (${ctx.roles.length}):</strong><br />${roleLines || "(none)"}</p>
   <p style="margin-top: 24px;"><strong>Take action:</strong></p>
   <p>${buttonHtml(approveUrl, "Approve", "#0d9488")}${buttonHtml(rejectUrl, "Reject", "#dc2626")}</p>
+  <p style="font-size: 13px; color: #64748b; margin-top: 8px;">
+    Use <strong>Reject</strong> to open a confirmation page where you can add comments explaining your decision.
+  </p>
   <p style="font-size: 12px; color: #94a3b8; margin-top: 24px;">
     These links expire in 14 days. You can also approve or reject from the RPM dashboard after signing in.
   </p>
@@ -94,20 +113,31 @@ export async function sendApproverNotificationEmail(
 </body>
 </html>`;
 
+  const companyText = ctx.isExternal
+    ? `Company      : ${ctx.employeeCompanyName}\nAccess to    : ${ctx.accessCompanyName}`
+    : `Company      : ${ctx.accessCompanyName}`;
+
   const text = [
     "Privilege request awaiting your approval",
     "",
+    `Hello ${approver.name},`,
+    "",
+    `A new ${requestTypeLabel} request requires your action as GM (${ctx.approvalStepLabel}).`,
+    "",
     `Submitted by : ${ctx.managerName}`,
     `Employee     : ${ctx.employeeName} (${ctx.employeeId})`,
-    `Company      : ${ctx.companyName}`,
+    companyText,
     `Module       : ${request.module} / ${request.function}`,
     `Type         : ${isRevoke ? "Delete" : "Grant"}`,
-    `Period       : ${request.startDate} → ${request.endDate || "No end date"}`,
+    `Effective    : ${effectiveLabel}`,
+    "",
+    `Roles (${ctx.roles.length}):`,
+    ...ctx.roles.map((r) => `  • ${r.module} / ${r.function} / ${r.role}`),
     "",
     "Approve:",
     approveUrl,
     "",
-    "Reject:",
+    "Reject (add comments on the confirmation page):",
     rejectUrl,
     "",
     `Request ID   : ${request.id}`,
