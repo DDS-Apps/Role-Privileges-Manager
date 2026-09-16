@@ -1,7 +1,11 @@
 import { createRoot } from "react-dom/client";
 import App from "./App";
 import "./index.css";
-import { completeEntraRedirectLogin, isMsalConfigured } from "./lib/msal";
+import {
+  completeEntraRedirectLogin,
+  isMsalConfigured,
+  isMsalRedirectReturn,
+} from "./lib/msal";
 
 /**
  * MSAL redirect responses arrive in the URL hash on the redirect URI.
@@ -10,8 +14,8 @@ import { completeEntraRedirectLogin, isMsalConfigured } from "./lib/msal";
 async function bootstrap() {
   let ssoIdToken: string | null = null;
   const onLoginPage = window.location.pathname.endsWith("/login");
-  // Only exchange Microsoft tokens on the login redirect URI — never on dashboard refresh.
-  if (isMsalConfigured() && onLoginPage) {
+  // Handle Microsoft redirect on /login (or when URL still carries auth code/hash).
+  if (isMsalConfigured() && (onLoginPage || isMsalRedirectReturn())) {
     try {
       ssoIdToken = await completeEntraRedirectLogin();
       if (ssoIdToken && window.location.hash) {

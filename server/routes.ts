@@ -204,6 +204,20 @@ function saveSession(req: Request): Promise<void> {
   });
 }
 
+function authLog(message: string) {
+  const time = new Date().toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: true,
+  });
+  console.log(`${time} [auth] ${message}`);
+}
+
+function hasSessionCookie(req: Request): boolean {
+  return Boolean(req.headers.cookie?.includes("rpm.sid="));
+}
+
 async function enrichAuthUser(
   resolved: NonNullable<ReturnType<typeof accessUsers.resolveByEmail>>,
   selectedCompanyId: string | null,
@@ -286,6 +300,7 @@ export async function registerRoutes(
       const authUser = await enrichAuthUser(resolved, null);
       req.session.selectedCompanyId = authUser.selectedCompanyId || "";
       await saveSession(req);
+      authLog(`local login ok ${resolved.email} sid=${req.sessionID.slice(0, 8)}…`);
       return res.json(authUser);
     } catch (err) {
       console.error("Login error:", err);
@@ -321,6 +336,7 @@ export async function registerRoutes(
       const authUser = await enrichAuthUser(resolved, null);
       req.session.selectedCompanyId = authUser.selectedCompanyId || "";
       await saveSession(req);
+      authLog(`sso login ok ${resolved.email} sid=${req.sessionID.slice(0, 8)}…`);
       return res.json(authUser);
     } catch (err) {
       console.error("SSO login error:", err);
@@ -385,6 +401,9 @@ export async function registerRoutes(
   app.get("/api/auth/me", async (req, res) => {
     if (!req.session.email && !req.session.contactId) {
       // 200 + null avoids red console noise on the login page (no session yet).
+      if (hasSessionCookie(req)) {
+        authLog("session cookie present but no session data (invalid secret, expired, or different Node worker)");
+      }
       return res.json(null);
     }
     try {

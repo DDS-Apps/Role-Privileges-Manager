@@ -53,11 +53,22 @@ export async function startEntraRedirectLogin(): Promise<void> {
   await instance.loginRedirect({ scopes: LOGIN_SCOPES });
 }
 
-function isMsalRedirectReturn(): boolean {
+export function isMsalRedirectReturn(): boolean {
   const hash = window.location.hash;
   if (hash && /(^|[&#])(id_token|code|error)=/.test(hash)) return true;
   const params = new URLSearchParams(window.location.search);
   return params.has("code") || params.has("error");
+}
+
+export function getMsalRedirectError(): string | null {
+  const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+  const queryParams = new URLSearchParams(window.location.search);
+  return (
+    hashParams.get("error_description") ||
+    hashParams.get("error") ||
+    queryParams.get("error_description") ||
+    queryParams.get("error")
+  );
 }
 
 /** Clear cached Microsoft tokens on RPM logout (shared-browser safety). */

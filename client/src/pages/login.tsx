@@ -1,7 +1,13 @@
 import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
 import { useLogin, useSsoLogin, useAuth, useAuthConfig } from "@/hooks/use-auth";
-import { isMsalConfigured, startEntraRedirectLogin } from "@/lib/msal";
+import {
+  completeEntraRedirectLogin,
+  getMsalRedirectError,
+  isMsalConfigured,
+  isMsalRedirectReturn,
+  startEntraRedirectLogin,
+} from "@/lib/msal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -40,9 +46,62 @@ export default function LoginPage() {
     }
   }, [toast]);
 
-  if (authUser && (authUser.selectedCompanyId || authUser.isAdmin)) {
-    navigate(redirectAfterLogin(authUser));
-    return null;
+  // Fallback: if MSAL returned from Microsoft but bootstrap did not exchange the token.
+  useEffect(() => {
+    if (!ssoAvailable || ssoLogin.isPending) return;
+    if (!isMsalRedirectReturn()) return;
+
+    let cancelled = false;
+    (async () => {
+      const msError = getMsalRedirectError();
+      if (msError) {
+        toast({
+          title: "Microsoft sign-in failed",
+          description: msError,
+          variant: "destructive",
+        });
+        window.history.replaceState({}, document.title, "/login");
+        return;
+      }
+
+      try {
+        const token = await completeEntraRedirectLogin();
+        if (cancelled || !token) return;
+        const user = await ssoLogin.mutateAsync(token);
+        toast({ title: `Welcome, ${user.name}` });
+        navigate(redirectAfterLogin(user));
+      } catch (err) {
+        if (cancelled) return;
+        toast({
+          title: "Microsoft sign-in failed",
+          description: err instanceof Error ? err.message : "SSO failed",
+          variant: "destructive",
+        });
+        window.history.replaceState({}, document.title, "/login?sso=failed");
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [ssoAvailable, ssoLogin.mutateAsync, navigate, toast]);
+
+  if (authUser) {
+    if (authUser.selectedCompanyId || authUser.isAdmin) {
+      navigate(redirectAfterLogin(authUser));
+      return null;
+    }
+    return (
+      <div className="min-h-screen flex items-center justify-center p-6 bg-slate-50">
+        <div className="max-w-md rounded-2xl border border-amber-200 bg-white p-8 shadow-lg text-center">
+          <h2 className="text-xl font-bold text-slate-900 mb-2">Signed in, but no access</h2>
+          <p className="text-sm text-slate-600 mb-4">
+            Your account ({authUser.email}) is on the allow-list but has no company access assigned.
+            Contact an administrator.
+          </p>
+        </div>
+      </div>
+    );
   }
 
   const handleLocal = async (e: React.FormEvent) => {
