@@ -100,16 +100,27 @@ async function resolveSessionViewer(req: Request): Promise<ViewerContext | null>
   return null;
 }
 
+/** Create a fresh session on login so prior user data cannot leak across sign-ins. */
 function establishSession(
   req: Request,
   resolved: NonNullable<ReturnType<typeof accessUsers.resolveByEmail>>,
-) {
-  req.session.email = resolved.email;
-  req.session.personId = resolved.personId;
-  req.session.contactId = resolved.personId; // backward-compatible actor id
-  req.session.isAdmin = resolved.isAdmin;
-  req.session.authType = resolved.authType;
-  delete req.session.employeeId;
+): Promise<void> {
+  return new Promise((resolve, reject) => {
+    req.session.regenerate((err) => {
+      if (err) return reject(err);
+      req.session.email = resolved.email;
+      req.session.personId = resolved.personId;
+      req.session.contactId = resolved.personId; // backward-compatible actor id
+      req.session.isAdmin = resolved.isAdmin;
+      req.session.authType = resolved.authType;
+      req.session.selectedCompanyId = "";
+      delete req.session.employeeId;
+      req.session.save((saveErr) => {
+        if (saveErr) reject(saveErr);
+        else resolve();
+      });
+    });
+  });
 }
 
 async function enrichAuthUser(
@@ -190,9 +201,8 @@ export async function registerRoutes(
         });
       }
 
-      establishSession(req, resolved);
-      const priorSelected = req.session.selectedCompanyId || null;
-      const authUser = await enrichAuthUser(resolved, priorSelected);
+      await establishSession(req, resolved);
+      const authUser = await enrichAuthUser(resolved, null);
       req.session.selectedCompanyId = authUser.selectedCompanyId || "";
       return res.json(authUser);
     } catch (err) {
@@ -225,9 +235,8 @@ export async function registerRoutes(
         });
       }
 
-      establishSession(req, resolved);
-      const priorSelected = req.session.selectedCompanyId || null;
-      const authUser = await enrichAuthUser(resolved, priorSelected);
+      await establishSession(req, resolved);
+      const authUser = await enrichAuthUser(resolved, null);
       req.session.selectedCompanyId = authUser.selectedCompanyId || "";
       return res.json(authUser);
     } catch (err) {
@@ -1037,6 +1046,43 @@ export async function registerRoutes(
         return res.status(code).json({ message: err.message });
       }
       res.status(500).json({ message: "Failed to resend IT email" });
+    }
+  });
+
+  // Outbound mail diagnostics (admin)
+  app.get("/api/admin/email-status", requireAuth as any, requireAdmin as any, async (_req, res) => {
+    try {
+      const { getOutboundMailStatus, verifyOutboundMail } = await import("./outbound-mail.js");
+      const status = getOutboundMailStatus();
+      const verify = await verifyOutboundMail();
+      res.json({ ...status, verify });
+    } catch (err) {
+      res.status(500).json({
+        message: err instanceof Error ? err.message : "Failed to read email status",
+      });
+    }
+  });
+
+  app.post("/api/admin/test-email", requireAuth as any, requireAdmin as any, async (req, res) => {
+    try {
+      const { sendOutboundMail, getOutboundMailStatus } = await import("./outbound-mail.js");
+      const status = getOutboundMailStatus();
+      const to = String((req.body as { to?: string })?.to || req.session.email || "").trim();
+      if (!to || !to.includes("@")) {
+        return res.status(400).json({ message: "Valid recipient email required (body.to or session email)" });
+      }
+      await sendOutboundMail({
+        to,
+        subject: "RPM — test email",
+        text: "This is a test email from Role Privileges Manager. Outbound mail is working.",
+        html: "<p>This is a <strong>test email</strong> from Role Privileges Manager. Outbound mail is working.</p>",
+      });
+      res.json({ ok: true, to, from: status.fromAddress });
+    } catch (err) {
+      console.error("Test email error:", err);
+      res.status(500).json({
+        message: err instanceof Error ? err.message : "Test email failed",
+      });
     }
   });
 

@@ -53,9 +53,30 @@ export async function startEntraRedirectLogin(): Promise<void> {
   await instance.loginRedirect({ scopes: LOGIN_SCOPES });
 }
 
-/** Call on app load; returns an ID token when returning from Microsoft login. */
+function isMsalRedirectReturn(): boolean {
+  const hash = window.location.hash;
+  if (hash && /(^|[&#])(id_token|code|error)=/.test(hash)) return true;
+  const params = new URLSearchParams(window.location.search);
+  return params.has("code") || params.has("error");
+}
+
+/** Clear cached Microsoft tokens on RPM logout (shared-browser safety). */
+export async function clearEntraCache(): Promise<void> {
+  if (!isMsalConfigured()) return;
+  try {
+    const instance = await getMsalInstance();
+    await instance.clearCache();
+  } catch {
+    // MSAL may not be initialized yet
+  }
+}
+
+/** Call on /login after Microsoft redirect; returns an ID token once per sign-in. */
 export async function completeEntraRedirectLogin(): Promise<string | null> {
   if (!isMsalConfigured()) return null;
+  const onLoginPage = window.location.pathname.endsWith("/login");
+  if (!onLoginPage && !isMsalRedirectReturn()) return null;
+
   const instance = await getMsalInstance();
   const result = await instance.handleRedirectPromise();
   if (!result?.idToken) return null;

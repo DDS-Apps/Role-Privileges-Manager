@@ -300,8 +300,13 @@ export class AccessUserStore {
   }
 
   getGMsForCompany(companyId: string): Contact[] {
+    const normalizedId = companyId.trim();
     return this.getAllContacts().filter((c) =>
-      c.companies.some((cc) => cc.companyId === companyId && cc.role === "GM"),
+      c.companies.some(
+        (cc) =>
+          cc.companyId.trim() === normalizedId &&
+          cc.role.trim().toUpperCase() === "GM",
+      ),
     );
   }
 

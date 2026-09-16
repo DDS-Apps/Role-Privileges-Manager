@@ -20,6 +20,7 @@ export function SsoTokenExchange({ idToken }: { idToken: string }) {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ idToken }),
           credentials: "include",
+          cache: "no-store",
         });
         if (!res.ok) {
           throw new Error("SSO login failed");

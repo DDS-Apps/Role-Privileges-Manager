@@ -1,35 +1,15 @@
-import nodemailer from "nodemailer";
 import type { Contact, PrivilegeRequest } from "@shared/schema";
 import {
   signApprovalEmailToken,
   type EmailApprovalAction,
 } from "./approval-email-token.js";
+import {
+  getPublicAppUrl,
+  isOutboundMailConfigured,
+  sendOutboundMail,
+} from "./outbound-mail.js";
 
-function isSmtpConfigured(): boolean {
-  return Boolean(process.env.SMTP_USER && process.env.SMTP_PASS);
-}
-
-const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST || "smtp.office365.com",
-  port: Number(process.env.SMTP_PORT) || 587,
-  secure: false,
-  auth: {
-    user: process.env.SMTP_USER || "",
-    pass: process.env.SMTP_PASS || "",
-  },
-  requireTLS: true,
-});
-
-const FROM_ADDRESS =
-  process.env.SMTP_FROM || process.env.SMTP_USER || `RPM System <noreply@dallah.com>`;
-
-export function getPublicAppUrl(): string {
-  const configured =
-    process.env.APP_PUBLIC_URL ||
-    process.env.VITE_AZURE_AD_REDIRECT_URI?.replace(/\/login\/?$/, "") ||
-    "";
-  return configured.replace(/\/$/, "");
-}
+export { getPublicAppUrl };
 
 export interface ApproverEmailContext {
   managerName: string;
@@ -68,8 +48,10 @@ export async function sendApproverNotificationEmail(
   approver: Contact,
   ctx: ApproverEmailContext,
 ): Promise<void> {
-  if (!isSmtpConfigured()) {
-    throw new Error("SMTP_USER and SMTP_PASS must be configured to email approvers");
+  if (!isOutboundMailConfigured()) {
+    throw new Error(
+      "Outbound email is not configured (SMTP_USER/SMTP_PASS or Graph mail credentials)",
+    );
   }
 
   const baseUrl = getPublicAppUrl();
@@ -130,8 +112,7 @@ export async function sendApproverNotificationEmail(
     `Request ID   : ${request.id}`,
   ].join("\n");
 
-  await transporter.sendMail({
-    from: FROM_ADDRESS,
+  await sendOutboundMail({
     to: approver.email,
     subject,
     text,

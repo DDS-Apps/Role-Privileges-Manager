@@ -25,12 +25,13 @@ export function useAuth() {
   return useQuery<AuthUser | null>({
     queryKey: ["/api/auth/me"],
     queryFn: async () => {
-      const res = await fetch("/api/auth/me", { credentials: "include" });
+      const res = await fetch("/api/auth/me", { credentials: "include", cache: "no-store" });
       if (res.status === 401) return null;
       if (!res.ok) throw new Error("Auth check failed");
       return res.json();
     },
-    staleTime: 5 * 60 * 1000,
+    staleTime: 0,
+    refetchOnMount: "always",
     retry: false,
   });
 }
@@ -114,10 +115,16 @@ export function useLogout() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async () => {
-      await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
+      await fetch("/api/auth/logout", { method: "POST", credentials: "include", cache: "no-store" });
     },
-    onSuccess: () => {
-      queryClient.setQueryData(["/api/auth/me"], null);
+    onSuccess: async () => {
+      queryClient.clear();
+      try {
+        const { clearEntraCache } = await import("@/lib/msal");
+        await clearEntraCache();
+      } catch {
+        // ignore MSAL cleanup errors
+      }
     },
   });
 }

@@ -732,26 +732,36 @@ export class JsonStorage implements IStorage {
     return "employee's company GM";
   }
 
+  private isRequestSubmitter(gm: Contact, request: PrivilegeRequest): boolean {
+    const ownerIds = new Set(
+      [request.managerId, request.managerUserId].filter(Boolean) as string[],
+    );
+    if (ownerIds.has(gm.id)) return true;
+    if (gm.userId && ownerIds.has(gm.userId)) return true;
+    return false;
+  }
+
   async notifyApproversForPendingRequest(requestId: string): Promise<void> {
     await this.initialized;
     const request = this.data.requests.find((r) => r.id === requestId);
     if (!request || request.status !== "pending") return;
 
     const employee = this.data.employees.find((e) => e.id === request.employeeId);
-    if (!employee) return;
+    if (!employee) {
+      console.warn(`[approval-email] Employee not found for request ${requestId}`);
+      return;
+    }
 
     const approverCompanyId = this.approverCompanyIdForRequest(request, employee);
-    const approvers = (await this.getGMsForCompany(approverCompanyId)).filter(
-      (gm) =>
-        Boolean(gm.email) &&
-        gm.id !== request.managerId &&
-        gm.userId !== request.managerUserId &&
-        gm.userId !== request.managerId,
+    const companyGMs = await this.getGMsForCompany(approverCompanyId);
+    const approvers = companyGMs.filter(
+      (gm) => Boolean(gm.email?.includes("@")) && !this.isRequestSubmitter(gm, request),
     );
 
     if (approvers.length === 0) {
+      const gmEmails = companyGMs.map((gm) => `${gm.name}<${gm.email}>`).join(", ") || "(none)";
       console.warn(
-        `[approval-email] No approver emails for company ${approverCompanyId} (request ${requestId})`,
+        `[approval-email] No approver emails for company ${approverCompanyId} (request ${requestId}). GMs in allow-list: ${gmEmails}. Submitter: ${request.managerId}/${request.managerUserId ?? ""}`,
       );
       return;
     }
@@ -766,6 +776,7 @@ export class JsonStorage implements IStorage {
       approvalStepLabel: this.approvalStepLabel(request),
     };
 
+    let sent = 0;
     for (const approver of approvers) {
       await sendApproverNotificationEmail(request, approver, emailCtx);
       await this.addAuditEntry(
@@ -775,7 +786,11 @@ export class JsonStorage implements IStorage {
         request.companyId,
         request.employeeId,
       );
+      sent++;
     }
+    console.log(
+      `[approval-email] Notified ${sent} approver(s) for request ${requestId} (company ${approverCompanyId})`,
+    );
   }
 
   private async applyApprovedRequest(request: PrivilegeRequest, actorId: string): Promise<void> {
@@ -1881,6 +1896,12 @@ export class JsonStorage implements IStorage {
         : undefined);
 
     if (!manager && submitterContact) {
+      const requesterCompanyId =
+        input.companyId ||
+        submitterContact.companies.find((cc) => cc.role.trim().toUpperCase() === "GM")
+          ?.companyId ||
+        submitterContact.companies[0]?.companyId ||
+        employee.legalCompanyId;
       manager = {
         id: submitterContact.userId || submitterContact.id,
         name: submitterContact.name,
@@ -1888,7 +1909,7 @@ export class JsonStorage implements IStorage {
         title: "",
         isManager: true,
         isAdmin: submitterContact.isAdmin,
-        legalCompanyId: employee.legalCompanyId,
+        legalCompanyId: requesterCompanyId,
       };
     }
 
@@ -1963,7 +1984,9 @@ export class JsonStorage implements IStorage {
     const employeeLegalCompanyId = employee.legalCompanyId;
 
     const isGMofEmployeeCompany = submitterContact?.companies.some(
-      cc => cc.companyId === employeeLegalCompanyId && cc.role === "GM"
+      (cc) =>
+        cc.companyId.trim() === employeeLegalCompanyId.trim() &&
+        cc.role.trim().toUpperCase() === "GM",
     );
 
     if (!isExternalGrant && isGMofEmployeeCompany) {
@@ -1994,8 +2017,9 @@ export class JsonStorage implements IStorage {
       input.employeeId
     );
 
-    void this.notifyApproversForPendingRequest(request.id).catch((err) => {
-      console.error("[approval-email] Failed to notify approvers:", err);
+    this.notifyApproversForPendingRequest(request.id).catch((err) => {
+      const message = err instanceof Error ? err.message : String(err);
+      console.error(`[approval-email] Failed to notify approvers for ${request.id}:`, message);
     });
 
     return request;

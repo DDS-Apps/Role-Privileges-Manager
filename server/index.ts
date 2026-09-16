@@ -35,7 +35,16 @@ if (process.env.NODE_ENV === "production") {
   app.set("trust proxy", 1);
 }
 
+// Never cache authenticated API responses (IIS/WAF may otherwise serve one user's data to another).
+app.use("/api", (_req, res, next) => {
+  res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, private");
+  res.setHeader("Pragma", "no-cache");
+  res.setHeader("Vary", "Cookie");
+  next();
+});
+
 app.use(session({
+  name: "rpm.sid",
   secret: process.env.SESSION_SECRET || "dallah-rpm-secret-2025",
   resave: false,
   saveUninitialized: false,

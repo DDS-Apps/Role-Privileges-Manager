@@ -176,6 +176,48 @@ export async function markGraphMessageRead(messageId: string): Promise<void> {
   }
 }
 
+export async function sendGraphMail(options: {
+  to: string;
+  cc?: string[];
+  subject: string;
+  text: string;
+  html: string;
+}): Promise<void> {
+  const res = await graphFetch("/sendMail", {
+    method: "POST",
+    body: JSON.stringify({
+      message: {
+        subject: options.subject,
+        body: {
+          contentType: "HTML",
+          content: options.html,
+        },
+        toRecipients: [{ emailAddress: { address: options.to } }],
+        ...(options.cc?.length
+          ? {
+              ccRecipients: options.cc.map((address) => ({
+                emailAddress: { address },
+              })),
+            }
+          : {}),
+      },
+      saveToSentItems: true,
+    }),
+  });
+
+  if (!res.ok) {
+    const data = (await res.json().catch(() => ({}))) as {
+      error?: { message?: string };
+    };
+    throw new Error(
+      data.error?.message || `Graph sendMail failed (${res.status})`,
+    );
+  }
+
+  const { mailbox } = graphConfig();
+  console.log(`[graph-mail] Sent → ${options.to} (from ${mailbox})`);
+}
+
 export async function verifyGraphMailAccess(): Promise<{
   mailbox: string;
   unreadCount: number;

@@ -9,7 +9,9 @@ import { completeEntraRedirectLogin, isMsalConfigured } from "./lib/msal";
  */
 async function bootstrap() {
   let ssoIdToken: string | null = null;
-  if (isMsalConfigured()) {
+  const onLoginPage = window.location.pathname.endsWith("/login");
+  // Only exchange Microsoft tokens on the login redirect URI — never on dashboard refresh.
+  if (isMsalConfigured() && onLoginPage) {
     try {
       ssoIdToken = await completeEntraRedirectLogin();
       if (ssoIdToken && window.location.hash) {

@@ -1,39 +1,25 @@
-import nodemailer from "nodemailer";
 import type { PrivilegeRequest } from "@shared/schema";
 import { buildItRequestTitle } from "./it-email-parser.js";
+import {
+  isOutboundMailConfigured,
+  logOutboundMailConfigStatus,
+  sendOutboundMail,
+} from "./outbound-mail.js";
 
 export { buildItRequestTitle };
 
-function isSmtpConfigured(): boolean {
-  return Boolean(process.env.SMTP_USER && process.env.SMTP_PASS);
-}
-
-const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST || "smtp.office365.com",
-  port: Number(process.env.SMTP_PORT) || 587,
-  secure: false,
-  auth: {
-    user: process.env.SMTP_USER || "",
-    pass: process.env.SMTP_PASS || "",
-  },
-  requireTLS: true,
-});
-
 export function logItEmailConfigStatus(): void {
-  if (isSmtpConfigured()) {
-    console.log(
-      `[email] IT fulfillment outbound configured (${process.env.SMTP_FROM || process.env.SMTP_USER} → ${SUPPORT_EMAIL})`,
-    );
+  logOutboundMailConfigStatus();
+  if (isOutboundMailConfigured()) {
+    console.log(`[email] IT fulfillment target: ${SUPPORT_EMAIL}`);
   } else {
     console.warn(
-      `[email] IT fulfillment DISABLED — set SMTP_USER and SMTP_PASS in .env to email ${SUPPORT_EMAIL}`,
+      `[email] IT fulfillment DISABLED — configure SMTP or Graph mail to email ${SUPPORT_EMAIL}`,
     );
   }
 }
 
 export const SUPPORT_EMAIL = "Support@dallah.com";
-const FROM_ADDRESS =
-  process.env.SMTP_FROM || process.env.SMTP_USER || `RPM System <noreply@dallah.com>`;
 
 export interface ItFulfillmentEmailContext {
   managerName: string;
@@ -107,16 +93,15 @@ export async function sendItFulfillmentEmail(
     .filter(Boolean)
     .join("\n");
 
-  if (!isSmtpConfigured()) {
+  if (!isOutboundMailConfigured()) {
     throw new Error(
-      "SMTP_USER and SMTP_PASS must be configured in .env to email Support@dallah.com",
+      "Outbound email is not configured — set SMTP_USER/SMTP_PASS or Graph mail credentials",
     );
   }
 
   try {
     const cc = ctx.requesterEmail ? [ctx.requesterEmail] : undefined;
-    await transporter.sendMail({
-      from: FROM_ADDRESS,
+    await sendOutboundMail({
       to: SUPPORT_EMAIL,
       ...(cc ? { cc } : {}),
       subject,
