@@ -1,12 +1,21 @@
 import { createRemoteJWKSet, jwtVerify } from "jose";
 
-const tenantId = process.env.AZURE_AD_TENANT_ID || "";
-const clientId = process.env.AZURE_AD_CLIENT_ID || process.env.AZURE_AD_AUDIENCE || "";
-const audience = process.env.AZURE_AD_AUDIENCE || clientId;
-
 let jwks: ReturnType<typeof createRemoteJWKSet> | null = null;
 
+function getTenantId(): string {
+  return process.env.AZURE_AD_TENANT_ID || "";
+}
+
+function getClientId(): string {
+  return process.env.AZURE_AD_CLIENT_ID || process.env.AZURE_AD_AUDIENCE || "";
+}
+
+function getAudience(): string {
+  return process.env.AZURE_AD_AUDIENCE || getClientId();
+}
+
 function getJwks() {
+  const tenantId = getTenantId();
   if (!tenantId) {
     throw new Error("AZURE_AD_TENANT_ID is not configured");
   }
@@ -20,11 +29,13 @@ function getJwks() {
 }
 
 export function isEntraConfigured(): boolean {
-  return Boolean(tenantId && clientId);
+  return Boolean(getTenantId() && getClientId());
 }
 
 /** Validate Entra ID token and return lowercase email, or throw. */
 export async function verifyEntraIdToken(idToken: string): Promise<string> {
+  const tenantId = getTenantId();
+  const audience = getAudience();
   if (!isEntraConfigured()) {
     throw new Error("Microsoft SSO is not configured on the server");
   }

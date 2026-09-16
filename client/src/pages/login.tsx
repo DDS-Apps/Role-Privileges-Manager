@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
 import { useLogin, useSsoLogin, useAuth, useAuthConfig } from "@/hooks/use-auth";
-import { acquireEntraIdToken, isMsalConfigured } from "@/lib/msal";
+import { isMsalConfigured, startEntraRedirectLogin } from "@/lib/msal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -55,18 +55,14 @@ export default function LoginPage() {
   const handleSso = async () => {
     setSsoPending(true);
     try {
-      const idToken = await acquireEntraIdToken();
-      const user = await ssoLogin.mutateAsync(idToken);
-      toast({ title: `Welcome, ${user.name}` });
-      navigate(redirectAfterLogin(user));
+      await startEntraRedirectLogin();
     } catch (err) {
+      setSsoPending(false);
       toast({
         title: "Microsoft sign-in failed",
         description: err instanceof Error ? err.message : "SSO failed",
         variant: "destructive",
       });
-    } finally {
-      setSsoPending(false);
     }
   };
 

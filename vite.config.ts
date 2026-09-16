@@ -30,6 +30,8 @@ export default defineConfig({
     },
   },
   root: path.resolve(rootDir, "client"),
+  // Load VITE_* from project root .env (not client/)
+  envDir: rootDir,
   build: {
     outDir: path.resolve(rootDir, "dist/public"),
     emptyOutDir: true,

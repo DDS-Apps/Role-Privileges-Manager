@@ -1,5 +1,7 @@
 import { PublicClientApplication, type Configuration } from "@azure/msal-browser";
 
+const LOGIN_SCOPES = ["openid", "profile", "email"];
+
 let pca: PublicClientApplication | null = null;
 let initPromise: Promise<PublicClientApplication> | null = null;
 
@@ -28,10 +30,12 @@ export async function getMsalInstance(): Promise<PublicClientApplication> {
         clientId,
         authority: `https://login.microsoftonline.com/${tenantId}`,
         redirectUri:
-          import.meta.env.VITE_AZURE_AD_REDIRECT_URI || window.location.origin,
+          import.meta.env.VITE_AZURE_AD_REDIRECT_URI ||
+          `${window.location.origin}/login`,
       },
       cache: {
-        cacheLocation: "sessionStorage",
+        // localStorage survives the full-page redirect back from Microsoft
+        cacheLocation: "localStorage",
       },
     };
     const instance = new PublicClientApplication(config);
@@ -43,14 +47,17 @@ export async function getMsalInstance(): Promise<PublicClientApplication> {
   return initPromise;
 }
 
-/** Interactive login; returns ID token string. */
-export async function acquireEntraIdToken(): Promise<string> {
+/** Full-page redirect to Microsoft (more reliable than popup behind IIS/WAF). */
+export async function startEntraRedirectLogin(): Promise<void> {
   const instance = await getMsalInstance();
-  const result = await instance.loginPopup({
-    scopes: ["openid", "profile", "email"],
-  });
-  if (!result.idToken) {
-    throw new Error("Microsoft sign-in did not return an ID token");
-  }
+  await instance.loginRedirect({ scopes: LOGIN_SCOPES });
+}
+
+/** Call on app load; returns an ID token when returning from Microsoft login. */
+export async function completeEntraRedirectLogin(): Promise<string | null> {
+  if (!isMsalConfigured()) return null;
+  const instance = await getMsalInstance();
+  const result = await instance.handleRedirectPromise();
+  if (!result?.idToken) return null;
   return result.idToken;
 }

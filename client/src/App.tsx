@@ -9,6 +9,7 @@ import AdminContactsPage from "@/pages/admin-contacts";
 import AdminRequestsPage from "@/pages/admin-requests";
 import LoginPage from "@/pages/login";
 import NotFound from "@/pages/not-found";
+import { SsoTokenExchange } from "@/components/sso-token-exchange";
 import { useAuth } from "@/hooks/use-auth";
 import { Loader2 } from "lucide-react";
 
@@ -61,7 +62,18 @@ function Router() {
   );
 }
 
-function App() {
+function App({ ssoIdToken = null }: { ssoIdToken?: string | null }) {
+  if (ssoIdToken) {
+    return (
+      <QueryClientProvider client={queryClient}>
+        <TooltipProvider>
+          <Toaster />
+          <SsoTokenExchange idToken={ssoIdToken} />
+        </TooltipProvider>
+      </QueryClientProvider>
+    );
+  }
+
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>

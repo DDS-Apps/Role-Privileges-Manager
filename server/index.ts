@@ -1,5 +1,9 @@
-import "dotenv/config";
+import dotenv from "dotenv";
+import path from "path";
 import express, { type Request, Response, NextFunction } from "express";
+
+// Load .env from app root (works when cwd differs under IIS/PM2).
+dotenv.config({ path: path.resolve(__dirname, "..", ".env") });
 import session from "express-session";
 import MemoryStore from "memorystore";
 import { registerRoutes } from "./routes";
@@ -27,12 +31,21 @@ app.use(
 
 app.use(express.urlencoded({ extended: false }));
 
+if (process.env.NODE_ENV === "production") {
+  app.set("trust proxy", 1);
+}
+
 app.use(session({
   secret: process.env.SESSION_SECRET || "dallah-rpm-secret-2025",
   resave: false,
   saveUninitialized: false,
   store: new SessionStore({ checkPeriod: 86400000 }),
-  cookie: { secure: false, httpOnly: true, maxAge: 8 * 60 * 60 * 1000 }, // 8h
+  cookie: {
+    secure: process.env.NODE_ENV === "production",
+    httpOnly: true,
+    sameSite: "lax",
+    maxAge: 8 * 60 * 60 * 1000, // 8h
+  },
 }));
 
 export function log(message: string, source = "express") {
