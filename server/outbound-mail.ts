@@ -1,24 +1,52 @@
 import nodemailer from "nodemailer";
-import { isGraphMailConfigured, sendGraphMail } from "./graph-mail-client.js";
+import type Mail from "nodemailer/lib/mailer";
+import {
+  getGraphAccessToken,
+  isGraphMailConfigured,
+  sendGraphMail,
+  verifyGraphMailAccess,
+} from "./graph-mail-client.js";
+
+function smtpUser(): string {
+  return process.env.SMTP_USER?.trim() || "";
+}
+
+function smtpPass(): string {
+  return process.env.SMTP_PASS?.trim() || "";
+}
 
 export function isSmtpConfigured(): boolean {
-  return Boolean(process.env.SMTP_USER && process.env.SMTP_PASS);
+  return Boolean(smtpUser() && smtpPass());
 }
 
 export function isOutboundMailConfigured(): boolean {
   return isSmtpConfigured() || isGraphMailConfigured();
 }
 
-const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST || "smtp.office365.com",
-  port: Number(process.env.SMTP_PORT) || 587,
-  secure: false,
-  auth: {
-    user: process.env.SMTP_USER || "",
-    pass: process.env.SMTP_PASS || "",
-  },
-  requireTLS: true,
-});
+let cachedTransporter: Mail | null = null;
+
+function getSmtpTransporter(): Mail {
+  const user = smtpUser();
+  const pass = smtpPass();
+  if (!user || !pass) {
+    throw new Error("SMTP_USER/SMTP_PASS are not set");
+  }
+  if (!cachedTransporter) {
+    cachedTransporter = nodemailer.createTransport({
+      host: process.env.SMTP_HOST || "smtp.office365.com",
+      port: Number(process.env.SMTP_PORT) || 587,
+      secure: false,
+      auth: { user, pass },
+      requireTLS: true,
+    });
+  }
+  return cachedTransporter;
+}
+
+/** Prefer Graph when SMTP is misconfigured or explicitly disabled. */
+function preferGraphMail(): boolean {
+  return process.env.OUTBOUND_MAIL?.trim().toLowerCase() === "graph";
+}
 
 export function getFromAddress(): string {
   return (
@@ -39,10 +67,12 @@ export interface OutboundMailOptions {
 
 export async function sendOutboundMail(options: OutboundMailOptions): Promise<void> {
   const from = getFromAddress();
+  let smtpError: string | undefined;
 
-  if (isSmtpConfigured()) {
+  const trySmtp = isSmtpConfigured() && !preferGraphMail();
+  if (trySmtp) {
     try {
-      await transporter.sendMail({
+      await getSmtpTransporter().sendMail({
         from,
         to: options.to,
         ...(options.cc?.length ? { cc: options.cc } : {}),
@@ -50,26 +80,41 @@ export async function sendOutboundMail(options: OutboundMailOptions): Promise<vo
         text: options.text,
         html: options.html,
       });
+      console.log(`[outbound-mail] Sent via SMTP → ${options.to}`);
       return;
     } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      console.error("[outbound-mail] SMTP send failed:", message);
+      smtpError = err instanceof Error ? err.message : String(err);
+      console.error("[outbound-mail] SMTP send failed:", smtpError);
       if (!isGraphMailConfigured()) {
-        throw new Error(`Failed to send email via SMTP: ${message}`);
+        throw new Error(`Failed to send email via SMTP: ${smtpError}`);
       }
       console.warn("[outbound-mail] Falling back to Microsoft Graph sendMail");
     }
   }
 
   if (isGraphMailConfigured()) {
-    await sendGraphMail({
-      to: options.to,
-      cc: options.cc,
-      subject: options.subject,
-      text: options.text,
-      html: options.html,
-    });
-    return;
+    try {
+      await sendGraphMail({
+        to: options.to,
+        cc: options.cc,
+        subject: options.subject,
+        text: options.text,
+        html: options.html,
+      });
+      return;
+    } catch (err) {
+      const graphError = err instanceof Error ? err.message : String(err);
+      if (smtpError) {
+        throw new Error(
+          `SMTP failed (${smtpError}); Graph sendMail failed (${graphError})`,
+        );
+      }
+      throw new Error(`Graph sendMail failed: ${graphError}`);
+    }
+  }
+
+  if (smtpError) {
+    throw new Error(`Failed to send email via SMTP: ${smtpError}`);
   }
 
   throw new Error(
@@ -84,10 +129,15 @@ export function logOutboundMailConfigStatus(): void {
       "[outbound-mail] APP_PUBLIC_URL is not set — approval email links will fail",
     );
   }
-  if (isSmtpConfigured()) {
+  if (preferGraphMail() && isGraphMailConfigured()) {
     console.log(
-      `[outbound-mail] SMTP configured (${getFromAddress()})`,
+      `[outbound-mail] Using Graph sendMail (${process.env.GRAPH_MAILBOX || "mailbox"})`,
     );
+  } else if (isSmtpConfigured()) {
+    console.log(`[outbound-mail] SMTP configured (${getFromAddress()})`);
+    if (isGraphMailConfigured()) {
+      console.log("[outbound-mail] Graph sendMail available as fallback");
+    }
   } else if (isGraphMailConfigured()) {
     console.log(
       `[outbound-mail] Graph sendMail configured (${process.env.GRAPH_MAILBOX || "mailbox"})`,
@@ -111,21 +161,55 @@ export async function verifyOutboundMail(): Promise<{
   ok: boolean;
   method: "smtp" | "graph" | "none";
   error?: string;
+  smtpError?: string;
+  graphError?: string;
 }> {
-  if (isSmtpConfigured()) {
+  if (preferGraphMail() && isGraphMailConfigured()) {
     try {
-      await transporter.verify();
-      return { ok: true, method: "smtp" };
+      await getGraphAccessToken();
+      await verifyGraphMailAccess();
+      return { ok: true, method: "graph" };
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
-      if (isGraphMailConfigured()) {
-        return { ok: false, method: "smtp", error: message };
-      }
-      return { ok: false, method: "smtp", error: message };
+      return { ok: false, method: "graph", error: message, graphError: message };
     }
   }
+
+  let smtpError: string | undefined;
+  if (isSmtpConfigured()) {
+    try {
+      await getSmtpTransporter().verify();
+      return { ok: true, method: "smtp" };
+    } catch (err) {
+      smtpError = err instanceof Error ? err.message : String(err);
+    }
+  }
+
   if (isGraphMailConfigured()) {
-    return { ok: true, method: "graph" };
+    try {
+      await getGraphAccessToken();
+      await verifyGraphMailAccess();
+      return {
+        ok: true,
+        method: "graph",
+        ...(smtpError ? { smtpError, error: `SMTP unavailable (${smtpError}); using Graph` } : {}),
+      };
+    } catch (err) {
+      const graphError = err instanceof Error ? err.message : String(err);
+      return {
+        ok: false,
+        method: smtpError ? "smtp" : "graph",
+        error: smtpError
+          ? `SMTP: ${smtpError}; Graph: ${graphError}`
+          : graphError,
+        smtpError,
+        graphError,
+      };
+    }
+  }
+
+  if (smtpError) {
+    return { ok: false, method: "smtp", error: smtpError, smtpError };
   }
   return { ok: false, method: "none", error: "No outbound mail configured" };
 }
@@ -134,9 +218,12 @@ export function getOutboundMailStatus() {
   return {
     appPublicUrl: getPublicAppUrl() || null,
     smtpConfigured: isSmtpConfigured(),
+    smtpPassConfigured: Boolean(smtpPass()),
     graphConfigured: isGraphMailConfigured(),
+    preferGraph: preferGraphMail(),
     fromAddress: getFromAddress(),
     smtpHost: process.env.SMTP_HOST || "smtp.office365.com",
-    smtpUser: process.env.SMTP_USER || null,
+    smtpUser: smtpUser() || null,
+    graphMailbox: process.env.GRAPH_MAILBOX || null,
   };
 }

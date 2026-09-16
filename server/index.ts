@@ -1,9 +1,5 @@
-import dotenv from "dotenv";
-import path from "path";
+import "./env.js";
 import express, { type Request, Response, NextFunction } from "express";
-
-// Load .env from app root (works when cwd differs under IIS/PM2).
-dotenv.config({ path: path.resolve(__dirname, "..", ".env") });
 import session from "express-session";
 import MemoryStore from "memorystore";
 import { registerRoutes } from "./routes";
