@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
 import { useLogin, useSsoLogin, useAuth, useAuthConfig } from "@/hooks/use-auth";
 import { isMsalConfigured, startEntraRedirectLogin } from "@/lib/msal";
@@ -27,6 +27,17 @@ export default function LoginPage() {
   const [ssoPending, setSsoPending] = useState(false);
 
   const ssoAvailable = Boolean(authConfig?.ssoEnabled && isMsalConfigured());
+
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("sso") === "failed") {
+      toast({
+        title: "Microsoft sign-in failed",
+        description: "Could not complete sign-in. Please try again.",
+        variant: "destructive",
+      });
+      window.history.replaceState({}, document.title, "/login");
+    }
+  }, [toast]);
 
   if (authUser && (authUser.selectedCompanyId || authUser.isAdmin)) {
     navigate(redirectAfterLogin(authUser));

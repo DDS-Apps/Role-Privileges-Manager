@@ -1,8 +1,5 @@
-import { useEffect } from "react";
-import { useLocation } from "wouter";
+import { useEffect, useRef } from "react";
 import { Loader2 } from "lucide-react";
-import { useSsoLogin } from "@/hooks/use-auth";
-import { useToast } from "@/hooks/use-toast";
 
 function redirectAfterLogin(user: { isAdmin: boolean; companies: unknown[] }) {
   return user.isAdmin && user.companies.length === 0 ? "/admin" : "/";
@@ -10,32 +7,30 @@ function redirectAfterLogin(user: { isAdmin: boolean; companies: unknown[] }) {
 
 /** Exchange an MSAL ID token for an RPM session (after Microsoft redirect). */
 export function SsoTokenExchange({ idToken }: { idToken: string }) {
-  const [, navigate] = useLocation();
-  const ssoLogin = useSsoLogin();
-  const { toast } = useToast();
+  const startedRef = useRef(false);
 
   useEffect(() => {
-    let cancelled = false;
+    if (startedRef.current) return;
+    startedRef.current = true;
+
     (async () => {
       try {
-        const user = await ssoLogin.mutateAsync(idToken);
-        if (cancelled) return;
-        toast({ title: `Welcome, ${user.name}` });
-        navigate(redirectAfterLogin(user));
-      } catch (err) {
-        if (cancelled) return;
-        toast({
-          title: "Microsoft sign-in failed",
-          description: err instanceof Error ? err.message : "SSO failed",
-          variant: "destructive",
+        const res = await fetch("/api/auth/sso", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ idToken }),
+          credentials: "include",
         });
-        navigate("/login");
+        if (!res.ok) {
+          throw new Error("SSO login failed");
+        }
+        const user = await res.json();
+        window.location.replace(redirectAfterLogin(user));
+      } catch {
+        window.location.replace("/login?sso=failed");
       }
     })();
-    return () => {
-      cancelled = true;
-    };
-  }, [idToken, navigate, ssoLogin, toast]);
+  }, [idToken]);
 
   return (
     <div className="flex min-h-screen items-center justify-center">

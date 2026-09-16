@@ -12,6 +12,13 @@ async function bootstrap() {
   if (isMsalConfigured()) {
     try {
       ssoIdToken = await completeEntraRedirectLogin();
+      if (ssoIdToken && window.location.hash) {
+        window.history.replaceState(
+          {},
+          document.title,
+          window.location.pathname + window.location.search,
+        );
+      }
     } catch (err) {
       console.error("[sso] redirect handling failed:", err);
     }
