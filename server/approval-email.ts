@@ -8,6 +8,7 @@ import {
   isOutboundMailConfigured,
   sendOutboundMail,
 } from "./outbound-mail.js";
+import { escapeHtml } from "./approval-email-pages.js";
 
 export { getPublicAppUrl };
 
@@ -73,13 +74,13 @@ export async function sendApproverNotificationEmail(
 <head><meta charset="utf-8" /></head>
 <body style="font-family: Arial, sans-serif; color: #1e293b; line-height: 1.5;">
   <h2 style="color: #0f766e;">Privilege request awaiting your approval</h2>
-  <p>Hello ${approver.name},</p>
-  <p>A new ${isRevoke ? "delete" : "grant"} request requires your action as GM (${ctx.approvalStepLabel}).</p>
+  <p>Hello ${escapeHtml(approver.name)},</p>
+  <p>A new ${isRevoke ? "delete" : "grant"} request requires your action as GM (${escapeHtml(ctx.approvalStepLabel)}).</p>
   <table style="border-collapse: collapse; width: 100%; max-width: 560px;">
-    <tr><td style="padding: 6px 0; color: #64748b;">Submitted by</td><td><strong>${ctx.managerName}</strong></td></tr>
-    <tr><td style="padding: 6px 0; color: #64748b;">Employee</td><td><strong>${ctx.employeeName}</strong> (${ctx.employeeId})</td></tr>
-    <tr><td style="padding: 6px 0; color: #64748b;">Company</td><td>${ctx.companyName}</td></tr>
-    <tr><td style="padding: 6px 0; color: #64748b;">Module / Function</td><td>${request.module} / ${request.function}</td></tr>
+    <tr><td style="padding: 6px 0; color: #64748b;">Submitted by</td><td><strong>${escapeHtml(ctx.managerName)}</strong></td></tr>
+    <tr><td style="padding: 6px 0; color: #64748b;">Employee</td><td><strong>${escapeHtml(ctx.employeeName)}</strong> (${escapeHtml(ctx.employeeId)})</td></tr>
+    <tr><td style="padding: 6px 0; color: #64748b;">Company</td><td>${escapeHtml(ctx.companyName)}</td></tr>
+    <tr><td style="padding: 6px 0; color: #64748b;">Module / Function</td><td>${escapeHtml(request.module)} / ${escapeHtml(request.function)}</td></tr>
     <tr><td style="padding: 6px 0; color: #64748b;">Type</td><td>${isRevoke ? "Delete / Revoke" : "Grant"}</td></tr>
     <tr><td style="padding: 6px 0; color: #64748b;">Effective</td><td>${request.startDate}${request.endDate ? ` → ${request.endDate}` : " (no end date)"}</td></tr>
   </table>

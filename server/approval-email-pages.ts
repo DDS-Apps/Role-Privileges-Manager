@@ -1,3 +1,12 @@
+export function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 function pageShell(title: string, body: string): string {
   return `<!DOCTYPE html>
 <html lang="en">
@@ -40,6 +49,31 @@ export function renderApprovalInfoPage(title: string, message: string): string {
 export function renderApprovalErrorPage(message: string): string {
   return pageShell(
     "Action failed",
-    `<h1 class="error">Action failed</h1><p>${message}</p><a class="button" href="/">Open RPM</a>`,
+    `<h1 class="error">Action failed</h1><p>${escapeHtml(message)}</p><a class="button" href="/">Open RPM</a>`,
+  );
+}
+
+export function renderApprovalConfirmPage(options: {
+  action: "approve" | "reject";
+  employeeName: string;
+  module: string;
+  functionName: string;
+  token: string;
+}): string {
+  const actionLabel = options.action === "approve" ? "Approve" : "Reject";
+  const actionColor = options.action === "approve" ? "#0d9488" : "#dc2626";
+  const summary = `${options.module} / ${options.functionName} for ${options.employeeName}`;
+  return pageShell(
+    `Confirm ${actionLabel}`,
+    `<h1>Confirm ${actionLabel}</h1>
+     <p>You are about to <strong>${actionLabel.toLowerCase()}</strong> this privilege request:</p>
+     <p><strong>${escapeHtml(summary)}</strong></p>
+     <form method="POST" action="/api/requests/email-action" style="margin-top:24px;">
+       <input type="hidden" name="token" value="${escapeHtml(options.token)}" />
+       <button type="submit" style="padding:12px 24px;border:none;border-radius:8px;background:${actionColor};color:#fff;font-weight:600;font-size:15px;cursor:pointer;">
+         ${actionLabel} request
+       </button>
+     </form>
+     <p style="font-size:12px;color:#94a3b8;margin-top:16px;">If you did not expect this email, close this page.</p>`,
   );
 }

@@ -134,8 +134,8 @@ export function useCreateRequest() {
 export function useUpdateRequest() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ requestId, adminId, data }: { requestId: string; adminId: string; data: UpdateRequestInput }) => {
-      const res = await apiRequest("PATCH", `/api/requests/${requestId}?adminId=${adminId}`, data);
+    mutationFn: async ({ requestId, data }: { requestId: string; adminId?: string; data: UpdateRequestInput }) => {
+      const res = await apiRequest("PATCH", `/api/requests/${requestId}`, data);
       if (!res.ok) {
         const error = await res.json();
         throw new Error(error.message || "Failed to update request");

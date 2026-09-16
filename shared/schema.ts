@@ -207,7 +207,7 @@ export interface BootstrapResponse extends AppData {
 // REQUEST/RESPONSE TYPES
 // ============================================
 export const applyAssignmentsSchema = z.object({
-  actorId: z.string(),
+  actorId: z.string().optional(),
   companyId: z.string(),           // Company Context for privileges
   targetEmployeeId: z.string(),
   privilegeIds: z.array(z.string()),
@@ -215,7 +215,7 @@ export const applyAssignmentsSchema = z.object({
 export type ApplyAssignmentsRequest = z.infer<typeof applyAssignmentsSchema>;
 
 export const uploadCatalogSchema = z.object({
-  actorId: z.string(),
+  actorId: z.string().optional(),
   catalog: z.array(z.object({
     module: z.string(),
     function: z.string(),
@@ -226,7 +226,7 @@ export type UploadCatalogRequest = z.infer<typeof uploadCatalogSchema>;
 
 // Create privilege request schema
 export const createRequestSchema = z.object({
-  managerId: z.string(),
+  managerId: z.string().optional(),
   managerUserId: z.string().optional(),
   employeeId: z.string(),
   companyId: z.string(),

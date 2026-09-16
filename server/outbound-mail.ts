@@ -63,7 +63,6 @@ export async function sendOutboundMail(options: OutboundMailOptions): Promise<vo
 
   if (isGraphMailConfigured()) {
     await sendGraphMail({
-      from,
       to: options.to,
       cc: options.cc,
       subject: options.subject,

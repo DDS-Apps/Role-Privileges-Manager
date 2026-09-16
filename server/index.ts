@@ -9,6 +9,7 @@ import MemoryStore from "memorystore";
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
+import { getSessionSecret } from "./secrets.js";
 
 const SessionStore = MemoryStore(session);
 
@@ -43,9 +44,11 @@ app.use("/api", (_req, res, next) => {
   next();
 });
 
+const sessionSecret = getSessionSecret();
+
 app.use(session({
   name: "rpm.sid",
-  secret: process.env.SESSION_SECRET || "dallah-rpm-secret-2025",
+  secret: sessionSecret,
   resave: false,
   saveUninitialized: false,
   store: new SessionStore({ checkPeriod: 86400000 }),
@@ -71,23 +74,10 @@ export function log(message: string, source = "express") {
 app.use((req, res, next) => {
   const start = Date.now();
   const path = req.path;
-  let capturedJsonResponse: Record<string, any> | undefined = undefined;
-
-  const originalResJson = res.json;
-  res.json = function (bodyJson, ...args) {
-    capturedJsonResponse = bodyJson;
-    return originalResJson.apply(res, [bodyJson, ...args]);
-  };
-
   res.on("finish", () => {
     const duration = Date.now() - start;
     if (path.startsWith("/api")) {
-      let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
-      if (capturedJsonResponse) {
-        logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
-      }
-
-      log(logLine);
+      log(`${req.method} ${path} ${res.statusCode} in ${duration}ms`);
     }
   });
 

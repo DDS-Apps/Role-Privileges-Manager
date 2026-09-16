@@ -77,7 +77,10 @@ export interface IStorage {
   getAllEmployees(): Promise<Employee[]>;
   
   // Request CRUD
-  createRequest(input: CreateRequestInput): Promise<PrivilegeRequest>;
+  createRequest(
+    input: CreateRequestInput,
+    submitter: { personId: string; userId?: string },
+  ): Promise<PrivilegeRequest>;
   getRequests(filters?: { managerId?: string; employeeId?: string; status?: RequestStatus; targetCompanyIds?: string[]; managedModules?: string[] | null }): Promise<PrivilegeRequest[]>;
   updateRequestStatus(requestId: string, status: RequestStatus, adminComments: string | null, adminId: string): Promise<PrivilegeRequest>;
   submitRequestToItFulfillment(requestId: string, actorId: string, approverName?: string): Promise<PrivilegeRequest>;
@@ -1158,10 +1161,14 @@ export class JsonStorage implements IStorage {
       contacts,
       auditLog: this.auditLog,
     };
-    if (!viewer || viewer.managedModules === null) {
-      return base;
+    let result = base;
+    if (viewer && viewer.managedModules !== null) {
+      result = this.filterBootstrapForViewer(base, viewer);
     }
-    return this.filterBootstrapForViewer(base, viewer);
+    if (!viewer?.isAdmin) {
+      result = { ...result, auditLog: [], contacts: [] };
+    }
+    return result;
   }
 
   async getLegalEmployees(managerId: string): Promise<Employee[]> {
@@ -1867,7 +1874,10 @@ export class JsonStorage implements IStorage {
     return this.data.employees;
   }
 
-  async createRequest(input: CreateRequestInput): Promise<PrivilegeRequest> {
+  async createRequest(
+    input: CreateRequestInput,
+    submitter: { personId: string; userId?: string },
+  ): Promise<PrivilegeRequest> {
     await this.initialized;
     const contacts = await this.contacts();
 
@@ -1877,29 +1887,43 @@ export class JsonStorage implements IStorage {
     }
 
     const submitterContact =
-      contacts.find((c) => c.id === input.managerId) ||
-      contacts.find((c) => c.userId === input.managerId) ||
-      (input.managerUserId
+      contacts.find((c) => c.id === submitter.personId) ||
+      (submitter.userId
         ? contacts.find(
-            (c) => c.userId === input.managerUserId || c.id === input.managerUserId,
+            (c) =>
+              c.userId === submitter.userId || c.id === submitter.userId,
           )
         : undefined);
 
+    if (!submitterContact) {
+      throw new Error("Not authorized to submit requests");
+    }
+
+    const submitterId = submitterContact.id;
+    const submitterUserId = submitterContact.userId || undefined;
+
+    const effectiveInput: CreateRequestInput = {
+      ...input,
+      managerId: submitterId,
+      managerUserId: submitterUserId,
+    };
+
     // Submitter may be a login contact (admin/GM) not in the employee roster.
     let manager: Employee | undefined =
-      this.data.employees.find((e) => e.id === input.managerId) ||
-      (submitterContact?.userId
+      this.data.employees.find((e) => e.id === effectiveInput.managerId) ||
+      (submitterContact.userId
         ? this.data.employees.find((e) => e.id === submitterContact.userId)
         : undefined) ||
       (employee.managerId
         ? this.data.employees.find((e) => e.id === employee.managerId)
         : undefined);
 
-    if (!manager && submitterContact) {
+    if (!manager) {
       const requesterCompanyId =
-        input.companyId ||
-        submitterContact.companies.find((cc) => cc.role.trim().toUpperCase() === "GM")
-          ?.companyId ||
+        effectiveInput.companyId ||
+        submitterContact.companies.find(
+          (cc) => cc.role.trim().toUpperCase() === "GM",
+        )?.companyId ||
         submitterContact.companies[0]?.companyId ||
         employee.legalCompanyId;
       manager = {
@@ -1953,8 +1977,8 @@ export class JsonStorage implements IStorage {
 
     const request: PrivilegeRequest = {
       id: randomUUID(),
-      managerId: input.managerId,
-      ...(input.managerUserId ? { managerUserId: input.managerUserId } : {}),
+      managerId: submitterId,
+      ...(submitterUserId ? { managerUserId: submitterUserId } : {}),
       managerLegalCompanyId: manager.legalCompanyId,
       employeeId: input.employeeId,
       companyId: input.companyId,
@@ -1995,14 +2019,18 @@ export class JsonStorage implements IStorage {
       await this.saveData();
 
       await this.addAuditEntry(
-        input.managerId,
+        submitterId,
         "REQUEST_APPROVED",
         `${manager.name} auto-approved ${requestType === "revoke" ? "delete" : "grant"} request for ${request.module}/${request.function} — ${employee.name} in ${company.name}`,
         input.companyId,
         input.employeeId,
       );
 
-      return this.submitRequestToItFulfillment(request.id, input.managerId, manager.name);
+      return this.submitRequestToItFulfillment(
+        request.id,
+        submitterId,
+        manager.name,
+      );
     }
 
     await this.saveData();
@@ -2010,7 +2038,7 @@ export class JsonStorage implements IStorage {
 
     const actionLabel = requestType === "revoke" ? "delete" : "grant";
     await this.addAuditEntry(
-      input.managerId,
+      submitterId,
       "REQUEST_CREATED",
       `${manager.name} requested ${actionLabel} of ${input.module}/${input.function} privileges for ${employee.name} in ${company.name} (${input.rolesSelected.length} roles, effective ${input.startDate}${input.endDate ? ` to ${input.endDate}` : ""})`,
       input.companyId,

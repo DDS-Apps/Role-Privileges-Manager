@@ -19,10 +19,15 @@ import { parseAccessUsersExcel } from "./access-users-import.js";
 import { resolveViewerFromContact } from "./viewer-context.js";
 import { verifyApprovalEmailToken } from "./approval-email-token.js";
 import {
+  renderApprovalConfirmPage,
   renderApprovalErrorPage,
   renderApprovalInfoPage,
   renderApprovalSuccessPage,
 } from "./approval-email-pages.js";
+import {
+  canViewerExportEmployee,
+  filterRequestsForViewer,
+} from "./request-access.js";
 
 function finalizeUserRoleImportResult(
   importResult: UserRoleImportResult,
@@ -82,6 +87,75 @@ function requireAdmin(req: Request, res: Response, next: () => void) {
 
 function getSessionActorId(req: Request): string {
   return req.session.personId || req.session.contactId || "";
+}
+
+const authRateBuckets = new Map<string, { count: number; resetAt: number }>();
+
+function authRateLimit(req: Request, res: Response, next: () => void) {
+  const key = req.ip || req.socket.remoteAddress || "unknown";
+  const now = Date.now();
+  const windowMs = 15 * 60 * 1000;
+  const maxAttempts = 30;
+  let bucket = authRateBuckets.get(key);
+  if (!bucket || now > bucket.resetAt) {
+    bucket = { count: 0, resetAt: now + windowMs };
+  }
+  bucket.count += 1;
+  authRateBuckets.set(key, bucket);
+  if (bucket.count > maxAttempts) {
+    return res.status(429).json({ message: "Too many login attempts. Try again later." });
+  }
+  next();
+}
+
+async function resolveSessionContact(req: Request) {
+  await accessUsers.ensureReady();
+  const personId = getSessionActorId(req);
+  if (!personId) return null;
+  return accessUsers.getAllContacts().find((c) => c.id === personId) ?? null;
+}
+
+async function handleEmailApprovalAction(token: string, res: Response) {
+  const payload = await verifyApprovalEmailToken(token);
+  const request = await storage.getRequestById(payload.requestId);
+  if (!request) {
+    return res.status(404).send(renderApprovalErrorPage("Request not found."));
+  }
+
+  if (request.status !== "pending") {
+    return res.send(
+      renderApprovalInfoPage(
+        "Already processed",
+        "This request is no longer pending approval.",
+      ),
+    );
+  }
+
+  if ((request.approvalStage ?? "none") !== payload.stage) {
+    return res.send(
+      renderApprovalInfoPage(
+        "Link expired",
+        "This approval link is no longer valid for the current request stage.",
+      ),
+    );
+  }
+
+  const approver = await storage.findContactByEmail(payload.approverEmail);
+  if (!approver || approver.id !== payload.approverContactId) {
+    return res.status(403).send(renderApprovalErrorPage("Invalid approver for this link."));
+  }
+
+  const nextStatus: RequestStatus =
+    payload.action === "approve" ? "active" : "rejected";
+
+  await storage.updateRequestStatus(
+    payload.requestId,
+    nextStatus,
+    null,
+    payload.approverContactId,
+  );
+
+  return res.send(renderApprovalSuccessPage(payload.action));
 }
 
 async function resolveSessionViewer(req: Request): Promise<ViewerContext | null> {
@@ -176,7 +250,7 @@ export async function registerRoutes(
   // ============================================
 
   // POST /api/auth/login  { username, password } — local accounts only
-  app.post("/api/auth/login", async (req, res) => {
+  app.post("/api/auth/login", authRateLimit, async (req, res) => {
     try {
       await accessUsers.ensureReady();
       const { username, password, email } = req.body as {
@@ -214,7 +288,7 @@ export async function registerRoutes(
   });
 
   // POST /api/auth/sso  { idToken } — Entra SSO; email must be on allow-list
-  app.post("/api/auth/sso", async (req, res) => {
+  app.post("/api/auth/sso", authRateLimit, async (req, res) => {
     try {
       await accessUsers.ensureReady();
       const { idToken } = req.body as { idToken?: string };
@@ -443,15 +517,14 @@ export async function registerRoutes(
     }
   });
 
-  // Apply Assignments (direct add/remove)
-  app.post(api.assignments.apply.path, requireAuth as any, async (req, res) => {
+  // Apply Assignments (direct add/remove) — admin only; bypasses approval workflow
+  app.post(api.assignments.apply.path, requireAuth as any, requireAdmin as any, async (req, res) => {
     try {
-      const { actorId, companyId, targetEmployeeId, privilegeIds } = applyAssignmentsSchema.parse(req.body);
-      
-      // Authorization is handled in storage.applyAssignments which checks:
-      // 1. Manager and employee have same legalCompanyId
-      // 2. Employee.managerId matches the actorId
-      // Manager can grant privileges in ANY company (cross-company)
+      const { companyId, targetEmployeeId, privilegeIds } = applyAssignmentsSchema.parse(req.body);
+      const actorId = getSessionActorId(req);
+      if (!actorId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
 
       const assignment = await storage.applyAssignments(actorId, companyId, targetEmployeeId, privilegeIds);
       res.json(assignment);
@@ -467,16 +540,13 @@ export async function registerRoutes(
     }
   });
 
-  // Upload Catalog
-  app.post(api.catalog.upload.path, requireAuth as any, async (req, res) => {
+  // Upload Catalog — admin only
+  app.post(api.catalog.upload.path, requireAuth as any, requireAdmin as any, async (req, res) => {
     try {
-      const { actorId, catalog } = uploadCatalogSchema.parse(req.body);
-      
-      // Verify actor is a manager
-      const data = await storage.getBootstrapData();
-      const manager = data.employees.find(e => e.id === actorId);
-      if (!manager?.isManager) {
-        return res.status(403).json({ message: "Only managers can upload catalog" });
+      const { catalog } = uploadCatalogSchema.parse(req.body);
+      const actorId = getSessionActorId(req);
+      if (!actorId) {
+        return res.status(401).json({ message: "Unauthorized" });
       }
 
       const privileges = await storage.uploadCatalog(actorId, catalog);
@@ -802,8 +872,8 @@ export async function registerRoutes(
     },
   );
 
-  // Get Audit Log
-  app.get(api.audit.list.path, requireAuth as any, async (req, res) => {
+  // Get Audit Log — admin only
+  app.get(api.audit.list.path, requireAuth as any, requireAdmin as any, async (req, res) => {
     try {
       const auditLog = await storage.getAuditLog();
       res.json(auditLog);
@@ -822,10 +892,16 @@ export async function registerRoutes(
         return res.status(400).json({ message: "employeeId is required" });
       }
 
-      const data = await storage.getBootstrapData();
+      const viewer = await resolveSessionViewer(req);
+      const contact = await resolveSessionContact(req);
+      const data = await storage.getBootstrapData(viewer);
       const employee = data.employees.find(e => e.id === employeeId);
       if (!employee) {
         return res.status(404).json({ message: "Employee not found" });
+      }
+
+      if (!canViewerExportEmployee(employee, viewer, contact, data.employees)) {
+        return res.status(403).json({ message: "Not authorized to export this employee" });
       }
 
       // Get all companies that have assignments for this employee
@@ -882,7 +958,7 @@ export async function registerRoutes(
   // PRIVILEGE REQUESTS
   // ============================================
 
-  // Email approve/reject links (signed token, no session required)
+  // Email approve/reject — GET shows confirmation; POST performs action (no GET side effects)
   app.get("/api/requests/email-action", async (req, res) => {
     try {
       const token = typeof req.query.token === "string" ? req.query.token : "";
@@ -914,22 +990,38 @@ export async function registerRoutes(
         );
       }
 
-      const approver = await storage.findContactByEmail(payload.approverEmail);
-      if (!approver || approver.id !== payload.approverContactId) {
-        return res.status(403).send(renderApprovalErrorPage("Invalid approver for this link."));
-      }
-
-      const nextStatus: RequestStatus =
-        payload.action === "approve" ? "active" : "rejected";
-
-      await storage.updateRequestStatus(
-        payload.requestId,
-        nextStatus,
-        null,
-        payload.approverContactId,
+      const employee = (await storage.getBootstrapData()).employees.find(
+        (e) => e.id === request.employeeId,
       );
 
-      return res.send(renderApprovalSuccessPage(payload.action));
+      return res.send(
+        renderApprovalConfirmPage({
+          action: payload.action,
+          employeeName: employee?.name || request.employeeId,
+          module: request.module,
+          functionName: request.function,
+          token,
+        }),
+      );
+    } catch (err) {
+      console.error("Email approval preview error:", err);
+      const message = err instanceof Error ? err.message : "Approval link invalid";
+      return res.status(400).send(renderApprovalErrorPage(message));
+    }
+  });
+
+  app.post("/api/requests/email-action", async (req, res) => {
+    try {
+      const token =
+        typeof req.body?.token === "string"
+          ? req.body.token
+          : typeof req.query.token === "string"
+            ? req.query.token
+            : "";
+      if (!token) {
+        return res.status(400).send(renderApprovalErrorPage("Missing approval link token."));
+      }
+      return await handleEmailApprovalAction(token, res);
     } catch (err) {
       console.error("Email approval action error:", err);
       const message = err instanceof Error ? err.message : "Approval action failed";
@@ -941,7 +1033,15 @@ export async function registerRoutes(
   app.post(api.requests.create.path, requireAuth as any, async (req, res) => {
     try {
       const input = createRequestSchema.parse(req.body);
-      const request = await storage.createRequest(input);
+      const personId = getSessionActorId(req);
+      if (!personId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      const contact = await resolveSessionContact(req);
+      const request = await storage.createRequest(input, {
+        personId,
+        userId: contact?.userId || undefined,
+      });
       res.json(request);
     } catch (err) {
       if (err instanceof z.ZodError) {
@@ -958,15 +1058,23 @@ export async function registerRoutes(
   // List Requests
   app.get(api.requests.list.path, requireAuth as any, async (req, res) => {
     try {
-      const { managerId, employeeId, status, targetCompanyIds } = req.query;
+      const { employeeId, status, targetCompanyIds } = req.query;
       const viewer = await resolveSessionViewer(req);
-      const requests = await storage.getRequests({
-        managerId: managerId as string | undefined,
-        employeeId: employeeId as string | undefined,
-        status: status as RequestStatus | undefined,
-        targetCompanyIds: targetCompanyIds ? (targetCompanyIds as string).split(",") : undefined,
-        managedModules: viewer?.managedModules ?? null,
-      });
+      const contact = await resolveSessionContact(req);
+      const bootstrap = await storage.getBootstrapData(viewer);
+      const requests = filterRequestsForViewer(
+        await storage.getRequests({
+          employeeId: employeeId as string | undefined,
+          status: status as RequestStatus | undefined,
+          targetCompanyIds: targetCompanyIds
+            ? (targetCompanyIds as string).split(",")
+            : undefined,
+          managedModules: viewer?.managedModules ?? null,
+        }),
+        viewer,
+        contact,
+        bootstrap.employees,
+      );
       res.json(requests);
     } catch (err) {
       console.error("Get requests error:", err);
@@ -978,7 +1086,7 @@ export async function registerRoutes(
   app.patch("/api/requests/:requestId", requireAuth as any, async (req, res) => {
     try {
       const { requestId } = req.params;
-      const adminId = getSessionActorId(req) || (req.query.adminId as string) || "";
+      const adminId = getSessionActorId(req);
       const input = updateRequestSchema.parse(req.body);
 
       if (!adminId) {
@@ -1026,8 +1134,8 @@ export async function registerRoutes(
     }
   });
 
-  // Resend IT fulfillment email to Support (admin / GM)
-  app.post("/api/requests/:requestId/resend-it-email", requireAuth as any, async (req, res) => {
+  // Resend IT fulfillment email to Support (admin only)
+  app.post("/api/requests/:requestId/resend-it-email", requireAuth as any, requireAdmin as any, async (req, res) => {
     try {
       const { requestId } = req.params;
       const actorId = getSessionActorId(req) || "";
@@ -1139,8 +1247,7 @@ export async function registerRoutes(
   app.post("/api/employees/:employeeId/terminate", requireAuth as any, requireAdmin as any, async (req, res) => {
     try {
       const { employeeId } = req.params;
-      const adminId = getSessionActorId(req) || (req.query.adminId as string);
-      
+      const adminId = getSessionActorId(req);
       if (!adminId) {
         return res.status(401).json({ message: "Unauthorized" });
       }
