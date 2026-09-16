@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Eye, EyeOff, LogIn } from "lucide-react";
 import { DallahLogo } from "@/components/ui/dallah-logo";
+import { MicrosoftSignInButton } from "@/components/ui/microsoft-sign-in-button";
 
 function redirectAfterLogin(user: { isAdmin: boolean; companies: unknown[] }) {
   return user.isAdmin && user.companies.length === 0 ? "/admin" : "/";
@@ -120,18 +121,11 @@ export default function LoginPage() {
 
             {ssoAvailable && (
               <>
-                <Button
-                  type="button"
+                <MicrosoftSignInButton
                   onClick={handleSso}
                   disabled={ssoPending || ssoLogin.isPending}
-                  className="w-full h-10 bg-slate-900 hover:bg-slate-800 text-white font-medium rounded-lg"
-                >
-                  {ssoPending || ssoLogin.isPending ? (
-                    <><Loader2 className="h-4 w-4 animate-spin mr-2" />Signing in with Microsoft…</>
-                  ) : (
-                    "Sign in with Microsoft"
-                  )}
-                </Button>
+                  loading={ssoPending || ssoLogin.isPending}
+                />
                 <div className="relative my-6">
                   <div className="absolute inset-0 flex items-center">
                     <div className="w-full border-t border-slate-200 dark:border-slate-600" />
@@ -200,14 +194,6 @@ export default function LoginPage() {
                 )}
               </Button>
             </form>
-
-            <div className="mt-5 p-3 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700">
-              <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mb-1">Local bootstrap admin</p>
-              <p className="text-xs text-slate-400 dark:text-slate-500">
-                username <span className="font-mono">spadmin</span> · password{" "}
-                <span className="font-mono">password</span>
-              </p>
-            </div>
           </div>
         </div>
       </div>

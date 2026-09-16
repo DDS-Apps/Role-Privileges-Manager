@@ -21,14 +21,17 @@ async function apiRequest(method: string, url: string, body?: unknown) {
   return res;
 }
 
-export function useBootstrapData() {
+export function useBootstrapData(enabled = true) {
   return useQuery<BootstrapResponse>({
     queryKey: ["/api/bootstrap"],
+    enabled,
     queryFn: async () => {
       const res = await fetch("/api/bootstrap", { credentials: "include" });
+      if (res.status === 401) throw new Error("Unauthorized");
       if (!res.ok) throw new Error("Failed to fetch data");
       return res.json();
     },
+    retry: (_count, error) => error.message !== "Unauthorized",
   });
 }
 

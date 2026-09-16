@@ -275,7 +275,7 @@ export default function DashboardPage() {
   const actingUserId = authUser?.id || "";
   const selectedCompanyId = authUser?.selectedCompanyId ?? "";
 
-  const { data, isLoading, error } = useBootstrapData();
+  const { data, isLoading, error } = useBootstrapData(Boolean(authUser));
   const { data: requests = [] } = useRequests();
   const createRequest = useCreateRequest();
   const { toast } = useToast();
@@ -289,6 +289,12 @@ export default function DashboardPage() {
   useEffect(() => {
     document.documentElement.dir = language === "ar" ? "rtl" : "ltr";
   }, [language]);
+
+  useEffect(() => {
+    if (error?.message === "Unauthorized") {
+      window.location.replace("/login");
+    }
+  }, [error]);
 
   const toggleLanguage = () => {
     setLanguage((prev) => (prev === "en" ? "ar" : "en"));
@@ -430,7 +436,7 @@ export default function DashboardPage() {
 
   const handleLogout = async () => {
     await logout.mutateAsync();
-    navigate("/login");
+    window.location.replace("/login");
   };
 
   const handleSubmitRequest = async (requestData: {
@@ -550,6 +556,14 @@ export default function DashboardPage() {
         <Loader2 className="h-10 w-10 animate-spin text-teal-600" />
       </div>
     );
+  }
+
+  if (!authUser) {
+    return null;
+  }
+
+  if (error?.message === "Unauthorized") {
+    return null;
   }
 
   if (error || !data) {
