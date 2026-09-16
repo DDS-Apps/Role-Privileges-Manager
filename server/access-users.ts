@@ -431,9 +431,15 @@ export class AccessUserStore {
 
     const first = existing[0];
     const email = (updates.email ?? first.email).trim().toLowerCase();
+    const duplicate = this.rows.find(
+      (r) => r.personId !== personId && r.email === email,
+    );
+    if (duplicate) {
+      throw new Error("Email already in use by another contact");
+    }
     const authType = updates.authType ?? first.authType;
     const isAdmin = updates.isAdmin ?? first.isAdmin;
-    const companies =
+    const companies = (
       updates.companies ??
       existing
         .filter((r) => r.companyCode)
@@ -441,7 +447,8 @@ export class AccessUserStore {
           companyId: r.companyCode!,
           role: r.contactRole || "Manager",
           companyName: r.companyName || r.companyCode!,
-        }));
+        }))
+    ).filter((cc) => cc.companyId);
 
     let passwordHash = first.passwordHash;
     let username = updates.username ?? first.username;

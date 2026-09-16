@@ -17,6 +17,12 @@ import { parseEmployeeRosterExcel } from "./employees-import.js";
 import { parseCompaniesExcel } from "./companies-import.js";
 import { parseAccessUsersExcel } from "./access-users-import.js";
 import { resolveViewerFromContact } from "./viewer-context.js";
+import { verifyApprovalEmailToken } from "./approval-email-token.js";
+import {
+  renderApprovalErrorPage,
+  renderApprovalInfoPage,
+  renderApprovalSuccessPage,
+} from "./approval-email-pages.js";
 
 function finalizeUserRoleImportResult(
   importResult: UserRoleImportResult,
@@ -337,26 +343,51 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/contacts", requireAuth as any, requireAdmin as any, async (req, res) => {
-    try {
-      await accessUsers.ensureReady();
-      const body = req.body as {
-        userId?: string;
-        name: string;
-        email: string;
-        isAdmin?: boolean;
-        companies?: { companyId: string; role: string }[];
-        managedModules?: string[];
-        authType?: "sso" | "local";
-        username?: string;
-        password?: string;
-      };
-      const data = await storage.getBootstrapData();
-      const companies = (body.companies || []).map((cc) => ({
+  type ContactBody = {
+    userId?: string;
+    name?: string;
+    email?: string;
+    isAdmin?: boolean;
+    companies?: { companyId: string; role: string }[];
+    managedModules?: string[];
+    authType?: "sso" | "local";
+    username?: string;
+    password?: string;
+  };
+
+  const mapContactCompanies = async (rows: { companyId: string; role: string }[] | undefined) => {
+    const data = await storage.getBootstrapData();
+    return (rows || [])
+      .filter((cc) => cc.companyId)
+      .map((cc) => ({
         companyId: cc.companyId,
         role: cc.role,
         companyName: data.companies.find((c) => c.id === cc.companyId)?.name || cc.companyId,
       }));
+  };
+
+  const handleUpdateContact = async (req: Request, res: Response) => {
+    try {
+      await accessUsers.ensureReady();
+      const body = req.body as ContactBody;
+      const companies = await mapContactCompanies(body.companies);
+      const contact = await accessUsers.updatePerson(req.params.id, {
+        ...body,
+        companies,
+      });
+      res.json(contact);
+    } catch (err: any) {
+      res.status(err.message === "Contact not found" ? 404 : 500).json({
+        message: err.message || "Failed to update contact",
+      });
+    }
+  };
+
+  app.post("/api/contacts", requireAuth as any, requireAdmin as any, async (req, res) => {
+    try {
+      await accessUsers.ensureReady();
+      const body = req.body as ContactBody & { name: string; email: string };
+      const companies = await mapContactCompanies(body.companies);
       const contact = await accessUsers.upsertPerson({
         email: body.email,
         name: body.name,
@@ -376,37 +407,10 @@ export async function registerRoutes(
     }
   });
 
-  app.put("/api/contacts/:id", requireAuth as any, requireAdmin as any, async (req, res) => {
-    try {
-      await accessUsers.ensureReady();
-      const body = req.body as {
-        userId?: string;
-        name?: string;
-        email?: string;
-        isAdmin?: boolean;
-        companies?: { companyId: string; role: string }[];
-        managedModules?: string[];
-        authType?: "sso" | "local";
-        username?: string;
-        password?: string;
-      };
-      const data = await storage.getBootstrapData();
-      const companies = body.companies?.map((cc) => ({
-        companyId: cc.companyId,
-        role: cc.role,
-        companyName: data.companies.find((c) => c.id === cc.companyId)?.name || cc.companyId,
-      }));
-      const contact = await accessUsers.updatePerson(req.params.id, {
-        ...body,
-        companies,
-      });
-      res.json(contact);
-    } catch (err: any) {
-      res.status(err.message === "Contact not found" ? 404 : 500).json({
-        message: err.message || "Failed to update contact",
-      });
-    }
-  });
+  // POST update route works through IIS/WAF where PUT is often blocked
+  app.post("/api/contacts/:id/update", requireAuth as any, requireAdmin as any, handleUpdateContact);
+  app.put("/api/contacts/:id", requireAuth as any, requireAdmin as any, handleUpdateContact);
+  app.patch("/api/contacts/:id", requireAuth as any, requireAdmin as any, handleUpdateContact);
 
   app.delete("/api/contacts/:id", requireAuth as any, requireAdmin as any, async (req, res) => {
     try {
@@ -868,6 +872,61 @@ export async function registerRoutes(
   // ============================================
   // PRIVILEGE REQUESTS
   // ============================================
+
+  // Email approve/reject links (signed token, no session required)
+  app.get("/api/requests/email-action", async (req, res) => {
+    try {
+      const token = typeof req.query.token === "string" ? req.query.token : "";
+      if (!token) {
+        return res.status(400).send(renderApprovalErrorPage("Missing approval link token."));
+      }
+
+      const payload = await verifyApprovalEmailToken(token);
+      const request = await storage.getRequestById(payload.requestId);
+      if (!request) {
+        return res.status(404).send(renderApprovalErrorPage("Request not found."));
+      }
+
+      if (request.status !== "pending") {
+        return res.send(
+          renderApprovalInfoPage(
+            "Already processed",
+            "This request is no longer pending approval.",
+          ),
+        );
+      }
+
+      if ((request.approvalStage ?? "none") !== payload.stage) {
+        return res.send(
+          renderApprovalInfoPage(
+            "Link expired",
+            "This approval link is no longer valid for the current request stage.",
+          ),
+        );
+      }
+
+      const approver = await storage.findContactByEmail(payload.approverEmail);
+      if (!approver || approver.id !== payload.approverContactId) {
+        return res.status(403).send(renderApprovalErrorPage("Invalid approver for this link."));
+      }
+
+      const nextStatus: RequestStatus =
+        payload.action === "approve" ? "active" : "rejected";
+
+      await storage.updateRequestStatus(
+        payload.requestId,
+        nextStatus,
+        null,
+        payload.approverContactId,
+      );
+
+      return res.send(renderApprovalSuccessPage(payload.action));
+    } catch (err) {
+      console.error("Email approval action error:", err);
+      const message = err instanceof Error ? err.message : "Approval action failed";
+      return res.status(400).send(renderApprovalErrorPage(message));
+    }
+  });
 
   // Create Request
   app.post(api.requests.create.path, requireAuth as any, async (req, res) => {

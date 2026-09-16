@@ -15,15 +15,28 @@ import {
 import type { Contact, ContactCompany } from "@shared/schema";
 
 // ── API helpers ───────────────────────────────────────────────────────────────
-async function apiJson(method: string, url: string, body?: unknown) {
+async function apiJson<T = unknown>(method: string, url: string, body?: unknown): Promise<T> {
   const res = await fetch(url, {
     method,
     headers: body ? { "Content-Type": "application/json" } : undefined,
     body: body ? JSON.stringify(body) : undefined,
     credentials: "include",
   });
-  if (!res.ok) { const e = await res.json(); throw new Error(e.message || "Request failed"); }
-  return res.json();
+  const text = await res.text();
+  let data: unknown = null;
+  try {
+    data = text ? JSON.parse(text) : null;
+  } catch {
+    if (!res.ok) {
+      throw new Error(`Request failed (${res.status})`);
+    }
+    throw new Error("Invalid server response");
+  }
+  if (!res.ok) {
+    const err = data as { message?: string } | null;
+    throw new Error(err?.message || `Request failed (${res.status})`);
+  }
+  return data as T;
 }
 
 function useContacts() {
@@ -140,10 +153,11 @@ function ModuleMultiSelect({
 }
 
 function ContactDialog({
-  open, onClose, initial, allCompanies, allModules, onSave, saving,
+  open, onClose, seedKey, initial, allCompanies, allModules, onSave, saving,
 }: {
   open: boolean;
   onClose: () => void;
+  seedKey: string;
   initial: FormValues | null;
   allCompanies: { id: string; name: string }[];
   allModules: string[];
@@ -154,9 +168,9 @@ function ContactDialog({
 
   useEffect(() => {
     if (open) {
-      setForm(initial || EMPTY);
+      setForm(initial ?? EMPTY);
     }
-  }, [open, initial]);
+  }, [open, seedKey, initial]);
 
   const f = (patch: Partial<FormValues>) => setForm(p => ({ ...p, ...patch }));
 
@@ -284,6 +298,7 @@ export default function AdminContactsPage() {
   const createM = useMutation({
     mutationFn: (v: FormValues) => apiJson("POST", "/api/contacts", {
       ...v,
+      companies: v.companies.filter(c => c.companyId),
       password: v.password || undefined,
       username: v.username || undefined,
     }),
@@ -291,8 +306,9 @@ export default function AdminContactsPage() {
     onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
   const updateM = useMutation({
-    mutationFn: ({ id, v }: { id: string; v: FormValues }) => apiJson("PUT", `/api/contacts/${id}`, {
+    mutationFn: ({ id, v }: { id: string; v: FormValues }) => apiJson("POST", `/api/contacts/${id}/update`, {
       ...v,
+      companies: v.companies.filter(c => c.companyId),
       password: v.password || undefined,
       username: v.username || undefined,
     }),
@@ -328,6 +344,7 @@ export default function AdminContactsPage() {
   const handleSave = (v: FormValues) => {
     const payload: FormValues = {
       ...v,
+      companies: v.companies.filter(c => c.companyId),
       password: v.password || "",
       username: v.authType === "local" ? (v.username || v.email.split("@")[0]) : "",
     };
@@ -338,6 +355,8 @@ export default function AdminContactsPage() {
     }
   };
 
+  const contactSeedKey = editTarget === "new" ? "new" : editTarget?.id ?? "";
+
   const dialogInitial = useMemo<FormValues | null>(() => {
     if (!editTarget || editTarget === "new") return null;
     return {
@@ -345,8 +364,8 @@ export default function AdminContactsPage() {
       name: editTarget.name,
       email: editTarget.email,
       isAdmin: editTarget.isAdmin,
-      companies: editTarget.companies,
-      managedModules: editTarget.managedModules ?? [],
+      companies: editTarget.companies.map(c => ({ ...c })),
+      managedModules: [...(editTarget.managedModules ?? [])],
       authType: editTarget.authType || "sso",
       username: editTarget.username || "",
       password: "",
@@ -484,8 +503,10 @@ export default function AdminContactsPage() {
 
       {/* Edit / Create dialog */}
       <ContactDialog
+        key={contactSeedKey || "closed"}
         open={!!editTarget}
         onClose={() => setEditTarget(null)}
+        seedKey={contactSeedKey}
         initial={dialogInitial}
         allCompanies={allCompanies}
         allModules={allModules}

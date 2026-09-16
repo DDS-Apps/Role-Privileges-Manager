@@ -1,4 +1,5 @@
 import { sendItFulfillmentEmail } from "./email.js";
+import { sendApproverNotificationEmail } from "./approval-email.js";
 import {
   AppData,
   AuditEntry,
@@ -88,6 +89,8 @@ export interface IStorage {
   processItAckEmail(subject: string, body: string, from: string): Promise<boolean>;
   processItResolvedEmail(subject: string, body: string, from: string): Promise<boolean>;
   getGMsForCompany(companyId: string): Promise<Contact[]>;
+  getRequestById(requestId: string): Promise<PrivilegeRequest | undefined>;
+  notifyApproversForPendingRequest(requestId: string): Promise<void>;
   
   // Employee Termination
   terminateEmployee(employeeId: string, adminId: string): Promise<void>;
@@ -700,6 +703,79 @@ export class JsonStorage implements IStorage {
       approverName,
       approverComments: request.adminComments,
     };
+  }
+
+  async getRequestById(requestId: string): Promise<PrivilegeRequest | undefined> {
+    await this.initialized;
+    return this.data.requests.find((r) => r.id === requestId);
+  }
+
+  private approverCompanyIdForRequest(
+    request: PrivilegeRequest,
+    employee: Employee,
+  ): string {
+    const stage = request.approvalStage ?? "none";
+    if (stage === "pending_requester_gm") {
+      return request.managerLegalCompanyId;
+    }
+    return employee.legalCompanyId;
+  }
+
+  private approvalStepLabel(request: PrivilegeRequest): string {
+    const stage = request.approvalStage ?? "none";
+    if (stage === "pending_requester_gm") {
+      return "requester's company GM — step 1 of 2";
+    }
+    if (stage === "pending_target_gm") {
+      return "employee's company GM — step 2 of 2";
+    }
+    return "employee's company GM";
+  }
+
+  async notifyApproversForPendingRequest(requestId: string): Promise<void> {
+    await this.initialized;
+    const request = this.data.requests.find((r) => r.id === requestId);
+    if (!request || request.status !== "pending") return;
+
+    const employee = this.data.employees.find((e) => e.id === request.employeeId);
+    if (!employee) return;
+
+    const approverCompanyId = this.approverCompanyIdForRequest(request, employee);
+    const approvers = (await this.getGMsForCompany(approverCompanyId)).filter(
+      (gm) =>
+        Boolean(gm.email) &&
+        gm.id !== request.managerId &&
+        gm.userId !== request.managerUserId &&
+        gm.userId !== request.managerId,
+    );
+
+    if (approvers.length === 0) {
+      console.warn(
+        `[approval-email] No approver emails for company ${approverCompanyId} (request ${requestId})`,
+      );
+      return;
+    }
+
+    const ctx = await this.buildItEmailContext(request);
+    const emailCtx = {
+      managerName: ctx.managerName,
+      employeeName: ctx.employeeName,
+      employeeId: ctx.employeeId,
+      companyName: ctx.companyName,
+      roles: ctx.roles,
+      approvalStepLabel: this.approvalStepLabel(request),
+    };
+
+    for (const approver of approvers) {
+      await sendApproverNotificationEmail(request, approver, emailCtx);
+      await this.addAuditEntry(
+        approver.id,
+        "APPROVAL_EMAIL_SENT",
+        `Approval email sent to ${approver.name} (${approver.email}) for ${request.module}/${request.function} — ${ctx.employeeName}`,
+        request.companyId,
+        request.employeeId,
+      );
+    }
   }
 
   private async applyApprovedRequest(request: PrivilegeRequest, actorId: string): Promise<void> {
@@ -1918,6 +1994,10 @@ export class JsonStorage implements IStorage {
       input.employeeId
     );
 
+    void this.notifyApproversForPendingRequest(request.id).catch((err) => {
+      console.error("[approval-email] Failed to notify approvers:", err);
+    });
+
     return request;
   }
 
@@ -2041,6 +2121,11 @@ export class JsonStorage implements IStorage {
         request.companyId,
         request.employeeId,
       );
+
+      void this.notifyApproversForPendingRequest(request.id).catch((err) => {
+        console.error("[approval-email] Failed to notify step-2 approvers:", err);
+      });
+
       return request;
     }
 
