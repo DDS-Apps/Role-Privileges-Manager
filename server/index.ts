@@ -32,8 +32,18 @@ app.use(
 
 app.use(express.urlencoded({ extended: false }));
 
-if (process.env.NODE_ENV === "production") {
+const isProduction = process.env.NODE_ENV === "production";
+// IIS/ARR terminates TLS and forwards to Node over HTTP — trust proxy for req.secure / client IP.
+if (isProduction || process.env.TRUST_PROXY === "1") {
   app.set("trust proxy", 1);
+}
+
+function resolveCookieSecure(): boolean {
+  if (process.env.COOKIE_SECURE === "true") return true;
+  if (process.env.COOKIE_SECURE === "false") return false;
+  // Default false: IIS→Node is often plain HTTP on localhost even when users hit HTTPS.
+  // Set COOKIE_SECURE=true only when X-Forwarded-Proto: https reaches Node (ARR configured).
+  return false;
 }
 
 // Never cache authenticated API responses (IIS/WAF may otherwise serve one user's data to another).
@@ -53,9 +63,10 @@ app.use(session({
   saveUninitialized: false,
   store: new SessionStore({ checkPeriod: 86400000 }),
   cookie: {
-    secure: process.env.NODE_ENV === "production",
+    secure: resolveCookieSecure(),
     httpOnly: true,
     sameSite: "lax",
+    path: "/",
     maxAge: 8 * 60 * 60 * 1000, // 8h
   },
 }));
@@ -112,6 +123,9 @@ app.use((req, res, next) => {
   const port = parseInt(process.env.PORT || "5000", 10);
   httpServer.listen(port, "0.0.0.0", () => {
     log(`serving on port ${port}`);
+    log(
+      `session cookie: secure=${resolveCookieSecure()}, trustProxy=${app.get("trust proxy")}`,
+    );
     import("./email.js").then(({ logItEmailConfigStatus }) => {
       logItEmailConfigStatus();
     }).catch(() => undefined);
