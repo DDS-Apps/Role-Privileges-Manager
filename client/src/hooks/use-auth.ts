@@ -4,6 +4,7 @@ export interface AuthCompany {
   companyId: string;
   role: string;
   name: string;
+  nameAr?: string;
 }
 
 export interface AuthUser {

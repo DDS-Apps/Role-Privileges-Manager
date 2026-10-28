@@ -1,4 +1,4 @@
-import type { Employee } from "./schema";
+import type { Company, Employee } from "./schema";
 
 export type AppLanguage = "en" | "ar";
 
@@ -33,4 +33,11 @@ export function employeeDisplayDepartment(
   language: AppLanguage,
 ): string {
   return localizedField(employee.department, employee.departmentAr, language);
+}
+
+export function companyDisplayName(
+  company: Pick<Company, "id" | "name" | "nameAr">,
+  language: AppLanguage,
+): string {
+  return localizedField(company.name, company.nameAr, language, company.id);
 }

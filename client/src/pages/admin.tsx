@@ -27,6 +27,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
+import { useAppLanguage } from "@/contexts/app-language";
 
 type Language = "en" | "ar";
 
@@ -67,6 +68,7 @@ const DICT = {
     resetAppWarning:
       "Deletes all companies, employees, privileges, assignments, requests, contacts, audit log, and login users — including demo seed data. Keeps bootstrap login spadmin / password. Re-import Steps 1–5 afterward.",
     resetAppConfirm: 'Type RESET to confirm',
+    allowListContacts: "Allow-list contacts",
   },
   ar: {
     title: "لوحة الإدارة",
@@ -84,9 +86,9 @@ const DICT = {
     terminating: "جاري الإنهاء...",
     dataImportTitle: "مركز استيراد البيانات",
     dataImportSubtitle: "ارفع كل ملف Excel بالترتيب. جميع الاستيرادات تُدمج مع البيانات الحالية ما لم يُذكر خلاف ذلك.",
-    recommendedOrder: "الترتيب الموصى به: 1 الكatalog → 2 الشركات → 3 أدوار المستخدمين → 4 سجل الموظفين → 5 مستخدمو الدخول. بعد استبدال الكatalog، أعد استيراد أدوار المستخدمين.",
-    mergeNote: "الاستيراد يدمج افتراضياً. استخدم خيارات الاستبدال عندما يجب أن يحل ملف Excel محل الكatalog أو صلاحيات التعيينات الحالية.",
-    replaceCatalog: "استبدال الكatalog بالكامل (يمسح الامتيازات الحالية — أعد استيراد أدوار المستخدمين بعد ذلك)",
+    recommendedOrder: "الترتيب الموصى به: 1 فهرس الصلاحيات → 2 الشركات → 3 أدوار المستخدمين → 4 سجل الموظفين → 5 مستخدمو الدخول. بعد استبدال الفهرس، أعد استيراد أدوار المستخدمين.",
+    mergeNote: "الاستيراد يدمج افتراضياً. استخدم خيارات الاستبدال عندما يجب أن يحل ملف Excel محل فهرس الصلاحيات أو صلاحيات التعيينات الحالية.",
+    replaceCatalog: "استبدال فهرس الصلاحيات بالكامل (يمسح الامتيازات الحالية — أعد استيراد أدوار المستخدمين بعد ذلك)",
     replaceCompanies: "استبدال قائمة الشركات بالكامل (يمسح الشركات الحالية — أعد استيراد الأدوار والسجل بعد ذلك)",
     replaceUserRoles: "استبدال وتحديث التعيينات (الملف مصدر الحقيقة لكل موظف–شركة؛ يزيل الامتيازات غير الموجودة في الملف لتلك الأزواج)",
     selectFile: "اختر ملف Excel",
@@ -104,11 +106,12 @@ const DICT = {
     resetAppWarning:
       "يحذف جميع الشركات والموظفين والامتيازات والتعيينات والطلبات وجهات الاتصال وسجل التدقيق ومستخدمي الدخول — بما في ذلك بيانات العرض التجريبية. يبقى حساب spadmin / password. أعد الاستيراد من الخطوات 1–4.",
     resetAppConfirm: 'اكتب RESET للتأكيد',
+    allowListContacts: "جهات اتصال القائمة المسموحة",
   }
 };
 
 export default function AdminPage() {
-  const [language, setLanguage] = useState<Language>("en");
+  const { language, toggleLanguage } = useAppLanguage();
   const [employeeSearch, setEmployeeSearch] = useState("");
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>("");
   const [showTerminateDialog, setShowTerminateDialog] = useState(false);
@@ -129,12 +132,6 @@ export default function AdminPage() {
   const { toast } = useToast();
 
   const t = DICT[language];
-
-  const toggleLanguage = () => {
-    const newLang = language === "en" ? "ar" : "en";
-    setLanguage(newLang);
-    document.documentElement.dir = newLang === "ar" ? "rtl" : "ltr";
-  };
 
   const filteredEmployees = useMemo(() => {
     if (!data) return [];
@@ -205,7 +202,7 @@ export default function AdminPage() {
             <Link href="/admin/contacts">
               <Button variant="ghost" size="sm" className="text-white/90 hover:bg-white/20 gap-1.5">
                 <Users className="h-4 w-4" />
-                Contacts
+                {t.allowListContacts}
               </Button>
             </Link>
 

@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;600;700&family=Noto+Sans+Arabic:wght@400;500;600;700&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -79,19 +79,49 @@
   }
 }
 
-/* RTL Support */
-[dir="rtl"] {
-  text-align: right;
+/* RTL + Arabic typography (layout mirrors via html dir=rtl + text-start / ms/me / ps/pe) */
+[dir="rtl"] table:not([dir="ltr"]) {
+  direction: rtl;
 }
 
-[dir="rtl"] .ml-2 {
-  margin-left: 0;
-  margin-right: 0.5rem;
+[dir="rtl"] body {
+  font-family: "Noto Sans Arabic", "Inter", sans-serif;
 }
 
-[dir="rtl"] .mr-2 {
-  margin-right: 0;
-  margin-left: 0.5rem;
+[dir="rtl"] h1,
+[dir="rtl"] h2,
+[dir="rtl"] h3,
+[dir="rtl"] h4,
+[dir="rtl"] h5,
+[dir="rtl"] h6 {
+  font-family: "Noto Sans Arabic", var(--font-display), sans-serif;
+}
+
+/* Flip common physical margins used in headers and lists */
+[dir="rtl"] .ml-1 { margin-left: 0; margin-right: 0.25rem; }
+[dir="rtl"] .ml-1\.5 { margin-left: 0; margin-right: 0.375rem; }
+[dir="rtl"] .ml-2 { margin-left: 0; margin-right: 0.5rem; }
+[dir="rtl"] .ml-3 { margin-left: 0; margin-right: 0.75rem; }
+[dir="rtl"] .ml-5 { margin-left: 0; margin-right: 1.25rem; }
+[dir="rtl"] .mr-1 { margin-right: 0; margin-left: 0.25rem; }
+[dir="rtl"] .mr-1\.5 { margin-right: 0; margin-left: 0.375rem; }
+[dir="rtl"] .mr-2 { margin-right: 0; margin-left: 0.5rem; }
+
+[dir="rtl"] .pl-9 { padding-left: 0; padding-right: 2.25rem; }
+[dir="rtl"] .pr-10 { padding-right: 0; padding-left: 2.5rem; }
+
+[dir="rtl"] .left-3 { left: auto; right: 0.75rem; }
+[dir="rtl"] .right-3 { right: auto; left: 0.75rem; }
+
+[dir="rtl"] .border-l-2 {
+  border-left-width: 0;
+  border-right-width: 2px;
+  border-right-style: solid;
+}
+
+[dir="rtl"] .-right-0\.5 {
+  right: auto;
+  left: -0.125rem;
 }
 
 /* Custom Table Styles */

@@ -6,6 +6,8 @@ import { z } from "zod";
 export interface Company {
   id: string;
   name: string;
+  /** Arabic display name (optional; from company master import). */
+  nameAr?: string;
 }
 
 // ============================================
@@ -143,6 +145,9 @@ export interface Privilege {
   module: string;
   function: string;
   role: string;
+  moduleAr?: string;
+  functionAr?: string;
+  roleAr?: string;
 }
 
 // ============================================
@@ -316,6 +321,7 @@ export interface CatalogImportResult {
   processed: number;
   privilegesCreated: number;
   privilegesSkipped: number;
+  privilegesUpdated?: number;
   mode: "merge" | "replace";
   errors: UserRoleImportError[];
 }

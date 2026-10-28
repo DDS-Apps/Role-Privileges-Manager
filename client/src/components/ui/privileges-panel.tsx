@@ -1,6 +1,13 @@
 import { useState, useMemo } from "react";
 import { ChevronDown, ChevronRight, ShieldCheck, Building2 } from "lucide-react";
 import type { Privilege, Company, PrivilegeRequest } from "@shared/schema";
+import { useAppLanguage } from "@/contexts/app-language";
+import {
+  catalogFunctionLabel,
+  catalogModuleLabel,
+} from "@shared/catalog-i18n";
+import { privilegeRoleLabel } from "@shared/privilege-display";
+import { companyDisplayName } from "@shared/employee-display";
 
 interface PrivilegesPanelProps {
   allPrivileges: Privilege[];
@@ -20,6 +27,7 @@ export function PrivilegesPanel({
   activeRequests,
   t 
 }: PrivilegesPanelProps) {
+  const { language } = useAppLanguage();
   const [expandedCompanies, setExpandedCompanies] = useState<Set<string>>(new Set());
   const [expandedModules, setExpandedModules] = useState<Set<string>>(new Set());
   const [expandedFunctions, setExpandedFunctions] = useState<Set<string>>(new Set());
@@ -107,7 +115,9 @@ export function PrivilegesPanel({
                     <ChevronRight className="h-4 w-4 text-teal-600" />
                   )}
                   <Building2 className="h-4 w-4 text-slate-400" />
-                  <span className="font-medium text-slate-700 dark:text-slate-200 text-sm">{company.name}</span>
+                  <span className="font-medium text-slate-700 dark:text-slate-200 text-sm" dir="auto">
+                    {companyDisplayName(company, language)}
+                  </span>
                 </div>
                 <span className="text-xs text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-700 px-2 py-0.5 rounded-full">
                   {privilegeIds.length}
@@ -138,8 +148,8 @@ export function PrivilegesPanel({
                           ) : (
                             <ChevronRight className="h-3 w-3 text-teal-600" />
                           )}
-                          <span className="px-2 py-0.5 rounded bg-teal-100 dark:bg-teal-900/40 text-teal-700 dark:text-teal-300 text-xs font-medium">
-                            {moduleName}
+                          <span className="px-2 py-0.5 rounded bg-teal-100 dark:bg-teal-900/40 text-teal-700 dark:text-teal-300 text-xs font-medium" dir="auto">
+                            {catalogModuleLabel(moduleName, language)}
                           </span>
                           <span className="text-xs text-slate-400">({moduleCount})</span>
                         </button>
@@ -167,7 +177,9 @@ export function PrivilegesPanel({
                                 ) : (
                                   <ChevronRight className="h-3 w-3 text-slate-400" />
                                 )}
-                                <span className="text-sm text-slate-600 dark:text-slate-400">{funcName}</span>
+                                <span className="text-sm text-slate-600 dark:text-slate-400" dir="auto">
+                                  {catalogFunctionLabel(moduleName, funcName, language)}
+                                </span>
                                 <span className="text-xs px-1.5 py-0.5 rounded bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300">
                                   {assignedRoles.length}
                                 </span>
@@ -180,13 +192,20 @@ export function PrivilegesPanel({
 
                               {isFuncExpanded && (
                                 <div className="pl-16 pr-4 pb-2 space-y-1">
-                                  {assignedRoles.sort((a, b) => a.role.localeCompare(b.role)).map(role => (
+                                  {assignedRoles
+                                    .sort((a, b) =>
+                                      privilegeRoleLabel(a, language).localeCompare(
+                                        privilegeRoleLabel(b, language),
+                                        language,
+                                      ),
+                                    )
+                                    .map((role) => (
                                     <div 
                                       key={role.id}
                                       className="flex items-center gap-2 py-1.5 text-sm text-slate-600 dark:text-slate-300"
                                     >
                                       <span className="h-1.5 w-1.5 rounded-full bg-teal-500"></span>
-                                      {role.role}
+                                      <span dir="auto">{privilegeRoleLabel(role, language)}</span>
                                     </div>
                                   ))}
                                 </div>

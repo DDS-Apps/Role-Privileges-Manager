@@ -11,6 +11,7 @@ import LoginPage from "@/pages/login";
 import NotFound from "@/pages/not-found";
 import { SsoTokenExchange } from "@/components/sso-token-exchange";
 import { useAuth } from "@/hooks/use-auth";
+import { AppLanguageProvider } from "@/contexts/app-language";
 import { Loader2 } from "lucide-react";
 
 function ProtectedRoute({ component: Component, adminOnly = false }: {
@@ -65,22 +66,26 @@ function Router() {
 function App({ ssoIdToken = null }: { ssoIdToken?: string | null }) {
   if (ssoIdToken) {
     return (
-      <QueryClientProvider client={queryClient}>
-        <TooltipProvider>
-          <Toaster />
-          <SsoTokenExchange idToken={ssoIdToken} />
-        </TooltipProvider>
-      </QueryClientProvider>
+      <AppLanguageProvider>
+        <QueryClientProvider client={queryClient}>
+          <TooltipProvider>
+            <Toaster />
+            <SsoTokenExchange idToken={ssoIdToken} />
+          </TooltipProvider>
+        </QueryClientProvider>
+      </AppLanguageProvider>
     );
   }
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <Toaster />
-        <Router />
-      </TooltipProvider>
-    </QueryClientProvider>
+    <AppLanguageProvider>
+      <QueryClientProvider client={queryClient}>
+        <TooltipProvider>
+          <Toaster />
+          <Router />
+        </TooltipProvider>
+      </QueryClientProvider>
+    </AppLanguageProvider>
   );
 }
 

@@ -6,6 +6,9 @@ import {
   isMsalConfigured,
   isMsalRedirectReturn,
 } from "./lib/msal";
+import { applyDocumentLanguage, getStoredLanguage } from "./lib/app-language";
+
+applyDocumentLanguage(getStoredLanguage());
 
 /**
  * MSAL redirect responses arrive in the URL hash on the redirect URI.

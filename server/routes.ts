@@ -222,6 +222,21 @@ function hasSessionCookie(req: Request): boolean {
   return Boolean(req.headers.cookie?.includes("rpm.sid="));
 }
 
+function attachMasterCompanyNames<
+  T extends { companyId: string; name: string },
+>(list: T[], master: { id: string; name: string; nameAr?: string }[]) {
+  const byId = new Map(master.map((c) => [c.id, c]));
+  return list.map((co) => {
+    const m = byId.get(co.companyId);
+    if (!m) return co;
+    return {
+      ...co,
+      name: m.name,
+      ...(m.nameAr ? { nameAr: m.nameAr } : {}),
+    };
+  });
+}
+
 async function enrichAuthUser(
   resolved: NonNullable<ReturnType<typeof accessUsers.resolveByEmail>>,
   selectedCompanyId: string | null,
@@ -234,6 +249,7 @@ async function enrichAuthUser(
       companyId: c.id,
       role: "Admin",
       name: c.name,
+      ...(c.nameAr ? { nameAr: c.nameAr } : {}),
     }));
 
     if (selected && !allCompanies.some((c) => c.companyId === selected)) {
@@ -262,7 +278,11 @@ async function enrichAuthUser(
     selected = companies[0]?.companyId ?? null;
   }
 
-  return accessUsers.toAuthUser(resolved, selected);
+  const base = accessUsers.toAuthUser(resolved, selected);
+  return {
+    ...base,
+    companies: attachMasterCompanyNames(base.companies, bootstrap.companies),
+  };
 }
 
 export async function registerRoutes(

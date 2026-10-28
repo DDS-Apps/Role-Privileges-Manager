@@ -3,6 +3,8 @@ import { Building2, ChevronDown, Check } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useSelectCompany } from "@/hooks/use-auth";
 import type { AuthCompany } from "@/hooks/use-auth";
+import { useAppLanguage } from "@/contexts/app-language";
+import { authCompanyLabel } from "@/lib/company-display";
 
 interface CompanySwitcherProps {
   companies: AuthCompany[];
@@ -19,6 +21,7 @@ export function CompanySwitcher({
 }: CompanySwitcherProps) {
   const [open, setOpen] = useState(false);
   const selectCompany = useSelectCompany();
+  const { language } = useAppLanguage();
 
   if (!companies || companies.length <= 1) return null;
 
@@ -62,7 +65,7 @@ export function CompanySwitcher({
                 className="block truncate text-sm font-semibold text-white"
                 dir="auto"
               >
-                {current?.name ?? "Select Company"}
+                {current ? authCompanyLabel(current, language) : "Select Company"}
               </span>
               <span className="block text-xs text-white/55">
                 ID: {selectedCompanyId ?? "—"}
@@ -70,7 +73,7 @@ export function CompanySwitcher({
             </span>
           ) : (
             <span className="truncate" dir="auto">
-              {current?.name ?? "Select Company"}
+              {current ? authCompanyLabel(current, language) : "Select Company"}
             </span>
           )}
           <ChevronDown
@@ -119,8 +122,8 @@ export function CompanySwitcher({
                     <Building2 className="h-4 w-4" />
                   </div>
                   <div className="min-w-0">
-                    <p className={`text-sm font-medium truncate ${isActive ? "text-teal-700 dark:text-teal-300" : "text-slate-800 dark:text-slate-100"}`} dir="rtl">
-                      {c.name}
+                    <p className={`text-sm font-medium truncate ${isActive ? "text-teal-700 dark:text-teal-300" : "text-slate-800 dark:text-slate-100"}`} dir="auto">
+                      {authCompanyLabel(c, language)}
                     </p>
                     <p className="text-xs text-slate-400 capitalize">
                       {c.companyId} · {c.role}

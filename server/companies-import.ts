@@ -4,6 +4,7 @@ import type { UserRoleImportError } from "@shared/schema";
 export interface CompanyImportRow {
   id: string;
   name: string;
+  nameAr?: string;
 }
 
 function normalizeHeader(value: unknown): string {
@@ -79,23 +80,41 @@ export function parseCompaniesExcel(buffer: Buffer): {
     }
 
     const codeRaw = pickColumn(mapped, ["company_code", "companycode"]);
-    const name = pickColumn(mapped, ["company_name", "companyname", "name"]);
+    const name = pickColumn(mapped, [
+      "company_name",
+      "companyname",
+      "company_name_en",
+      "companynameen",
+      "name",
+      "name_en",
+    ]);
+    const nameAr = pickColumn(mapped, [
+      "company_name_ar",
+      "companynamear",
+      "name_ar",
+      "company_name_arabic",
+    ]);
 
-    if (!codeRaw && !name) continue;
+    if (!codeRaw && !name && !nameAr) continue;
 
     const id = normalizeCompanyCode(codeRaw);
     if (!id) {
       errors.push({ row: rowNum, message: "Missing Company Code" });
       continue;
     }
-    if (!name) {
+    const displayName = name || nameAr;
+    if (!displayName) {
       errors.push({ row: rowNum, message: `Missing Company name for code ${id}` });
       continue;
     }
     if (seen.has(id)) continue;
     seen.add(id);
 
-    rows.push({ id, name });
+    rows.push({
+      id,
+      name: name || nameAr,
+      ...(nameAr ? { nameAr } : {}),
+    });
   }
 
   return { rows, errors };

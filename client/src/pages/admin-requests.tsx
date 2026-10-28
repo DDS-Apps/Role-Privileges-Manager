@@ -41,6 +41,15 @@ import {
 } from "@/lib/request-utils";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { cn } from "@/lib/utils";
+import { useAppLanguage } from "@/contexts/app-language";
+import { employeeDisplayName } from "@shared/employee-display";
+import { resolveCompanyLabel } from "@/lib/company-display";
+import {
+  catalogFunctionLabel,
+  catalogModuleLabel,
+} from "@shared/catalog-i18n";
+import { privilegeRoleLabel } from "@shared/privilege-display";
+import { formatAppDate } from "@/lib/app-language";
 
 type Language = "en" | "ar";
 type StatusFilter = RequestStatus | "all";
@@ -105,7 +114,7 @@ const DICT = {
     title: "إدارة الطلبات",
     backToAdmin: "لوحة الإدارة",
     all: "الكل",
-    pending: "معلق",
+    pending: "قيد الانتظار",
     active: "مكتمل",
     rejected: "مرفوض",
     awaitingIt: "قيد التنفيذ",
@@ -123,9 +132,9 @@ const DICT = {
     roles: "الأدوار",
     adminComment: "تعليق المسؤول",
     addComment: "أضف تعليق (اختياري)...",
-    approve: "موافقة",
+    approve: "اعتماد",
     reject: "رفض",
-    approving: "جاري الموافقة...",
+    approving: "جاري الاعتماد...",
     rejecting: "جاري الرفض...",
     noEndDate: "لا يوجد تاريخ انتهاء",
     grant: "منح",
@@ -157,9 +166,6 @@ const DICT = {
   },
 };
 
-function formatDate(dateStr: string) {
-  return new Date(dateStr).toLocaleDateString();
-}
 
 function requestMatchesSearch(
   request: PrivilegeRequest,
@@ -192,7 +198,7 @@ function requestMatchesSearch(
 }
 
 export default function AdminRequestsPage() {
-  const [language, setLanguage] = useState<Language>("en");
+  const { language, isRtl, toggleLanguage } = useAppLanguage();
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [companyFilter, setCompanyFilter] = useState("");
   const [moduleFilter, setModuleFilter] = useState("");
@@ -229,17 +235,15 @@ export default function AdminRequestsPage() {
 
   const t = DICT[language];
 
-  const toggleLanguage = () => {
-    const newLang = language === "en" ? "ar" : "en";
-    setLanguage(newLang);
-    document.documentElement.dir = newLang === "ar" ? "rtl" : "ltr";
+  const formatDate = (dateStr: string) => formatAppDate(dateStr, language);
+
+  const getEmployeeName = (id: string) => {
+    const emp = data?.employees.find((e) => e.id === id);
+    return emp ? employeeDisplayName(emp, language) : id;
   };
 
-  const getEmployeeName = (id: string) =>
-    data?.employees.find((e) => e.id === id)?.name || id;
-
   const getCompanyName = (id: string) =>
-    data?.companies.find((c) => c.id === id)?.name || id;
+    resolveCompanyLabel(data?.companies, id, language);
 
   const getPrivilegeDetails = (privilegeIds: string[]) => {
     if (!data) return [];
@@ -467,7 +471,7 @@ export default function AdminRequestsPage() {
                 <SelectItem value="__all__">{t.allModules}</SelectItem>
                 {moduleOptions.map((m) => (
                   <SelectItem key={m} value={m}>
-                    {m}
+                    {catalogModuleLabel(m, language)}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -526,18 +530,18 @@ export default function AdminRequestsPage() {
                 </div>
               ) : (
                 <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
+                  <table dir={isRtl ? "rtl" : "ltr"} className="w-full text-sm">
                     <thead>
                       <tr className="border-b border-slate-200 bg-slate-50">
-                        <th className="text-left py-2.5 px-3 font-medium">{t.employee}</th>
-                        <th className="text-left py-2.5 px-3 font-medium">{t.manager}</th>
-                        <th className="text-left py-2.5 px-3 font-medium">{t.company}</th>
-                        <th className="text-left py-2.5 px-3 font-medium">{t.moduleFunction}</th>
-                        <th className="text-left py-2.5 px-3 font-medium">{t.rolesCount}</th>
-                        <th className="text-left py-2.5 px-3 font-medium">{t.startDate}</th>
-                        <th className="text-left py-2.5 px-3 font-medium">{t.endDate}</th>
-                        <th className="text-left py-2.5 px-3 font-medium">{t.status}</th>
-                        <th className="text-left py-2.5 px-3 font-medium">{t.createdDate}</th>
+                        <th className="text-start py-2.5 px-3 font-medium">{t.employee}</th>
+                        <th className="text-start py-2.5 px-3 font-medium">{t.manager}</th>
+                        <th className="text-start py-2.5 px-3 font-medium">{t.company}</th>
+                        <th className="text-start py-2.5 px-3 font-medium">{t.moduleFunction}</th>
+                        <th className="text-start py-2.5 px-3 font-medium">{t.rolesCount}</th>
+                        <th className="text-start py-2.5 px-3 font-medium">{t.startDate}</th>
+                        <th className="text-start py-2.5 px-3 font-medium">{t.endDate}</th>
+                        <th className="text-start py-2.5 px-3 font-medium">{t.status}</th>
+                        <th className="text-start py-2.5 px-3 font-medium">{t.createdDate}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -617,7 +621,12 @@ export default function AdminRequestsPage() {
                                     )}
                                   </div>
                                   <span>
-                                    {request.module} / {request.function}
+                                    {catalogModuleLabel(request.module, language)} /{" "}
+                                    {catalogFunctionLabel(
+                                      request.module,
+                                      request.function,
+                                      language,
+                                    )}
                                   </span>
                                 </div>
                               </td>
@@ -654,7 +663,9 @@ export default function AdminRequestsPage() {
                                             variant="secondary"
                                             data-testid={`badge-role-${priv?.id}`}
                                           >
-                                            {priv?.role}
+                                            {priv
+                                              ? privilegeRoleLabel(priv, language)
+                                              : "—"}
                                           </Badge>
                                         ))}
                                       </div>

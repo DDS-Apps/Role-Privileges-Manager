@@ -14,6 +14,15 @@ import {
   getItTicketLabel,
 } from "@/lib/request-utils";
 import { cn } from "@/lib/utils";
+import { useAppLanguage } from "@/contexts/app-language";
+import { employeeDisplayName } from "@shared/employee-display";
+import { resolveCompanyLabel } from "@/lib/company-display";
+import {
+  catalogFunctionLabel,
+  catalogModuleLabel,
+} from "@shared/catalog-i18n";
+import { privilegeRoleLabel } from "@shared/privilege-display";
+import { formatAppDate } from "@/lib/app-language";
 
 interface RequestsTableProps {
   requests: PrivilegeRequest[];
@@ -69,6 +78,7 @@ export function RequestsTable({
   canApproveRequest,
   t,
 }: RequestsTableProps) {
+  const { language, isRtl } = useAppLanguage();
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [comments, setComments] = useState<Record<string, string>>({});
   const updateRequest = useUpdateRequest();
@@ -90,21 +100,15 @@ export function RequestsTable({
     return ids.map((id) => privileges.find((p) => p.id === id)).filter(Boolean) as Privilege[];
   };
 
-  const getCompanyName = (id: string) => {
-    return companies.find((c) => c.id === id)?.name || id;
-  };
+  const getCompanyName = (id: string) =>
+    resolveCompanyLabel(companies, id, language);
 
   const getEmployeeName = (id: string) => {
-    return employees.find((e) => e.id === id)?.name || id;
+    const emp = employees.find((e) => e.id === id);
+    return emp ? employeeDisplayName(emp, language) : id;
   };
 
-  const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-    });
-  };
+  const formatDate = (dateStr: string) => formatAppDate(dateStr, language);
 
   const handleApprove = async (request: PrivilegeRequest) => {
     try {
@@ -170,9 +174,9 @@ export function RequestsTable({
 
   return (
     <div className="overflow-x-auto">
-      <table className="w-full text-sm">
+      <table dir={isRtl ? "rtl" : "ltr"} className="w-full text-sm">
         <thead>
-          <tr className="border-b border-slate-200 text-left dark:border-slate-700">
+          <tr className="border-b border-slate-200 text-start dark:border-slate-700">
             <th className="w-8 px-3 py-3 font-medium text-slate-600 dark:text-slate-400" />
             <th className="px-3 py-3 font-medium text-slate-600 dark:text-slate-400">
               {t.company}
@@ -241,7 +245,7 @@ export function RequestsTable({
                   <td className="px-3 py-3">
                     <span
                       className="text-xs font-medium text-teal-700 dark:text-teal-400"
-                      dir="rtl"
+                      dir="auto"
                     >
                       {getCompanyName(request.companyId)}
                     </span>
@@ -271,10 +275,14 @@ export function RequestsTable({
                         )}
                       </div>
                       <span className="font-medium text-slate-900 dark:text-slate-100">
-                        {request.module}
+                        {catalogModuleLabel(request.module, language)}
                       </span>
                       <span className="text-xs text-slate-500 dark:text-slate-400">
-                        {request.function}
+                        {catalogFunctionLabel(
+                          request.module,
+                          request.function,
+                          language,
+                        )}
                       </span>
                     </div>
                   </td>
@@ -326,9 +334,13 @@ export function RequestsTable({
                               {t.moduleFunction}
                             </p>
                             <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">
-                              {request.module}
+                              {catalogModuleLabel(request.module, language)}
                               <span className="font-normal text-slate-400"> · </span>
-                              {request.function}
+                              {catalogFunctionLabel(
+                          request.module,
+                          request.function,
+                          language,
+                        )}
                             </p>
                           </div>
                           {t.submittedBy && (
@@ -353,7 +365,7 @@ export function RequestsTable({
                             </span>
                             <span
                               className="font-medium text-teal-700 dark:text-teal-400"
-                              dir="rtl"
+                              dir="auto"
                             >
                               {getCompanyName(request.companyId)}
                             </span>
@@ -376,7 +388,7 @@ export function RequestsTable({
                                 key={role.id}
                                 className="w-fit whitespace-nowrap rounded border border-slate-200 bg-slate-100 px-2 py-1 leading-none dark:border-slate-600 dark:bg-slate-700/60"
                               >
-                                {role.role}
+                                {privilegeRoleLabel(role, language)}
                               </li>
                             ))}
                           </ol>

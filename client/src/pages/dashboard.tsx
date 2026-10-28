@@ -14,12 +14,18 @@ import { CompanyAccessOverview } from "@/components/ui/company-access-overview";
 import { NewRequestModal } from "@/components/ui/new-request-modal";
 import { DeletePrivilegeModal } from "@/components/ui/delete-privilege-modal";
 import { RequestsTable } from "@/components/ui/requests-table";
+import { cn } from "@/lib/utils";
 import type { PrivilegeRequest, RequestStatus } from "@shared/schema";
 import {
   buildOwnerIds,
   isRequestOwnedByUser,
   isPendingForUserApproval,
 } from "@/lib/request-utils";
+import { useAppLanguage } from "@/contexts/app-language";
+import {
+  employeeDisplayName,
+  employeeDisplayTitle,
+} from "@shared/employee-display";
 
 type Language = "en" | "ar";
 
@@ -134,6 +140,8 @@ const DICT = {
     awaitingRequesterGm: "Awaiting GM (your company)",
     awaitingTargetGm: "Awaiting GM (employee's company)",
     viewingModules: "Viewing: {modules}",
+    signOut: "Sign out",
+    loadFailed: "Failed to load data",
   },
   ar: {
     title: "أدوار وامتيازات مستخدمي الأعمال",
@@ -186,7 +194,7 @@ const DICT = {
     addComment: "أضف تعليقاً...",
     approve: "اعتماد",
     reject: "رفض",
-    requestApproved: "اعتماد GM — أُرسل إلى دعم IT",
+    requestApproved: "اعتماد المدير العام — أُرسل إلى دعم تقنية المعلومات",
     requestRejected: "تم رفض الطلب",
     approvalFailed: "فشل الإجراء",
     selectAll: "تحديد الكل",
@@ -242,9 +250,11 @@ const DICT = {
     externalGrant: "خارجي",
     approvalStep1: "الخطوة 1 من 2",
     approvalStep2: "الخطوة 2 من 2",
-    awaitingRequesterGm: "بانتظار موافقة المدير العام (شركتك)",
-    awaitingTargetGm: "بانتظار موافقة المدير العام (شركة الموظف)",
+    awaitingRequesterGm: "بانتظار اعتماد المدير العام (شركتك)",
+    awaitingTargetGm: "بانتظار اعتماد المدير العام (شركة الموظف)",
     viewingModules: "عرض: {modules}",
+    signOut: "تسجيل الخروج",
+    loadFailed: "تعذر تحميل البيانات",
   },
 };
 
@@ -259,7 +269,7 @@ function getInitials(name: string) {
 }
 
 export default function DashboardPage() {
-  const [language, setLanguage] = useState<Language>("en");
+  const { language, isRtl, toggleLanguage } = useAppLanguage();
   const [selectedEmployeeId, setSelectedEmployeeId] = useState("");
   const [requestTab, setRequestTab] = useState<RequestStatus>("pending");
   const [showNewRequestModal, setShowNewRequestModal] = useState(false);
@@ -291,18 +301,10 @@ export default function DashboardPage() {
   }, [selectedCompanyId]);
 
   useEffect(() => {
-    document.documentElement.dir = language === "ar" ? "rtl" : "ltr";
-  }, [language]);
-
-  useEffect(() => {
     if (error?.message === "Unauthorized") {
       window.location.replace("/login");
     }
   }, [error]);
-
-  const toggleLanguage = () => {
-    setLanguage((prev) => (prev === "en" ? "ar" : "en"));
-  };
 
   const actingUser = useMemo(() => {
     if (!data) return undefined;
@@ -574,7 +576,7 @@ export default function DashboardPage() {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[#ECF1F6] text-destructive">
         <div className="rounded-2xl border border-destructive/20 bg-white p-8 text-center shadow-sm">
-          <h2 className="text-xl font-bold">Failed to load data</h2>
+          <h2 className="text-xl font-bold">{DICT[language].loadFailed}</h2>
         </div>
       </div>
     );
@@ -605,7 +607,9 @@ export default function DashboardPage() {
                     {authUser?.name || actingUser?.name}
                   </p>
                   <p className="max-w-[140px] truncate text-xs text-white/55 md:max-w-[180px]">
-                    {actingUser?.title || "—"}
+                    {actingUser
+                      ? employeeDisplayTitle(actingUser, language) || "—"
+                      : "—"}
                   </p>
                 </div>
               </div>
@@ -648,7 +652,8 @@ export default function DashboardPage() {
               type="button"
               onClick={handleLogout}
               className="rounded-lg p-2 text-white/80 transition hover:bg-white/15 hover:text-white"
-              title="Sign out"
+              title={t.signOut}
+              aria-label={t.signOut}
             >
               <LogOut className="h-4 w-4" />
             </button>
@@ -731,7 +736,7 @@ export default function DashboardPage() {
             <div className="border-b border-slate-100 bg-slate-50 px-4 py-3">
               <h2 className="text-sm font-semibold text-slate-900">
                 {t.privilegeRequests}
-                <span className="ml-2 font-normal text-slate-500">
+                <span className="ms-2 font-normal text-slate-500">
                   ({managerRequests.length})
                 </span>
               </h2>
@@ -741,32 +746,43 @@ export default function DashboardPage() {
                 value={requestTab}
                 onValueChange={(v) => setRequestTab(v as RequestStatus)}
               >
-                <TabsList className="mb-4 h-auto flex-wrap gap-1 bg-slate-100">
+                <div
+                  dir="ltr"
+                  className={cn(
+                    "mb-4 flex w-full",
+                    isRtl ? "justify-end" : "justify-start",
+                  )}
+                >
+                  <TabsList
+                    dir={isRtl ? "rtl" : "ltr"}
+                    className="h-auto flex-wrap gap-1 bg-slate-100"
+                  >
                   <TabsTrigger value="pending" className="text-xs" data-testid="tab-pending">
                     {t.pending}
-                    <span className="ml-1.5 rounded-full bg-amber-100 px-1.5 py-0.5 text-xs text-amber-800">
+                    <span className="ms-1.5 rounded-full bg-amber-100 px-1.5 py-0.5 text-xs text-amber-800">
                       {pendingRequests.length}
                     </span>
                   </TabsTrigger>
                   <TabsTrigger value="approved_pending_it" className="text-xs" data-testid="tab-awaiting-it">
                     {t.awaitingIt}
-                    <span className="ml-1.5 rounded-full bg-indigo-100 px-1.5 py-0.5 text-xs text-indigo-800">
+                    <span className="ms-1.5 rounded-full bg-indigo-100 px-1.5 py-0.5 text-xs text-indigo-800">
                       {awaitingItRequests.length}
                     </span>
                   </TabsTrigger>
                   <TabsTrigger value="active" className="text-xs" data-testid="tab-active">
                     {t.active}
-                    <span className="ml-1.5 rounded-full bg-teal-100 px-1.5 py-0.5 text-xs text-teal-800">
+                    <span className="ms-1.5 rounded-full bg-teal-100 px-1.5 py-0.5 text-xs text-teal-800">
                       {activeRequests.length}
                     </span>
                   </TabsTrigger>
                   <TabsTrigger value="rejected" className="text-xs" data-testid="tab-rejected">
                     {t.rejected}
-                    <span className="ml-1.5 rounded-full bg-rose-100 px-1.5 py-0.5 text-xs text-rose-800">
+                    <span className="ms-1.5 rounded-full bg-rose-100 px-1.5 py-0.5 text-xs text-rose-800">
                       {rejectedRequests.length}
                     </span>
                   </TabsTrigger>
-                </TabsList>
+                  </TabsList>
+                </div>
                 <TabsContent value="pending">
                   <RequestsTable
                     requests={pendingRequests}
@@ -866,6 +882,7 @@ export default function DashboardPage() {
         onEmployeeIdChange={setDeletePrivilegeEmployeeId}
         initialModule={deletePrivilegeInitialModule}
         initialFunction={deletePrivilegeInitialFunction}
+        language={language}
         isSubmitting={createRequest.isPending}
         t={{
           deletePrivilege: t.deletePrivilege,
@@ -888,6 +905,8 @@ export default function DashboardPage() {
           noAssignedPrivileges: t.noAssignedPrivileges,
           currentPrivileges: t.currentPrivileges,
           noCurrentPrivileges: t.noCurrentPrivileges,
+          filterCompany: t.filterCompany,
+          allCompanies: t.allCompanies,
         }}
       />
     </div>

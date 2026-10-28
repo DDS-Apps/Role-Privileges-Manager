@@ -4,6 +4,9 @@ export interface CatalogImportRow {
   module: string;
   function: string;
   role: string;
+  moduleAr?: string;
+  functionAr?: string;
+  roleAr?: string;
 }
 
 const HEADER_VALUES = new Set(
@@ -94,10 +97,30 @@ export function parsePrivilegeCatalogExcel(buffer: Buffer): CatalogImportRow[] {
       continue;
     }
 
+    const moduleAr =
+      mapped.models_ar ||
+      mapped.model_ar ||
+      mapped.module_name_ar ||
+      mapped.module_ar ||
+      "";
+    const functionAr =
+      mapped.functions_ar ||
+      mapped.function_ar ||
+      mapped.business_role_name_ar ||
+      "";
+    const roleAr =
+      mapped.privileges_ar ||
+      mapped.privilege_ar ||
+      mapped.role_name_ar ||
+      "";
+
     catalog.push({
       module: currentModule,
       function: currentFunction,
       role: roleVal,
+      ...(moduleAr ? { moduleAr } : {}),
+      ...(functionAr ? { functionAr } : {}),
+      ...(roleAr ? { roleAr } : {}),
     });
   }
 

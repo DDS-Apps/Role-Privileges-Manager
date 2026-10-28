@@ -37,10 +37,17 @@ import {
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import type { Employee, Privilege, Assignment, Company, PrivilegeRequest } from "@shared/schema";
 import {
+  companyDisplayName,
   employeeDisplayDepartment,
   employeeDisplayName,
   employeeDisplayTitle,
 } from "@shared/employee-display";
+import {
+  catalogFunctionLabel,
+  catalogModuleLabel,
+  catalogRoleLabel,
+  catalogSearchText,
+} from "@shared/catalog-i18n";
 import { employeeMatchesQuery } from "@/lib/employee-search";
 import type { AuthCompany } from "@/hooks/use-auth";
 import { CompanySwitcher } from "@/components/ui/company-switcher";
@@ -247,6 +254,15 @@ function buildPrivilegeDateIndex(
   return index;
 }
 
+function companyLabelFromMap(
+  companyMap: Map<string, Company>,
+  companyId: string,
+  language: "en" | "ar",
+): string {
+  const c = companyMap.get(companyId);
+  return c ? companyDisplayName(c, language) : companyId;
+}
+
 function buildAccessRows(
   companyId: string,
   companyName: string,
@@ -266,10 +282,16 @@ function buildAccessRows(
     emp: Employee,
     rowType: AccessRowType,
   ) => {
-    const legalCompanyName =
-      companyMap.get(emp.legalCompanyId)?.name ?? emp.legalCompanyId;
-    const accessCompanyName =
-      companyMap.get(assignment.companyId)?.name ?? assignment.companyId;
+    const legalCompanyName = companyLabelFromMap(
+      companyMap,
+      emp.legalCompanyId,
+      language,
+    );
+    const accessCompanyName = companyLabelFromMap(
+      companyMap,
+      assignment.companyId,
+      language,
+    );
 
     for (const privId of assignment.privilegeIds) {
       const priv = privilegeMap.get(privId);
@@ -322,8 +344,11 @@ function buildAccessRows(
     if (emp.legalCompanyId !== companyId) continue;
     if (!withAccessInCtx.has(emp.id)) {
       noAccessIds.add(emp.id);
-      const legalCompanyName =
-        companyMap.get(emp.legalCompanyId)?.name ?? emp.legalCompanyId;
+      const legalCompanyName = companyLabelFromMap(
+        companyMap,
+        emp.legalCompanyId,
+        language,
+      );
       rows.push({
         key: `${emp.id}-no-access`,
         employeeId: emp.id,
@@ -348,7 +373,11 @@ function buildAccessRows(
     if (representedInCompany.has(emp.id)) continue;
 
     noAccessIds.add(emp.id);
-    const legalCompanyName = companyMap.get(emp.legalCompanyId)?.name ?? emp.legalCompanyId;
+    const legalCompanyName = companyLabelFromMap(
+      companyMap,
+      emp.legalCompanyId,
+      language,
+    );
     rows.push({
       key: `${emp.id}-no-access-fallback`,
       employeeId: emp.id,
@@ -422,7 +451,12 @@ function buildModulesFromRows(
       primaryRole: functions[0]?.roles[0]?.role ?? "—",
     });
   }
-  return modules.sort((a, b) => a.module.localeCompare(b.module, language));
+  return modules.sort((a, b) =>
+    catalogModuleLabel(a.module, language as "en" | "ar").localeCompare(
+      catalogModuleLabel(b.module, language as "en" | "ar"),
+      language,
+    ),
+  );
 }
 
 function buildExternalTableRows(
@@ -604,9 +638,20 @@ function TypeBadge({
   );
 }
 
-function ExpandIcon({ expanded }: { expanded: boolean }) {
-  return expanded ? (
-    <ChevronDown className="h-4 w-4 shrink-0 text-slate-500" aria-hidden />
+function ExpandIcon({
+  expanded,
+  isRtl,
+}: {
+  expanded: boolean;
+  isRtl: boolean;
+}) {
+  if (expanded) {
+    return (
+      <ChevronDown className="h-4 w-4 shrink-0 text-slate-500" aria-hidden />
+    );
+  }
+  return isRtl ? (
+    <ChevronLeft className="h-4 w-4 shrink-0 text-slate-500" aria-hidden />
   ) : (
     <ChevronRightIcon className="h-4 w-4 shrink-0 text-slate-500" aria-hidden />
   );
@@ -629,6 +674,7 @@ export function CompanyAccessOverview({
   viewingModules,
   t,
 }: CompanyAccessOverviewProps) {
+  const isRtl = language === "ar";
   const [search, setSearch] = useState("");
   const [viewTab, setViewTab] = useState<ViewTab>("all");
   const [moduleFilters, setModuleFilters] = useState<Set<string>>(() => new Set());
@@ -657,7 +703,7 @@ export function CompanyAccessOverview({
     () => buildPrivilegeDateIndex(requests),
     [requests],
   );
-  const companyName = companyMap.get(companyId)?.name ?? companyId;
+  const companyName = companyLabelFromMap(companyMap, companyId, language);
 
   const catalogModules = useMemo(
     () => Array.from(new Set(privileges.map((p) => p.module))).sort(),
@@ -722,9 +768,7 @@ export function CompanyAccessOverview({
           r.employeeId.toLowerCase().includes(q) ||
           r.employeeName.toLowerCase().includes(q) ||
           r.employeeEmail.toLowerCase().includes(q) ||
-          r.module.toLowerCase().includes(q) ||
-          r.function.toLowerCase().includes(q) ||
-          r.role.toLowerCase().includes(q) ||
+          catalogSearchText(r.module, r.function, r.role).includes(q) ||
           r.accessCompanyName.toLowerCase().includes(q) ||
           r.legalCompanyName.toLowerCase().includes(q) ||
           (emp ? employeeMatchesQuery(emp, search, language as "en" | "ar") : false)
@@ -738,10 +782,16 @@ export function CompanyAccessOverview({
   const moduleFilterLabel = useMemo(() => {
     if (moduleFilters.size === 0) return t.allModules;
     const selected = catalogModules.filter((m) => moduleFilters.has(m));
-    if (selected.length === 1) return selected[0];
-    if (selected.length === 2) return selected.join(", ");
+    if (selected.length === 1) {
+      return catalogModuleLabel(selected[0], language);
+    }
+    if (selected.length === 2) {
+      return selected
+        .map((m) => catalogModuleLabel(m, language))
+        .join(", ");
+    }
     return t.modulesSelected.replace("{count}", String(selected.length));
-  }, [moduleFilters, catalogModules, t.allModules, t.modulesSelected]);
+  }, [moduleFilters, catalogModules, t.allModules, t.modulesSelected, language]);
 
   const toggleModuleFilter = (module: string) => {
     setModuleFilters((prev) => {
@@ -932,8 +982,17 @@ export function CompanyAccessOverview({
             setPage(0);
           }}
         >
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <TabsList className="h-9 bg-slate-100">
+          <div
+            dir="ltr"
+            className="flex w-full flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
+          >
+            <TabsList
+              dir={isRtl ? "rtl" : "ltr"}
+              className={cn(
+                "h-9 shrink-0 bg-slate-100",
+                isRtl && "sm:order-2",
+              )}
+            >
               <TabsTrigger value="all" className="text-xs capitalize">
                 {t.all}
               </TabsTrigger>
@@ -948,9 +1007,16 @@ export function CompanyAccessOverview({
               </TabsTrigger>
             </TabsList>
 
-            <div className="flex flex-1 flex-wrap items-center gap-2 sm:justify-end">
+            <div
+              className={cn(
+                "flex flex-wrap items-center gap-2",
+                isRtl
+                  ? "sm:order-1 sm:flex-none sm:flex-row-reverse sm:justify-start"
+                  : "w-full flex-1 sm:justify-end",
+              )}
+            >
               <div className="relative min-w-[200px] flex-1 sm:max-w-xs">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                 <Input
                   value={search}
                   onChange={(e) => {
@@ -958,7 +1024,7 @@ export function CompanyAccessOverview({
                     setPage(0);
                   }}
                   placeholder={t.search}
-                  className="h-9 border-slate-200 pl-9"
+                  className="h-9 border-slate-200 ps-9 text-start"
                 />
               </div>
               <Popover>
@@ -966,12 +1032,12 @@ export function CompanyAccessOverview({
                   <Button
                     type="button"
                     variant="outline"
-                    className="h-9 w-[180px] justify-between border-slate-200 px-3 text-sm font-normal"
+                    className="h-9 w-[180px] justify-between border-slate-200 px-3 text-sm font-normal text-start"
                     data-testid="button-module-filter"
                   >
-                    <span className="flex min-w-0 items-center gap-2">
+                    <span className="flex min-w-0 flex-1 items-center gap-2 overflow-hidden">
                       <Filter className="h-3.5 w-3.5 shrink-0 text-slate-400" />
-                      <span className="truncate">{moduleFilterLabel}</span>
+                      <span className="truncate text-start">{moduleFilterLabel}</span>
                     </span>
                     <ChevronDown className="h-3.5 w-3.5 shrink-0 text-slate-400" />
                   </Button>
@@ -980,7 +1046,7 @@ export function CompanyAccessOverview({
                   align="end"
                   side="bottom"
                   sideOffset={6}
-                  className="z-[200] w-52 border border-slate-200 bg-white p-2 shadow-xl"
+                  className="z-[200] w-52 border border-slate-200 bg-white p-2 text-start shadow-xl"
                 >
                   <div className="mb-2 flex items-center justify-between border-b border-slate-100 bg-white pb-2">
                     <span className="text-xs font-semibold text-slate-700">
@@ -1007,7 +1073,9 @@ export function CompanyAccessOverview({
                           onCheckedChange={() => toggleModuleFilter(m)}
                           data-testid={`module-filter-${m}`}
                         />
-                        <span className="text-sm text-slate-800">{m}</span>
+                        <span className="text-sm text-slate-800" dir="auto">
+                          {catalogModuleLabel(m, language)}
+                        </span>
                       </label>
                     ))}
                   </div>
@@ -1027,23 +1095,22 @@ export function CompanyAccessOverview({
           </div>
 
           <div className="mt-4 overflow-x-auto rounded-lg border border-slate-200">
-            <Table>
+            <Table className="table-fixed">
               <TableHeader>
                 <TableRow className="bg-slate-50/80 hover:bg-slate-50/80">
-                  <TableHead className="w-10" />
-                  <TableHead className="min-w-[220px] text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  <TableHead className="w-[28%] min-w-[220px] text-xs font-semibold uppercase tracking-wide text-slate-500">
                     {t.employee}
                   </TableHead>
-                  <TableHead className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  <TableHead className="w-[12%] text-xs font-semibold uppercase tracking-wide text-slate-500">
                     {t.companyCol}
                   </TableHead>
-                  <TableHead className="min-w-[140px] text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  <TableHead className="w-[22%] min-w-[140px] text-xs font-semibold uppercase tracking-wide text-slate-500">
                     {t.modulesCol}
                   </TableHead>
-                  <TableHead className="min-w-[7.5rem] whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  <TableHead className="w-[18%] min-w-[7.5rem] whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-slate-500">
                     {t.externalCol}
                   </TableHead>
-                  <TableHead className="w-[1%] whitespace-nowrap text-center text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  <TableHead className="w-[10%] whitespace-nowrap text-center text-xs font-semibold uppercase tracking-wide text-slate-500">
                     {t.actions}
                   </TableHead>
                 </TableRow>
@@ -1051,7 +1118,7 @@ export function CompanyAccessOverview({
               <TableBody>
                 {pageGroups.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="h-28 text-center text-slate-500">
+                    <TableCell colSpan={5} className="h-28 text-center text-slate-500">
                       {t.noResults}
                     </TableCell>
                   </TableRow>
@@ -1096,6 +1163,8 @@ export function CompanyAccessOverview({
                       onDeletePrivilege={(module, functionName) =>
                         onDeletePrivilege(group.employeeId, module, functionName)
                       }
+                      isRtl={isRtl}
+                      language={language}
                       t={t}
                     />
                   ))
@@ -1119,7 +1188,11 @@ export function CompanyAccessOverview({
                   disabled={safePage <= 0}
                   onClick={() => setPage((p) => Math.max(0, p - 1))}
                 >
-                  <ChevronLeft className="h-4 w-4" />
+                  {isRtl ? (
+                    <ChevronRight className="h-4 w-4" />
+                  ) : (
+                    <ChevronLeft className="h-4 w-4" />
+                  )}
                 </Button>
                 <span className="min-w-[4rem] text-center text-xs">
                   {safePage + 1} / {totalPages}
@@ -1131,7 +1204,11 @@ export function CompanyAccessOverview({
                   disabled={safePage >= totalPages - 1}
                   onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
                 >
-                  <ChevronRight className="h-4 w-4" />
+                  {isRtl ? (
+                    <ChevronLeft className="h-4 w-4" />
+                  ) : (
+                    <ChevronRight className="h-4 w-4" />
+                  )}
                 </Button>
               </div>
             </div>
@@ -1239,6 +1316,8 @@ function EmployeeTree({
   onModulePillSelect,
   onNewRequest,
   onDeletePrivilege,
+  isRtl,
+  language,
   t,
 }: {
   group: EmployeeAccessGroup;
@@ -1257,6 +1336,8 @@ function EmployeeTree({
   onModulePillSelect: (moduleName: string) => void;
   onNewRequest: () => void;
   onDeletePrivilege: (module?: string, functionName?: string) => void;
+  isRtl: boolean;
+  language: "en" | "ar";
   t: CompanyAccessOverviewProps["t"];
 }) {
   const hasInCompany = group.inCompanyModules.length > 0;
@@ -1293,28 +1374,37 @@ function EmployeeTree({
         onClick={handleEmployeeRowClick}
         aria-expanded={hasInCompany ? isExpanded : undefined}
       >
-        <TableCell className="py-3 align-middle">
-          {hasInCompany ? (
-            <ExpandIcon expanded={isExpanded} />
-          ) : (
-            <span className="inline-block w-4" />
-          )}
-        </TableCell>
-        <TableCell className="py-3">
-          <div className="flex items-center gap-3">
+        <TableCell className="px-3 py-3 align-middle">
+          <div className="flex items-start gap-2">
+            <span className="mt-2.5 flex w-4 shrink-0 justify-center">
+              {hasInCompany ? (
+                <ExpandIcon expanded={isExpanded} isRtl={isRtl} />
+              ) : null}
+            </span>
             <Avatar className="h-9 w-9 shrink-0 border border-slate-200">
               <AvatarFallback className="bg-slate-100 text-xs font-semibold text-slate-600">
                 {getInitials(group.employeeName)}
               </AvatarFallback>
             </Avatar>
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-1.5">
+            <div className="flex min-w-0 flex-1 flex-col items-start gap-0.5 overflow-hidden text-start">
+              <div className="flex min-w-0 max-w-full items-center gap-1.5">
                 <p className="truncate font-semibold text-slate-900">
                   {group.employeeName}
                 </p>
                 <EmployeeDetailsPopover group={group} t={t} />
               </div>
-              <p className="truncate text-xs text-slate-500">{group.employeeEmail}</p>
+              {group.employeeEmail ? (
+                <p
+                  className={cn(
+                    "w-full truncate text-xs text-slate-500",
+                    isRtl ? "text-right" : "text-left",
+                  )}
+                  dir="ltr"
+                  title={group.employeeEmail}
+                >
+                  {group.employeeEmail}
+                </p>
+              ) : null}
             </div>
           </div>
         </TableCell>
@@ -1345,7 +1435,7 @@ function EmployeeTree({
                     data-testid={`module-pill-${empKey}-${m}`}
                     aria-pressed={isPillSelected}
                   >
-                    {m}
+                    {catalogModuleLabel(m, language)}
                   </button>
                 );
               })
@@ -1426,7 +1516,7 @@ function EmployeeTree({
             isSelected && "bg-teal-50/10",
           )}
         >
-          <TableCell colSpan={6} className="border-b border-slate-200 p-0">
+          <TableCell colSpan={5} className="border-b border-slate-200 p-0">
             <InCompanyAccessTree
               modules={modulesToShow}
               empKey={empKey}
@@ -1440,6 +1530,8 @@ function EmployeeTree({
               }
               deleteLabel={t.deletePrivilege}
               noEndDate={t.noEndDate}
+              isRtl={isRtl}
+              language={language}
             />
           </TableCell>
         </TableRow>
@@ -1447,10 +1539,11 @@ function EmployeeTree({
 
       {isExternalExpanded && hasExternal && (
         <TableRow className="bg-orange-50/60 hover:bg-orange-50/60">
-          <TableCell colSpan={6} className="p-0">
+          <TableCell colSpan={5} className="p-0">
             <ExternalAccessPanel
               group={group}
               contextCompanyName={contextCompanyName}
+              language={language}
               t={t}
             />
           </TableCell>
@@ -1463,10 +1556,12 @@ function EmployeeTree({
 function ExternalAccessPanel({
   group,
   contextCompanyName,
+  language,
   t,
 }: {
   group: EmployeeAccessGroup;
   contextCompanyName: string;
+  language: "en" | "ar";
   t: CompanyAccessOverviewProps["t"];
 }) {
   return (
@@ -1500,14 +1595,14 @@ function ExternalAccessPanel({
           <TableBody>
             {group.externalRows.map((row) => (
               <TableRow key={row.key} className="hover:bg-orange-50/30">
-                <TableCell className="border-r border-orange-100/80 text-sm font-medium text-slate-800" dir="auto">
+                <TableCell className="border-e border-orange-100/80 text-sm font-medium text-slate-800" dir="auto">
                   {row.companyName}
                 </TableCell>
-                <TableCell className="border-r border-orange-100/80 text-sm text-slate-700">
-                  {row.module}
+                <TableCell className="border-e border-orange-100/80 text-sm text-slate-700" dir="auto">
+                  {catalogModuleLabel(row.module, language)}
                 </TableCell>
-                <TableCell className="border-r border-orange-100/80 text-sm font-medium text-slate-700">
-                  {row.function}
+                <TableCell className="border-e border-orange-100/80 text-sm font-medium text-slate-700" dir="auto">
+                  {catalogFunctionLabel(row.module, row.function, language)}
                 </TableCell>
                 <TableCell className="align-top text-sm text-slate-600">
                   {row.roles.length === 0 ? (
@@ -1515,8 +1610,8 @@ function ExternalAccessPanel({
                   ) : (
                     <ul className="list-disc space-y-1 pl-4 marker:text-orange-400/70">
                       {row.roles.map((role) => (
-                        <li key={role} className="leading-snug">
-                          {role}
+                        <li key={role} className="leading-snug" dir="auto">
+                          {catalogRoleLabel(role, language)}
                         </li>
                       ))}
                     </ul>
@@ -1534,16 +1629,21 @@ function ExternalAccessPanel({
 function TreeChevron({
   expanded,
   tone = "teal",
+  isRtl,
 }: {
   expanded: boolean;
   tone?: "teal" | "muted";
+  isRtl: boolean;
 }) {
   const className =
     tone === "teal"
       ? "h-3.5 w-3.5 shrink-0 text-teal-600"
       : "h-3 w-3 shrink-0 text-slate-400";
-  return expanded ? (
-    <ChevronDown className={className} aria-hidden />
+  if (expanded) {
+    return <ChevronDown className={className} aria-hidden />;
+  }
+  return isRtl ? (
+    <ChevronLeft className={className} aria-hidden />
   ) : (
     <ChevronRightIcon className={className} aria-hidden />
   );
@@ -1560,6 +1660,8 @@ function InCompanyAccessTree({
   onDeleteFunction,
   deleteLabel,
   noEndDate,
+  isRtl,
+  language,
 }: {
   modules: ModuleInstance[];
   empKey: string;
@@ -1571,6 +1673,8 @@ function InCompanyAccessTree({
   onDeleteFunction?: (module: string, functionName: string) => void;
   deleteLabel?: string;
   noEndDate: string;
+  isRtl: boolean;
+  language: "en" | "ar";
 }) {
   if (modules.length === 0) {
     return (
@@ -1601,12 +1705,12 @@ function InCompanyAccessTree({
               aria-expanded={hasFunctions ? modExpanded : undefined}
             >
               {hasFunctions ? (
-                <TreeChevron expanded={modExpanded} tone="teal" />
+                <TreeChevron expanded={modExpanded} tone="teal" isRtl={isRtl} />
               ) : (
                 <span className="w-3.5" />
               )}
-              <span className="rounded-md bg-teal-100 px-2 py-0.5 text-xs font-medium text-teal-800">
-                {mod.module}
+              <span className="rounded-md bg-teal-100 px-2 py-0.5 text-xs font-medium text-teal-800" dir="auto">
+                {catalogModuleLabel(mod.module, language)}
               </span>
               <span className="text-xs text-slate-400">({mod.privilegeCount})</span>
             </button>
@@ -1626,8 +1730,10 @@ function InCompanyAccessTree({
                         onClick={() => onToggleFunction(fnKey)}
                         aria-expanded={fnExpanded}
                       >
-                        <TreeChevron expanded={fnExpanded} tone="muted" />
-                        <span className="text-sm text-slate-700">{fn.function}</span>
+                        <TreeChevron expanded={fnExpanded} tone="muted" isRtl={isRtl} />
+                        <span className="text-sm text-slate-700" dir="auto">
+                          {catalogFunctionLabel(mod.module, fn.function, language)}
+                        </span>
                         <span className="rounded bg-slate-200 px-1.5 py-0.5 text-xs text-slate-600">
                           {roleCount}
                         </span>
@@ -1660,7 +1766,7 @@ function InCompanyAccessTree({
                             className="flex gap-2.5 py-1.5 text-sm leading-snug text-slate-600"
                           >
                             <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-teal-500" />
-                            <span>{leaf.role}</span>
+                            <span dir="auto">{catalogRoleLabel(leaf.role, language)}</span>
                           </div>
                         ))}
                       </div>

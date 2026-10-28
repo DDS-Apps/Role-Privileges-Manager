@@ -10,9 +10,12 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import {
-  ArrowLeft, Plus, Search, Pencil, Trash2, Loader2, Building2, X, ShieldCheck,
+  ArrowLeft, Plus, Search, Pencil, Trash2, Loader2, Building2, X, ShieldCheck, Globe,
 } from "lucide-react";
 import type { Contact, ContactCompany } from "@shared/schema";
+import { useAppLanguage } from "@/contexts/app-language";
+import { contactsT, type ContactsUi } from "@/lib/admin-contacts-i18n";
+import { resolveCompanyLabel } from "@/lib/company-display";
 
 // ── API helpers ───────────────────────────────────────────────────────────────
 async function apiJson<T = unknown>(method: string, url: string, body?: unknown): Promise<T> {
@@ -53,10 +56,12 @@ function CompanyRows({
   value,
   onChange,
   allCompanies,
+  ui,
 }: {
   value: ContactCompany[];
   onChange: (v: ContactCompany[]) => void;
   allCompanies: { id: string; name: string }[];
+  ui: ContactsUi;
 }) {
   const add = () => onChange([...value, { companyId: "", role: "GM" }]);
   const remove = (i: number) => onChange(value.filter((_, j) => j !== i));
@@ -72,7 +77,7 @@ function CompanyRows({
             onChange={e => update(i, { companyId: e.target.value })}
             className="flex-1 h-9 rounded-md border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm px-2 focus:outline-none focus:ring-2 focus:ring-teal-500"
           >
-            <option value="">Select company…</option>
+            <option value="">{ui.selectCompany}</option>
             {allCompanies.map(c => (
               <option key={c.id} value={c.id}>{c.name}</option>
             ))}
@@ -90,7 +95,7 @@ function CompanyRows({
         </div>
       ))}
       <Button type="button" variant="outline" size="sm" onClick={add} className="h-7 text-xs gap-1">
-        <Plus className="h-3 w-3" /> Add company
+        <Plus className="h-3 w-3" /> {ui.addCompany}
       </Button>
     </div>
   );
@@ -115,10 +120,12 @@ function ModuleMultiSelect({
   value,
   onChange,
   allModules,
+  ui,
 }: {
   value: string[];
   onChange: (v: string[]) => void;
   allModules: string[];
+  ui: ContactsUi;
 }) {
   const toggle = (module: string) => {
     onChange(
@@ -129,7 +136,7 @@ function ModuleMultiSelect({
   };
 
   if (allModules.length === 0) {
-    return <p className="text-xs text-slate-400">No modules in catalog yet.</p>;
+    return <p className="text-xs text-slate-400">{ui.noModulesCatalog}</p>;
   }
 
   return (
@@ -153,7 +160,7 @@ function ModuleMultiSelect({
 }
 
 function ContactDialog({
-  open, onClose, seedKey, initial, allCompanies, allModules, onSave, saving,
+  open, onClose, seedKey, initial, allCompanies, allModules, onSave, saving, ui,
 }: {
   open: boolean;
   onClose: () => void;
@@ -163,6 +170,7 @@ function ContactDialog({
   allModules: string[];
   onSave: (v: FormValues) => void;
   saving: boolean;
+  ui: ContactsUi;
 }) {
   const [form, setForm] = useState<FormValues>(EMPTY);
 
@@ -178,43 +186,43 @@ function ContactDialog({
     <Dialog open={open} onOpenChange={o => !o && onClose()}>
       <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{initial ? "Edit Contact" : "New Contact"}</DialogTitle>
+          <DialogTitle>{initial ? ui.editContact : ui.newContact}</DialogTitle>
         </DialogHeader>
         <div className="space-y-4 py-2">
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <Label className="text-xs font-medium mb-1 block">Full Name *</Label>
-              <Input value={form.name} onChange={e => f({ name: e.target.value })} placeholder="Full name" className="h-9 text-sm" />
+              <Label className="text-xs font-medium mb-1 block">{ui.fullName}</Label>
+              <Input value={form.name} onChange={e => f({ name: e.target.value })} placeholder={ui.fullNamePh} className="h-9 text-sm" />
             </div>
             <div>
-              <Label className="text-xs font-medium mb-1 block">Employee / User ID</Label>
-              <Input value={form.userId} onChange={e => f({ userId: e.target.value })} placeholder="e.g. 82523" className="h-9 text-sm" />
+              <Label className="text-xs font-medium mb-1 block">{ui.userId}</Label>
+              <Input value={form.userId} onChange={e => f({ userId: e.target.value })} placeholder={ui.userIdPh} className="h-9 text-sm" />
             </div>
           </div>
           <div>
-            <Label className="text-xs font-medium mb-1 block">Work Email *</Label>
-            <Input type="email" value={form.email} onChange={e => f({ email: e.target.value })} placeholder="name@company.com" className="h-9 text-sm" />
+            <Label className="text-xs font-medium mb-1 block">{ui.workEmail}</Label>
+            <Input type="email" value={form.email} onChange={e => f({ email: e.target.value })} placeholder={ui.workEmailPh} className="h-9 text-sm" />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <Label className="text-xs font-medium mb-1 block">Auth type</Label>
+              <Label className="text-xs font-medium mb-1 block">{ui.authType}</Label>
               <select
                 value={form.authType}
                 onChange={(e) => f({ authType: e.target.value as "sso" | "local" })}
                 className="w-full h-9 rounded-md border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm px-2"
               >
-                <option value="sso">SSO (Microsoft)</option>
-                <option value="local">Local password</option>
+                <option value="sso">{ui.authSso}</option>
+                <option value="local">{ui.authLocal}</option>
               </select>
             </div>
             {form.authType === "local" && (
               <div>
-                <Label className="text-xs font-medium mb-1 block">Username</Label>
+                <Label className="text-xs font-medium mb-1 block">{ui.username}</Label>
                 <Input
                   value={form.username}
                   onChange={(e) => f({ username: e.target.value })}
-                  placeholder="local username"
+                  placeholder={ui.usernamePh}
                   className="h-9 text-sm"
                 />
               </div>
@@ -224,7 +232,7 @@ function ContactDialog({
           {form.authType === "local" && (
             <div>
               <Label className="text-xs font-medium mb-1 block">
-                {initial ? "New password (leave blank to keep)" : "Password *"}
+                {initial ? ui.newPassword : ui.password}
               </Label>
               <Input
                 type="password"
@@ -237,38 +245,39 @@ function ContactDialog({
           )}
 
           <div>
-            <Label className="text-xs font-medium mb-2 block">Companies & Roles</Label>
-            <CompanyRows value={form.companies} onChange={v => f({ companies: v })} allCompanies={allCompanies} />
+            <Label className="text-xs font-medium mb-2 block">{ui.companiesRoles}</Label>
+            <CompanyRows value={form.companies} onChange={v => f({ companies: v })} allCompanies={allCompanies} ui={ui} />
           </div>
 
           <div>
-            <Label className="text-xs font-medium mb-2 block">Managed Modules</Label>
+            <Label className="text-xs font-medium mb-2 block">{ui.managedModules}</Label>
             <p className="text-[11px] text-slate-400 mb-2">
-              Department heads see only employees with privileges in these modules. GMs and admins see all modules.
+              {ui.managedModulesHint}
             </p>
             <ModuleMultiSelect
               value={form.managedModules}
               onChange={(v) => f({ managedModules: v })}
               allModules={allModules}
+              ui={ui}
             />
           </div>
 
           <label className="flex items-center gap-2 cursor-pointer">
             <input type="checkbox" checked={form.isAdmin} onChange={e => f({ isAdmin: e.target.checked })}
               className="w-4 h-4 accent-teal-600" />
-            <span className="text-sm text-slate-700 dark:text-slate-300">System Admin (can access Admin Panel)</span>
+            <span className="text-sm text-slate-700 dark:text-slate-300">{ui.systemAdmin}</span>
           </label>
         </div>
 
         <div className="flex justify-end gap-2 pt-3 border-t border-slate-200 dark:border-slate-700">
-          <Button variant="outline" onClick={onClose}>Cancel</Button>
+          <Button variant="outline" onClick={onClose}>{ui.cancel}</Button>
           <Button onClick={() => onSave(form)} disabled={
             saving || !form.name || !form.email ||
             (form.authType === "local" && !initial && !form.password)
           }
             className="bg-teal-600 hover:bg-teal-700 text-white">
-            {saving ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
-            {initial ? "Save Changes" : "Create Contact"}
+            {saving ? <Loader2 className="h-4 w-4 animate-spin me-1" /> : null}
+            {initial ? ui.saveChanges : ui.createContact}
           </Button>
         </div>
       </DialogContent>
@@ -278,6 +287,8 @@ function ContactDialog({
 
 // ── Main page ─────────────────────────────────────────────────────────────────
 export default function AdminContactsPage() {
+  const { language, isRtl, toggleLanguage } = useAppLanguage();
+  const ui = contactsT(language);
   const { data: contacts = [], isLoading } = useContacts();
   const { data: bootstrap } = useBootstrapData();
   const { toast } = useToast();
@@ -302,8 +313,8 @@ export default function AdminContactsPage() {
       password: v.password || undefined,
       username: v.username || undefined,
     }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["/api/contacts"] }); toast({ title: "Contact created" }); setEditTarget(null); },
-    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["/api/contacts"] }); toast({ title: ui.toastCreated }); setEditTarget(null); },
+    onError: (e: Error) => toast({ title: ui.toastError, description: e.message, variant: "destructive" }),
   });
   const updateM = useMutation({
     mutationFn: ({ id, v }: { id: string; v: FormValues }) => apiJson("POST", `/api/contacts/${id}/update`, {
@@ -312,13 +323,13 @@ export default function AdminContactsPage() {
       password: v.password || undefined,
       username: v.username || undefined,
     }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["/api/contacts"] }); toast({ title: "Contact updated" }); setEditTarget(null); },
-    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["/api/contacts"] }); toast({ title: ui.toastUpdated }); setEditTarget(null); },
+    onError: (e: Error) => toast({ title: ui.toastError, description: e.message, variant: "destructive" }),
   });
   const deleteM = useMutation({
     mutationFn: (id: string) => apiJson("DELETE", `/api/contacts/${id}`),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["/api/contacts"] }); toast({ title: "Contact deleted" }); setDeleteTarget(null); },
-    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["/api/contacts"] }); toast({ title: ui.toastDeleted }); setDeleteTarget(null); },
+    onError: (e: Error) => toast({ title: ui.toastError, description: e.message, variant: "destructive" }),
   });
 
   // Filter
@@ -339,7 +350,8 @@ export default function AdminContactsPage() {
     return allCompanies.filter(c => ids.has(c.id));
   }, [contacts, allCompanies]);
 
-  const getCompanyName = (id: string) => allCompanies.find(c => c.id === id)?.name || id;
+  const getCompanyName = (id: string) =>
+    resolveCompanyLabel(allCompanies, id, language);
 
   const handleSave = (v: FormValues) => {
     const payload: FormValues = {
@@ -380,59 +392,73 @@ export default function AdminContactsPage() {
         <div className="flex items-center gap-4">
           <Link href="/admin">
             <button className="flex items-center gap-1.5 text-white/70 hover:text-white text-sm">
-              <ArrowLeft className="h-4 w-4" /> Admin Panel
+              <ArrowLeft className="h-4 w-4" /> {ui.backAdmin}
             </button>
           </Link>
           <div className="h-4 w-px bg-white/20" />
           <div className="flex items-center gap-2">
             <ShieldCheck className="h-5 w-5 text-teal-400" />
-            <h1 className="font-bold text-lg">Allow-list Contacts</h1>
+            <h1 className="font-bold text-lg">{ui.title}</h1>
           </div>
         </div>
-        <Button onClick={() => setEditTarget("new")} size="sm"
-          className="bg-teal-500 hover:bg-teal-600 text-white gap-1.5">
-          <Plus className="h-4 w-4" /> Add Contact
-        </Button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={toggleLanguage}
+            className="flex items-center gap-1.5 rounded-full px-3 py-1 text-sm font-medium text-white/90 hover:bg-white/20"
+            aria-label={ui.language}
+          >
+            <Globe className="h-3.5 w-3.5" />
+            {language.toUpperCase()}
+          </button>
+          <Button onClick={() => setEditTarget("new")} size="sm"
+            className="bg-teal-500 hover:bg-teal-600 text-white gap-1.5">
+            <Plus className="h-4 w-4" /> {ui.addContact}
+          </Button>
+        </div>
       </header>
 
       <main className="max-w-6xl mx-auto p-6">
         {/* Filters */}
         <div className="flex flex-wrap gap-3 mb-5">
           <div className="relative flex-1 min-w-48">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
+            <Search className="absolute start-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
             <Input value={search} onChange={e => setSearch(e.target.value)}
-              placeholder="Search by name, email, or ID…"
-              className="pl-9 h-9 text-sm bg-white dark:bg-slate-800" />
+              placeholder={ui.searchPlaceholder}
+              className="ps-9 h-9 text-sm bg-white dark:bg-slate-800" />
           </div>
           <select
             value={filterCompany}
             onChange={e => setFilterCompany(e.target.value)}
             className="h-9 rounded-md border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm px-3 focus:outline-none focus:ring-2 focus:ring-teal-500"
           >
-            <option value="">All companies</option>
+            <option value="">{ui.allCompanies}</option>
             {companiesForFilter.map(c => (
               <option key={c.id} value={c.id}>{c.name}</option>
             ))}
           </select>
-          <span className="self-center text-xs text-slate-400">{filtered.length} contact{filtered.length !== 1 ? "s" : ""}</span>
+          <span className="self-center text-xs text-slate-400">
+            {filtered.length}{" "}
+            {filtered.length === 1 ? ui.contactSingular : ui.contactsCount}
+          </span>
         </div>
 
         {/* Table */}
         {isLoading ? (
           <div className="flex justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-teal-500" /></div>
         ) : filtered.length === 0 ? (
-          <div className="text-center py-20 text-slate-400">No contacts found</div>
+          <div className="text-center py-20 text-slate-400">{ui.noContacts}</div>
         ) : (
           <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden shadow-sm">
-            <table className="w-full text-sm">
+            <table dir={isRtl ? "rtl" : "ltr"} className="w-full text-sm">
               <thead className="bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700">
                 <tr>
-                  <th className="text-left px-4 py-3 font-medium text-slate-500 text-xs uppercase tracking-wide">Name</th>
-                  <th className="text-left px-4 py-3 font-medium text-slate-500 text-xs uppercase tracking-wide">Email</th>
-                  <th className="text-left px-4 py-3 font-medium text-slate-500 text-xs uppercase tracking-wide">ID</th>
-                  <th className="text-left px-4 py-3 font-medium text-slate-500 text-xs uppercase tracking-wide">Companies</th>
-                  <th className="text-left px-4 py-3 font-medium text-slate-500 text-xs uppercase tracking-wide">Modules</th>
-                  <th className="text-left px-4 py-3 font-medium text-slate-500 text-xs uppercase tracking-wide">Admin</th>
+                  <th className="text-start px-4 py-3 font-medium text-slate-500 text-xs uppercase tracking-wide">{ui.colName}</th>
+                  <th className="text-start px-4 py-3 font-medium text-slate-500 text-xs uppercase tracking-wide">{ui.colEmail}</th>
+                  <th className="text-start px-4 py-3 font-medium text-slate-500 text-xs uppercase tracking-wide">{ui.colId}</th>
+                  <th className="text-start px-4 py-3 font-medium text-slate-500 text-xs uppercase tracking-wide">{ui.colCompanies}</th>
+                  <th className="text-start px-4 py-3 font-medium text-slate-500 text-xs uppercase tracking-wide">{ui.colModules}</th>
+                  <th className="text-start px-4 py-3 font-medium text-slate-500 text-xs uppercase tracking-wide">{ui.colAdmin}</th>
                   <th className="px-4 py-3" />
                 </tr>
               </thead>
@@ -454,7 +480,7 @@ export default function AdminContactsPage() {
                         {c.companies.slice(0, 3).map((cc, i) => (
                           <span key={i} className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-700 text-xs text-slate-600 dark:text-slate-300">
                             <Building2 className="h-2.5 w-2.5" />
-                            <span dir="rtl" className="max-w-[140px] truncate">{getCompanyName(cc.companyId)}</span>
+                            <span dir="auto" className="max-w-[140px] truncate">{getCompanyName(cc.companyId)}</span>
                             <span className="text-slate-400">·{cc.role}</span>
                           </span>
                         ))}
@@ -475,11 +501,11 @@ export default function AdminContactsPage() {
                           ))}
                         </div>
                       ) : (
-                        <span className="text-xs text-slate-400">All (GM/Admin)</span>
+                        <span className="text-xs text-slate-400">{ui.allModulesGm}</span>
                       )}
                     </td>
                     <td className="px-4 py-3">
-                      {c.isAdmin && <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-teal-50 dark:bg-teal-900/30 text-teal-700 dark:text-teal-300 text-xs font-medium"><ShieldCheck className="h-3 w-3" /> Admin</span>}
+                      {c.isAdmin && <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-teal-50 dark:bg-teal-900/30 text-teal-700 dark:text-teal-300 text-xs font-medium"><ShieldCheck className="h-3 w-3" /> {ui.adminBadge}</span>}
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-1 justify-end">
@@ -512,21 +538,24 @@ export default function AdminContactsPage() {
         allModules={allModules}
         onSave={handleSave}
         saving={createM.isPending || updateM.isPending}
+        ui={ui}
       />
 
       {/* Delete confirm */}
       <Dialog open={!!deleteTarget} onOpenChange={o => !o && setDeleteTarget(null)}>
         <DialogContent className="max-w-sm">
-          <DialogHeader><DialogTitle>Delete Contact</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{ui.deleteTitle}</DialogTitle></DialogHeader>
           <p className="text-sm text-slate-600 dark:text-slate-400 py-2">
-            Remove <strong>{deleteTarget?.name}</strong> ({deleteTarget?.email})? This cannot be undone.
+            {ui.deleteBody
+              .replace("{name}", deleteTarget?.name ?? "")
+              .replace("{email}", deleteTarget?.email ?? "")}
           </p>
           <div className="flex justify-end gap-2 pt-2">
-            <Button variant="outline" onClick={() => setDeleteTarget(null)}>Cancel</Button>
+            <Button variant="outline" onClick={() => setDeleteTarget(null)}>{ui.cancel}</Button>
             <Button variant="destructive" onClick={() => deleteTarget && deleteM.mutate(deleteTarget.id)}
               disabled={deleteM.isPending}>
-              {deleteM.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
-              Delete
+              {deleteM.isPending ? <Loader2 className="h-4 w-4 animate-spin me-1" /> : null}
+              {ui.delete}
             </Button>
           </div>
         </DialogContent>

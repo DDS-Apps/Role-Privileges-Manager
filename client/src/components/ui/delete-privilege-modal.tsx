@@ -18,8 +18,18 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type { Assignment, Company, Employee, Privilege } from "@shared/schema";
+import type { AppLanguage } from "@shared/employee-display";
+import { companyDisplayName, employeeDisplayName } from "@shared/employee-display";
+import {
+  catalogFunctionLabel,
+  catalogModuleLabel,
+} from "@shared/catalog-i18n";
+import { privilegeRoleLabel } from "@shared/privilege-display";
 import { cn } from "@/lib/utils";
+import { employeeMatchesQuery } from "@/lib/employee-search";
 import { CurrentPrivilegesPanel } from "@/components/ui/current-privileges-panel";
+import { ReportsRoleTable } from "@/components/ui/reports-role-table";
+import { isReportsFunction } from "@/lib/parse-report-role";
 interface DeletePrivilegeModalProps {
   open: boolean;
   onClose: () => void;
@@ -40,6 +50,7 @@ interface DeletePrivilegeModalProps {
   onEmployeeIdChange?: (employeeId: string) => void;
   initialModule?: string;
   initialFunction?: string;
+  language?: AppLanguage;
   isSubmitting: boolean;
   t: {
     deletePrivilege: string;
@@ -62,6 +73,8 @@ interface DeletePrivilegeModalProps {
     noAssignedPrivileges: string;
     currentPrivileges: string;
     noCurrentPrivileges: string;
+    filterCompany: string;
+    allCompanies: string;
   };
 }
 
@@ -79,6 +92,7 @@ export function DeletePrivilegeModal({
   onEmployeeIdChange,
   initialModule = "",
   initialFunction = "",
+  language = "en",
   isSubmitting,
   t,
 }: DeletePrivilegeModalProps) {
@@ -89,6 +103,7 @@ export function DeletePrivilegeModal({
   const [endDate, setEndDate] = useState("");
   const [employeeSearch, setEmployeeSearch] = useState("");
   const [externalEmployeeOnly, setExternalEmployeeOnly] = useState(false);
+  const [legalCompanyFilter, setLegalCompanyFilter] = useState("all");
 
   const isExternalEmployee = (emp: Employee) =>
     Boolean(companyId && emp.legalCompanyId !== companyId);
@@ -108,29 +123,60 @@ export function DeletePrivilegeModal({
     [privileges, assignedPrivilegeIds],
   );
 
+  const employeesWithPrivileges = useMemo(
+    () =>
+      employees.filter((emp) => {
+        const ids = assignments.find(
+          (a) => a.companyId === companyId && a.employeeId === emp.id,
+        )?.privilegeIds;
+        return ids && ids.length > 0;
+      }),
+    [employees, assignments, companyId],
+  );
+
+  const companyFilterOptions = useMemo(() => {
+    let scoped = employeesWithPrivileges;
+    if (companyId) {
+      scoped = scoped.filter((e) =>
+        externalEmployeeOnly ? isExternalEmployee(e) : !isExternalEmployee(e),
+      );
+    }
+    const ids = new Set(scoped.map((e) => e.legalCompanyId));
+    return companies
+      .filter((c) => ids.has(c.id))
+      .sort((a, b) =>
+        companyDisplayName(a, language).localeCompare(
+          companyDisplayName(b, language),
+          language,
+        ),
+      );
+  }, [employeesWithPrivileges, companies, companyId, externalEmployeeOnly, language]);
+
   const filteredEmployees = useMemo(() => {
-    let result = employees.filter((emp) => {
-      const ids = assignments.find(
-        (a) => a.companyId === companyId && a.employeeId === emp.id,
-      )?.privilegeIds;
-      return ids && ids.length > 0;
-    });
+    let result = employeesWithPrivileges;
     if (companyId) {
       result = result.filter((e) =>
         externalEmployeeOnly ? isExternalEmployee(e) : !isExternalEmployee(e),
       );
     }
+    if (legalCompanyFilter && legalCompanyFilter !== "all") {
+      result = result.filter((e) => e.legalCompanyId === legalCompanyFilter);
+    }
     if (employeeSearch.trim()) {
-      const q = employeeSearch.trim().toLowerCase();
-      result = result.filter(
-        (e) =>
-          e.id.toLowerCase().includes(q) ||
-          e.name.toLowerCase().includes(q) ||
-          e.email?.toLowerCase().includes(q),
+      result = result.filter((e) =>
+        employeeMatchesQuery(e, employeeSearch, language),
       );
     }
+    result.sort((a, b) => a.name.localeCompare(b.name, language));
     return result.slice(0, 50);
-  }, [employees, assignments, companyId, employeeSearch, externalEmployeeOnly]);
+  }, [
+    employeesWithPrivileges,
+    companyId,
+    employeeSearch,
+    externalEmployeeOnly,
+    legalCompanyFilter,
+    language,
+  ]);
 
   useEffect(() => {
     if (!open) {
@@ -141,6 +187,7 @@ export function DeletePrivilegeModal({
       setEndDate("");
       setEmployeeSearch("");
       setExternalEmployeeOnly(false);
+      setLegalCompanyFilter("all");
     } else {
       setSelectedModule(initialModule);
       setSelectedFunction(initialFunction);
@@ -155,8 +202,13 @@ export function DeletePrivilegeModal({
 
   const modules = useMemo(() => {
     const mods = new Set(assignedPrivileges.map((p) => p.module));
-    return Array.from(mods).sort();
-  }, [assignedPrivileges]);
+    return Array.from(mods).sort((a, b) =>
+      catalogModuleLabel(a, language).localeCompare(
+        catalogModuleLabel(b, language),
+        language,
+      ),
+    );
+  }, [assignedPrivileges, language]);
 
   const functions = useMemo(() => {
     if (!selectedModule) return [];
@@ -165,15 +217,25 @@ export function DeletePrivilegeModal({
         .filter((p) => p.module === selectedModule)
         .map((p) => p.function),
     );
-    return Array.from(funcs).sort();
-  }, [assignedPrivileges, selectedModule]);
+    return Array.from(funcs).sort((a, b) =>
+      catalogFunctionLabel(selectedModule, a, language).localeCompare(
+        catalogFunctionLabel(selectedModule, b, language),
+        language,
+      ),
+    );
+  }, [assignedPrivileges, selectedModule, language]);
 
   const roles = useMemo(() => {
     if (!selectedModule || !selectedFunction) return [];
     return assignedPrivileges
       .filter((p) => p.module === selectedModule && p.function === selectedFunction)
-      .sort((a, b) => a.role.localeCompare(b.role));
-  }, [assignedPrivileges, selectedModule, selectedFunction]);
+      .sort((a, b) =>
+        privilegeRoleLabel(a, language).localeCompare(
+          privilegeRoleLabel(b, language),
+          language,
+        ),
+      );
+  }, [assignedPrivileges, selectedModule, selectedFunction, language]);
 
   useEffect(() => {
     if (roles.length > 0) {
@@ -234,7 +296,14 @@ export function DeletePrivilegeModal({
 
   return (
     <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
-      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+      <DialogContent
+        className={cn(
+          "max-h-[90vh] overflow-y-auto",
+          isReportsFunction(selectedFunction)
+            ? "max-w-[min(96vw,72rem)] w-full"
+            : "max-w-lg",
+        )}
+      >
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-lg text-rose-700">
             {t.deletePrivilege}
@@ -258,14 +327,35 @@ export function DeletePrivilegeModal({
                   {t.externalEmployee}
                 </Label>
               </div>
-              <div className="relative">
-                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                <Input
-                  value={employeeSearch}
-                  onChange={(e) => setEmployeeSearch(e.target.value)}
-                  placeholder={t.searchEmployee}
-                  className="pl-9"
-                />
+              <div className="flex gap-2">
+                <div className="relative min-w-0 flex-1">
+                  <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                  <Input
+                    value={employeeSearch}
+                    onChange={(e) => setEmployeeSearch(e.target.value)}
+                    placeholder={t.searchEmployee}
+                    className="ps-9"
+                  />
+                </div>
+                <Select
+                  value={legalCompanyFilter}
+                  onValueChange={setLegalCompanyFilter}
+                >
+                  <SelectTrigger
+                    className="w-[11.5rem] shrink-0"
+                    aria-label={t.filterCompany}
+                  >
+                    <SelectValue placeholder={t.filterCompany} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">{t.allCompanies}</SelectItem>
+                    {companyFilterOptions.map((company) => (
+                      <SelectItem key={company.id} value={company.id}>
+                        {companyDisplayName(company, language)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="mt-2 max-h-40 overflow-y-auto rounded-lg border border-slate-200 bg-slate-50">
                 {filteredEmployees.length === 0 ? (
@@ -286,7 +376,9 @@ export function DeletePrivilegeModal({
                           employeeId === emp.id && "bg-rose-50",
                         )}
                       >
-                        <span className="text-sm font-medium text-slate-900">{emp.name}</span>
+                        <span className="text-sm font-medium text-slate-900">
+                          {employeeDisplayName(emp, language)}
+                        </span>
                         <span className="text-xs text-slate-500">
                           {emp.id}
                           {emp.email ? ` · ${emp.email}` : ""}
@@ -333,7 +425,7 @@ export function DeletePrivilegeModal({
                   <SelectContent>
                     {modules.map((m) => (
                       <SelectItem key={m} value={m}>
-                        {m}
+                        {catalogModuleLabel(m, language)}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -353,7 +445,7 @@ export function DeletePrivilegeModal({
                   <SelectContent>
                     {functions.map((f) => (
                       <SelectItem key={f} value={f}>
-                        {f}
+                        {catalogFunctionLabel(selectedModule, f, language)}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -375,25 +467,39 @@ export function DeletePrivilegeModal({
                       </Button>
                     </div>
                   </div>
-                  <div className="max-h-48 overflow-y-auto rounded-lg border border-rose-200 bg-rose-50/30 p-2 space-y-1">
-                    {roles.map((role) => (
-                      <label
-                        key={role.id}
-                        className="flex items-start gap-2 p-2 rounded hover:bg-rose-50 cursor-pointer"
-                      >
-                        <Checkbox
-                          checked={roleSelections[role.id] || false}
-                          onCheckedChange={(checked) =>
-                            setRoleSelections((prev) => ({
-                              ...prev,
-                              [role.id]: checked as boolean,
-                            }))
-                          }
-                        />
-                        <span className="text-sm text-slate-700">{role.role}</span>
-                      </label>
-                    ))}
-                  </div>
+                  {isReportsFunction(selectedFunction) ? (
+                    <ReportsRoleTable
+                      roles={roles}
+                      language={language}
+                      roleSelections={roleSelections}
+                      onToggle={(id, checked) =>
+                        setRoleSelections((prev) => ({ ...prev, [id]: checked }))
+                      }
+                      className="border-rose-200 dark:border-rose-900/40"
+                    />
+                  ) : (
+                    <div className="max-h-48 overflow-y-auto rounded-lg border border-rose-200 bg-rose-50/30 p-2 space-y-1">
+                      {roles.map((role) => (
+                        <label
+                          key={role.id}
+                          className="flex items-start gap-2 p-2 rounded hover:bg-rose-50 cursor-pointer"
+                        >
+                          <Checkbox
+                            checked={roleSelections[role.id] || false}
+                            onCheckedChange={(checked) =>
+                              setRoleSelections((prev) => ({
+                                ...prev,
+                                [role.id]: checked as boolean,
+                              }))
+                            }
+                          />
+                          <span className="text-sm text-slate-700" dir="auto">
+                            {privilegeRoleLabel(role, language)}
+                          </span>
+                        </label>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
 

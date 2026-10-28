@@ -19,13 +19,20 @@ import {
 } from "@/components/ui/select";
 import type { Assignment, Company, Employee, Privilege } from "@shared/schema";
 import type { AppLanguage } from "@shared/employee-display";
-import { employeeDisplayName } from "@shared/employee-display";
+import { companyDisplayName, employeeDisplayName } from "@shared/employee-display";
+import {
+  catalogFunctionLabel,
+  catalogModuleLabel,
+} from "@shared/catalog-i18n";
+import { privilegeRoleLabel } from "@shared/privilege-display";
 import { cn } from "@/lib/utils";
 import {
   filterEmployeesByCompanyContext,
   searchCompanyEmployees,
 } from "@/lib/employee-search";
 import { CurrentPrivilegesPanel } from "@/components/ui/current-privileges-panel";
+import { ReportsRoleTable } from "@/components/ui/reports-role-table";
+import { isReportsFunction } from "@/lib/parse-report-role";
 
 interface NewRequestModalProps {
   open: boolean;
@@ -127,7 +134,12 @@ export function NewRequestModal({
     const ids = new Set(employeesInScope.map((e) => e.legalCompanyId));
     return companies
       .filter((c) => ids.has(c.id))
-      .sort((a, b) => a.name.localeCompare(b.name, language));
+      .sort((a, b) =>
+        companyDisplayName(a, language).localeCompare(
+          companyDisplayName(b, language),
+          language,
+        ),
+      );
   }, [employeesInScope, companies, language]);
 
   const filteredEmployees = useMemo(
@@ -210,8 +222,13 @@ export function NewRequestModal({
 
   const modules = useMemo(() => {
     const mods = new Set(privileges.map(p => p.module));
-    return Array.from(mods).sort();
-  }, [privileges]);
+    return Array.from(mods).sort((a, b) =>
+      catalogModuleLabel(a, language).localeCompare(
+        catalogModuleLabel(b, language),
+        language,
+      ),
+    );
+  }, [privileges, language]);
 
   const functions = useMemo(() => {
     if (!selectedModule) return [];
@@ -220,15 +237,25 @@ export function NewRequestModal({
         .filter(p => p.module === selectedModule)
         .map(p => p.function)
     );
-    return Array.from(funcs).sort();
-  }, [privileges, selectedModule]);
+    return Array.from(funcs).sort((a, b) =>
+      catalogFunctionLabel(selectedModule, a, language).localeCompare(
+        catalogFunctionLabel(selectedModule, b, language),
+        language,
+      ),
+    );
+  }, [privileges, selectedModule, language]);
 
   const roles = useMemo(() => {
     if (!selectedModule || !selectedFunction) return [];
     return privileges
       .filter(p => p.module === selectedModule && p.function === selectedFunction)
-      .sort((a, b) => a.role.localeCompare(b.role));
-  }, [privileges, selectedModule, selectedFunction]);
+      .sort((a, b) =>
+        privilegeRoleLabel(a, language).localeCompare(
+          privilegeRoleLabel(b, language),
+          language,
+        ),
+      );
+  }, [privileges, selectedModule, selectedFunction, language]);
 
   useEffect(() => {
     if (roles.length > 0) {
@@ -276,7 +303,14 @@ export function NewRequestModal({
 
   return (
     <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
-      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+      <DialogContent
+        className={cn(
+          "max-h-[90vh] overflow-y-auto",
+          isReportsFunction(selectedFunction)
+            ? "max-w-[min(96vw,72rem)] w-full"
+            : "max-w-lg",
+        )}
+      >
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-lg">
             {t.newRequest}
@@ -329,7 +363,7 @@ export function NewRequestModal({
                     <SelectItem value="all">{t.allCompanies}</SelectItem>
                     {companyFilterOptions.map((company) => (
                       <SelectItem key={company.id} value={company.id}>
-                        {company.name}
+                        {companyDisplayName(company, language)}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -416,7 +450,9 @@ export function NewRequestModal({
               </SelectTrigger>
               <SelectContent>
                 {modules.map(m => (
-                  <SelectItem key={m} value={m}>{m}</SelectItem>
+                  <SelectItem key={m} value={m}>
+                    {catalogModuleLabel(m, language)}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -434,7 +470,9 @@ export function NewRequestModal({
               </SelectTrigger>
               <SelectContent>
                 {functions.map(f => (
-                  <SelectItem key={f} value={f}>{f}</SelectItem>
+                  <SelectItem key={f} value={f}>
+                    {catalogFunctionLabel(selectedModule, f, language)}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -465,38 +503,59 @@ export function NewRequestModal({
                   </Button>
                 </div>
               </div>
-              <div className="max-h-48 overflow-y-auto rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 p-2 space-y-1">
-                {roles.map(role => {
-                  const isAssigned = assignedPrivilegeIds.has(role.id);
-                  return (
-                  <label 
-                    key={role.id}
-                    className={cn(
-                      "flex items-start gap-2 p-2 rounded cursor-pointer",
-                      isAssigned
-                        ? "bg-teal-50/80 hover:bg-teal-50"
-                        : "hover:bg-slate-100 dark:hover:bg-slate-800",
-                    )}
-                  >
-                    <Checkbox
-                      checked={roleSelections[role.id] || false}
-                      onCheckedChange={(checked) => 
-                        setRoleSelections(prev => ({ ...prev, [role.id]: checked as boolean }))
-                      }
-                      data-testid={`modal-checkbox-role-${role.id}`}
-                    />
-                    <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-                      <span className="text-sm text-slate-700 dark:text-slate-300">{role.role}</span>
-                      {isAssigned && (
-                        <span className="text-[10px] font-medium uppercase tracking-wide text-teal-700">
-                          {t.alreadyAssigned}
+              {isReportsFunction(selectedFunction) ? (
+                <ReportsRoleTable
+                  roles={roles}
+                  language={language}
+                  roleSelections={roleSelections}
+                  onToggle={(id, checked) =>
+                    setRoleSelections((prev) => ({ ...prev, [id]: checked }))
+                  }
+                  assignedPrivilegeIds={assignedPrivilegeIds}
+                  assignedLabel={t.alreadyAssigned}
+                />
+              ) : (
+                <div className="max-h-48 overflow-y-auto rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 p-2 space-y-1">
+                  {roles.map((role) => {
+                    const isAssigned = assignedPrivilegeIds.has(role.id);
+                    return (
+                      <label
+                        key={role.id}
+                        className={cn(
+                          "flex items-start gap-2 p-2 rounded cursor-pointer",
+                          isAssigned
+                            ? "bg-teal-50/80 hover:bg-teal-50"
+                            : "hover:bg-slate-100 dark:hover:bg-slate-800",
+                        )}
+                      >
+                        <Checkbox
+                          checked={roleSelections[role.id] || false}
+                          onCheckedChange={(checked) =>
+                            setRoleSelections((prev) => ({
+                              ...prev,
+                              [role.id]: checked as boolean,
+                            }))
+                          }
+                          data-testid={`modal-checkbox-role-${role.id}`}
+                        />
+                        <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                          <span
+                            className="text-sm text-slate-700 dark:text-slate-300"
+                            dir="auto"
+                          >
+                            {privilegeRoleLabel(role, language)}
+                          </span>
+                          {isAssigned && (
+                            <span className="text-[10px] font-medium uppercase tracking-wide text-teal-700">
+                              {t.alreadyAssigned}
+                            </span>
+                          )}
                         </span>
-                      )}
-                    </span>
-                  </label>
-                  );
-                })}
-              </div>
+                      </label>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           )}
 

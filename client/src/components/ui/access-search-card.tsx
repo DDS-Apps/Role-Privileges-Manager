@@ -11,6 +11,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type { Employee, Privilege, Assignment, Company } from "@shared/schema";
+import { useAppLanguage } from "@/contexts/app-language";
+import { resolveCompanyLabel } from "@/lib/company-display";
+import {
+  catalogFunctionLabel,
+  catalogModuleLabel,
+} from "@shared/catalog-i18n";
 
 interface AccessSearchCardProps {
   privileges: Privilege[];
@@ -29,6 +35,7 @@ export function AccessSearchCard({
   companyId,
   onSelectEmployee,
 }: AccessSearchCardProps) {
+  const { language } = useAppLanguage();
   const [selectedModule, setSelectedModule] = useState("");
   const [selectedFunction, setSelectedFunction] = useState("");
   const [companyOnly, setCompanyOnly] = useState(false);
@@ -79,7 +86,7 @@ export function AccessSearchCard({
     return result;
   }, [assignments, employees, companyId, matchingPrivIds, companyOnly]);
 
-  const companyName = companies.find(c => c.id === companyId)?.name ?? companyId;
+  const companyName = resolveCompanyLabel(companies, companyId, language);
   const externalCount = matchingEmployees.filter(e => e.legalCompanyId !== companyId).length;
   const internalCount = matchingEmployees.filter(e => e.legalCompanyId === companyId).length;
 
@@ -107,7 +114,9 @@ export function AccessSearchCard({
           </SelectTrigger>
           <SelectContent>
             {modules.map(m => (
-              <SelectItem key={m} value={m}>{m}</SelectItem>
+              <SelectItem key={m} value={m}>
+                {catalogModuleLabel(m, language)}
+              </SelectItem>
             ))}
           </SelectContent>
         </Select>
@@ -123,7 +132,9 @@ export function AccessSearchCard({
           </SelectTrigger>
           <SelectContent>
             {functions.map(f => (
-              <SelectItem key={f} value={f}>{f}</SelectItem>
+              <SelectItem key={f} value={f}>
+                {catalogFunctionLabel(selectedModule, f, language)}
+              </SelectItem>
             ))}
           </SelectContent>
         </Select>
@@ -145,7 +156,7 @@ export function AccessSearchCard({
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
               <span className="text-xs font-medium text-slate-500">
-                Has access to <span className="text-teal-600 font-semibold" dir="rtl">{companyName}</span>
+                Has access to <span className="text-teal-600 font-semibold" dir="auto">{companyName}</span>
               </span>
               <div className="flex gap-1">
                 <Badge variant="secondary" className="text-xs px-1.5 py-0">
@@ -177,7 +188,7 @@ export function AccessSearchCard({
                       <div className="min-w-0">
                         <p className="text-xs font-medium text-slate-800 dark:text-slate-200 truncate group-hover:text-teal-700 dark:group-hover:text-teal-300">{emp.name}</p>
                         {isExternal && empCompany && (
-                          <p className="text-xs text-teal-600 truncate" dir="rtl">{empCompany.name}</p>
+                          <p className="text-xs text-teal-600 truncate" dir="auto">{empCompany.name}</p>
                         )}
                       </div>
                       {isExternal && (

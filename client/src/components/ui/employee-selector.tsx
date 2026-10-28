@@ -11,6 +11,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type { Employee, Company } from "@shared/schema";
+import { useAppLanguage } from "@/contexts/app-language";
+import { resolveCompanyLabel } from "@/lib/company-display";
 
 interface EmployeeSelectorProps {
   employees: Employee[];
@@ -39,10 +41,10 @@ export function EmployeeSelector({
   t,
 }: EmployeeSelectorProps) {
   const [searchQuery, setSearchQuery] = useState("");
+  const { language } = useAppLanguage();
 
-  const getCompanyName = (companyId: string) => {
-    return companies.find(c => c.id === companyId)?.name || companyId;
-  };
+  const getCompanyName = (companyId: string) =>
+    resolveCompanyLabel(companies, companyId, language);
 
   const MAX_VISIBLE = 50;
 

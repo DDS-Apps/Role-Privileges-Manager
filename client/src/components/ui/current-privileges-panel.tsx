@@ -1,6 +1,12 @@
 import { useMemo } from "react";
 import type { Privilege } from "@shared/schema";
 import { cn } from "@/lib/utils";
+import { useAppLanguage } from "@/contexts/app-language";
+import {
+  catalogFunctionLabel,
+  catalogModuleLabel,
+} from "@shared/catalog-i18n";
+import { privilegeRoleLabel } from "@shared/privilege-display";
 
 interface CurrentPrivilegesPanelProps {
   privileges: Privilege[];
@@ -19,6 +25,7 @@ export function CurrentPrivilegesPanel({
   variant = "teal",
   className,
 }: CurrentPrivilegesPanelProps) {
+  const { language } = useAppLanguage();
   const grouped = useMemo(() => {
     const assigned = privileges.filter((p) => assignedPrivilegeIds.has(p.id));
     const byModule = new Map<string, Map<string, Privilege[]>>();
@@ -35,17 +42,32 @@ export function CurrentPrivilegesPanel({
     }
 
     return Array.from(byModule.entries())
-      .sort(([a], [b]) => a.localeCompare(b))
+      .sort(([a], [b]) =>
+        catalogModuleLabel(a, language).localeCompare(
+          catalogModuleLabel(b, language),
+          language,
+        ),
+      )
       .map(([module, fnMap]) => ({
         module,
         functions: Array.from(fnMap.entries())
-          .sort(([a], [b]) => a.localeCompare(b))
+          .sort(([a], [b]) =>
+            catalogFunctionLabel(module, a, language).localeCompare(
+              catalogFunctionLabel(module, b, language),
+              language,
+            ),
+          )
           .map(([functionName, roles]) => ({
             function: functionName,
-            roles: roles.sort((a, b) => a.role.localeCompare(b.role)),
+            roles: roles.sort((a, b) =>
+              privilegeRoleLabel(a, language).localeCompare(
+                privilegeRoleLabel(b, language),
+                language,
+              ),
+            ),
           })),
       }));
-  }, [privileges, assignedPrivilegeIds]);
+  }, [privileges, assignedPrivilegeIds, language]);
 
   const totalCount = assignedPrivilegeIds.size;
   const borderClass =
@@ -75,13 +97,16 @@ export function CurrentPrivilegesPanel({
                   "inline-block rounded px-1.5 py-0.5 text-[11px] font-medium",
                   moduleClass,
                 )}
+              dir="auto"
               >
-                {module}
+                {catalogModuleLabel(module, language)}
               </span>
               <ul className="mt-1 space-y-1.5 pl-1">
                 {functions.map(({ function: fn, roles }) => (
                   <li key={`${module}|${fn}`}>
-                    <p className="text-xs font-medium text-slate-600">{fn}</p>
+                    <p className="text-xs font-medium text-slate-600" dir="auto">
+                      {catalogFunctionLabel(module, fn, language)}
+                    </p>
                     <ul className="mt-0.5 space-y-0.5">
                       {roles.map((role) => (
                         <li
@@ -94,7 +119,7 @@ export function CurrentPrivilegesPanel({
                               variant === "rose" ? "bg-rose-500" : "bg-teal-500",
                             )}
                           />
-                          <span>{role.role}</span>
+                          <span dir="auto">{privilegeRoleLabel(role, language)}</span>
                         </li>
                       ))}
                     </ul>

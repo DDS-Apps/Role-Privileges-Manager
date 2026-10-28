@@ -11,6 +11,16 @@ import type { PrivilegeRequest, Employee, Company, Privilege } from "@shared/sch
 import type { AuthUser } from "@/hooks/use-auth";
 import { getRequestTypeLabel, formatRevokeExecutionState, buildOwnerIds, isRequestOwnedByUser, isPendingForUserApproval, getApprovalStepBadge, getItTicketLabel } from "@/lib/request-utils";
 import { cn } from "@/lib/utils";
+import { useAppLanguage } from "@/contexts/app-language";
+import { notificationT } from "@/lib/notification-i18n";
+import { formatAppDate } from "@/lib/app-language";
+import { employeeDisplayName } from "@shared/employee-display";
+import { resolveCompanyLabel } from "@/lib/company-display";
+import {
+  catalogFunctionLabel,
+  catalogModuleLabel,
+} from "@shared/catalog-i18n";
+import { privilegeRoleLabel } from "@shared/privilege-display";
 
 interface NotificationBellProps {
   requests: PrivilegeRequest[];
@@ -50,6 +60,8 @@ function saveDismissedIds(userKey: string, ids: Set<string>) {
 }
 
 export function NotificationBell({ requests, employees, companies, privileges, managerId, authUser }: NotificationBellProps) {
+  const { language, isRtl } = useAppLanguage();
+  const nt = notificationT(language);
   const [open, setOpen]                   = useState(false);
   const [approvalReq, setApprovalReq]     = useState<PrivilegeRequest | null>(null);
   const [comment, setComment]             = useState("");
@@ -159,10 +171,13 @@ export function NotificationBell({ requests, employees, companies, privileges, m
     visibleToApprove.length ||
     visibleMyRequests.filter((r) => r.status === "pending" || r.status === "approved_pending_it").length;
 
-  const getEmployeeName = (id: string) => employees.find(e => e.id === id)?.name || id;
-  const getCompanyName  = (id: string) => companies.find(c => c.id === id)?.name || id;
-  const formatDate      = (s: string)  =>
-    new Date(s).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+  const getEmployeeName = (id: string) => {
+    const emp = employees.find((e) => e.id === id);
+    return emp ? employeeDisplayName(emp, language) : id;
+  };
+  const getCompanyName = (id: string) =>
+    resolveCompanyLabel(companies, id, language);
+  const formatDate = (s: string) => formatAppDate(s, language);
 
   const canApproveReq = (req: PrivilegeRequest) =>
     isPendingForUserApproval(req, ownerIds, approvalOptions);
@@ -175,11 +190,11 @@ export function NotificationBell({ requests, employees, companies, privileges, m
         adminId: authUser?.id || "",
         data: { status: "active", adminComments: comment || null },
       });
-      toast({ title: "GM approved — sent to IT Support" });
+      toast({ title: nt.approvedToast });
       setApprovalReq(null);
       setComment("");
     } catch (err) {
-      toast({ title: "Failed to approve", description: err instanceof Error ? err.message : "", variant: "destructive" });
+      toast({ title: nt.approveFailed, description: err instanceof Error ? err.message : "", variant: "destructive" });
     }
   };
 
@@ -191,11 +206,11 @@ export function NotificationBell({ requests, employees, companies, privileges, m
         adminId: authUser?.id || "",
         data: { status: "rejected", adminComments: comment || null },
       });
-      toast({ title: "Request rejected" });
+      toast({ title: nt.rejectedToast });
       setApprovalReq(null);
       setComment("");
     } catch (err) {
-      toast({ title: "Failed to reject", description: err instanceof Error ? err.message : "", variant: "destructive" });
+      toast({ title: nt.rejectFailed, description: err instanceof Error ? err.message : "", variant: "destructive" });
     }
   };
 
@@ -210,19 +225,19 @@ export function NotificationBell({ requests, employees, companies, privileges, m
   }) => {
     const clickable = req.status === "pending" && showApproveHint;
     const isRevoke = (req.requestType ?? "grant") === "revoke";
-    const typeLabel = getRequestTypeLabel(req, { grant: "Grant", delete: "Delete" });
+    const typeLabel = getRequestTypeLabel(req, { grant: nt.grant, delete: nt.delete });
     const stepBadge = getApprovalStepBadge(req, employees, {
-      external: "External",
-      step1of2: "Step 1/2",
-      step2of2: "Step 2/2",
+      external: nt.external,
+      step1of2: nt.step1of2,
+      step2of2: nt.step2of2,
     });
     const itTicket = getItTicketLabel(req);
     const executionState = formatRevokeExecutionState(req, {
-      scheduled: "Scheduled",
-      revoked: "Revoked",
-      reinstated: "Reinstated",
-      revokedUntil: "Revoked until {date}",
-      noEndDate: "No end date",
+      scheduled: nt.scheduled,
+      revoked: nt.revoked,
+      reinstated: nt.reinstated,
+      revokedUntil: nt.revokedUntil,
+      noEndDate: nt.noEndDate,
     });
     return (
       <div
@@ -259,8 +274,11 @@ export function NotificationBell({ requests, employees, companies, privileges, m
                 <span className="text-[10px] font-medium text-slate-500">{executionState}</span>
               )}
             </div>
-            <p className="text-xs text-slate-500 dark:text-slate-400 ml-5">{req.module} · {req.function}</p>
-            <p className="text-xs text-teal-600 dark:text-teal-400 ml-5 truncate" dir="rtl">{getCompanyName(req.companyId)}</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400 ml-5" dir="auto">
+              {catalogModuleLabel(req.module, language)} ·{" "}
+              {catalogFunctionLabel(req.module, req.function, language)}
+            </p>
+            <p className="text-xs text-teal-600 dark:text-teal-400 ml-5 truncate" dir="auto">{getCompanyName(req.companyId)}</p>
           </div>
           <div className="flex shrink-0 flex-col items-end gap-1">
             <button
@@ -270,8 +288,8 @@ export function NotificationBell({ requests, employees, companies, privileges, m
                 onDismiss(req.id);
               }}
               className="rounded p-1 text-slate-400 transition-colors hover:bg-slate-200 hover:text-rose-600 dark:hover:bg-slate-700"
-              title="Dismiss notification"
-              aria-label="Dismiss notification"
+              title={nt.dismiss}
+              aria-label={nt.dismiss}
               data-testid={`dismiss-notification-${req.id}`}
             >
               <Trash2 className="h-3.5 w-3.5" />
@@ -282,7 +300,7 @@ export function NotificationBell({ requests, employees, companies, privileges, m
             )}
             <p className="text-xs text-slate-400">{formatDate(req.createdAt)}</p>
             {clickable && (
-              <p className="text-[10px] font-medium text-amber-600">Tap to review →</p>
+              <p className="text-[10px] font-medium text-amber-600">{nt.tapToReview}</p>
             )}
           </div>
         </div>
@@ -302,7 +320,8 @@ export function NotificationBell({ requests, employees, companies, privileges, m
         <PopoverTrigger asChild>
           <button
             className="relative flex items-center justify-center w-8 h-8 rounded-full text-white/80 hover:text-white hover:bg-white/20 transition-colors"
-            title="Notifications"
+            title={nt.notifications}
+            aria-label={nt.notifications}
           >
             <Bell className="h-4 w-4" />
             {badgeCount > 0 && (
@@ -313,18 +332,18 @@ export function NotificationBell({ requests, employees, companies, privileges, m
           </button>
         </PopoverTrigger>
 
-        <PopoverContent align="end" sideOffset={8}
+        <PopoverContent align={isRtl ? "start" : "end"} sideOffset={8}
           className="w-96 p-0 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 overflow-hidden bg-white dark:bg-slate-800">
           {/* Header */}
           <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-teal-900 px-4 py-3 flex items-center justify-between">
             <div className="flex items-center gap-2 text-white">
               <Bell className="h-4 w-4 text-teal-400" />
-              <span className="font-semibold text-sm">Notifications</span>
+              <span className="font-semibold text-sm">{nt.notifications}</span>
             </div>
             <div className="flex items-center gap-2 text-xs">
               {visibleToApprove.length > 0 && (
                 <span className="rounded-full bg-amber-400/20 px-1.5 py-0.5 font-medium text-amber-300">
-                  {visibleToApprove.length} to approve
+                  {nt.toApprove.replace("{count}", String(visibleToApprove.length))}
                 </span>
               )}
               {(visibleToApprove.length > 0 || visibleMyRequests.length > 0) && (
@@ -339,7 +358,7 @@ export function NotificationBell({ requests, employees, companies, privileges, m
                   className="rounded px-1.5 py-0.5 text-[10px] font-medium text-white/70 transition hover:bg-white/10 hover:text-white"
                   data-testid="button-dismiss-all-notifications"
                 >
-                  Clear all
+                  {nt.clearAll}
                 </button>
               )}
             </div>
@@ -352,7 +371,8 @@ export function NotificationBell({ requests, employees, companies, privileges, m
               <>
                 <div className="px-4 py-2 bg-amber-50 dark:bg-amber-900/20">
                   <p className="text-xs font-semibold text-amber-700 dark:text-amber-300 flex items-center gap-1.5">
-                    <Clock className="h-3 w-3" /> Pending your approval ({visibleToApprove.length})
+                    <Clock className="h-3 w-3" />{" "}
+                    {nt.pendingYourApproval.replace("{count}", String(visibleToApprove.length))}
                   </p>
                 </div>
                 {visibleToApprove.map(req => (
@@ -365,7 +385,9 @@ export function NotificationBell({ requests, employees, companies, privileges, m
             {visibleMyRequests.length > 0 && (
               <>
                 <div className="px-4 py-2 bg-slate-50 dark:bg-slate-900">
-                  <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">My submitted requests ({visibleMyRequests.length})</p>
+                  <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+                    {nt.mySubmitted.replace("{count}", String(visibleMyRequests.length))}
+                  </p>
                 </div>
                 {visibleMyRequests.map(req => (
                   <RequestRow key={req.id} req={req} showApproveHint={false} onDismiss={dismissNotification} />
@@ -376,7 +398,7 @@ export function NotificationBell({ requests, employees, companies, privileges, m
             {visibleToApprove.length === 0 && visibleMyRequests.length === 0 && (
               <div className="flex flex-col items-center justify-center py-10 text-slate-400">
                 <Bell className="h-8 w-8 mb-2 opacity-30" />
-                <p className="text-sm">No notifications</p>
+                <p className="text-sm">{nt.noNotifications}</p>
               </div>
             )}
           </div>
@@ -391,8 +413,8 @@ export function NotificationBell({ requests, employees, companies, privileges, m
               <DialogTitle className="flex items-center gap-2">
                 <Clock className="h-5 w-5 text-amber-500" />
                 {(approvalReq.requestType ?? "grant") === "revoke"
-                  ? "Review Delete Request"
-                  : "Review Request"}
+                  ? nt.reviewRevoke
+                  : nt.reviewGrant}
               </DialogTitle>
             </DialogHeader>
 
@@ -400,13 +422,13 @@ export function NotificationBell({ requests, employees, companies, privileges, m
               {/* Employee */}
               <div className="grid grid-cols-2 gap-3 text-sm">
                 <div className="bg-slate-50 dark:bg-slate-800 rounded-xl p-3">
-                  <p className="text-xs text-slate-400 mb-1">Employee</p>
+                  <p className="text-xs text-slate-400 mb-1">{nt.employee}</p>
                   <p className="font-semibold text-slate-900 dark:text-slate-100">{getEmployeeName(approvalReq.employeeId)}</p>
                   <p className="text-xs text-slate-400 font-mono">{approvalReq.employeeId}</p>
                 </div>
                 <div className="bg-slate-50 dark:bg-slate-800 rounded-xl p-3">
-                  <p className="text-xs text-slate-400 mb-1">Company</p>
-                  <p className="font-semibold text-teal-700 dark:text-teal-400 text-xs" dir="rtl">
+                  <p className="text-xs text-slate-400 mb-1">{nt.company}</p>
+                  <p className="font-semibold text-teal-700 dark:text-teal-400 text-xs" dir="auto">
                     {getCompanyName(approvalReq.companyId)}
                   </p>
                 </div>
@@ -414,20 +436,37 @@ export function NotificationBell({ requests, employees, companies, privileges, m
 
               <div className="bg-slate-50 dark:bg-slate-800 rounded-xl p-3 text-sm">
                 <p className="text-xs text-slate-400 mb-1">
-                  {(approvalReq.requestType ?? "grant") === "revoke" ? "Effective period" : "Module / Function"}
+                  {(approvalReq.requestType ?? "grant") === "revoke"
+                    ? nt.effectivePeriod
+                    : nt.moduleFunction}
                 </p>
-                <p className="font-semibold text-slate-900 dark:text-slate-100">{approvalReq.module} · {approvalReq.function}</p>
+                <p className="font-semibold text-slate-900 dark:text-slate-100" dir="auto">
+                  {catalogModuleLabel(approvalReq.module, language)} ·{" "}
+                  {catalogFunctionLabel(
+                    approvalReq.module,
+                    approvalReq.function,
+                    language,
+                  )}
+                </p>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  {(approvalReq.requestType ?? "grant") === "revoke" ? "Remove from" : "Start"} {approvalReq.startDate}
+                  {(approvalReq.requestType ?? "grant") === "revoke"
+                    ? nt.removeFrom
+                    : nt.start}{" "}
+                  {approvalReq.startDate}
                   {approvalReq.endDate
-                    ? (approvalReq.requestType === "revoke" ? ` · Reinstate after ${approvalReq.endDate}` : ` → ${approvalReq.endDate}`)
-                    : " (no end date)"}
+                    ? approvalReq.requestType === "revoke"
+                      ? ` · ${nt.reinstateAfter.replace("{date}", approvalReq.endDate)}`
+                      : ` → ${approvalReq.endDate}`
+                    : ` ${nt.noEndDate}`}
                 </p>
               </div>
 
               <div className="bg-slate-50 dark:bg-slate-800 rounded-xl p-3">
                 <p className="text-xs text-slate-400 mb-2">
-                  {(approvalReq.requestType ?? "grant") === "revoke" ? "Roles to remove" : "Roles"} ({approvalReq.rolesSelected.length})
+                  {(approvalReq.requestType ?? "grant") === "revoke"
+                    ? nt.rolesToRemove
+                    : nt.roles}{" "}
+                  ({approvalReq.rolesSelected.length})
                 </p>
                 <div className="flex flex-wrap gap-1.5">
                   {approvalReq.rolesSelected.map(id => {
@@ -435,7 +474,7 @@ export function NotificationBell({ requests, employees, companies, privileges, m
                     return (
                       <span key={id}
                         className="inline-flex items-center px-2 py-0.5 rounded-md bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-xs text-slate-700 dark:text-slate-300">
-                        {priv?.role ?? id}
+                        {priv ? privilegeRoleLabel(priv, language) : id}
                       </span>
                     );
                   })}
@@ -443,7 +482,7 @@ export function NotificationBell({ requests, employees, companies, privileges, m
               </div>
 
               <div className="bg-slate-50 dark:bg-slate-800 rounded-xl p-3 text-sm">
-                <p className="text-xs text-slate-400 mb-1">Submitted by</p>
+                <p className="text-xs text-slate-400 mb-1">{nt.submittedBy}</p>
                 <p className="font-medium text-slate-800 dark:text-slate-200">
                   {getEmployeeName(approvalReq.managerId)}
                   {approvalReq.managerUserId && (
@@ -455,12 +494,12 @@ export function NotificationBell({ requests, employees, companies, privileges, m
               {/* Comment */}
               <div>
                 <label className="text-xs font-medium text-slate-600 dark:text-slate-400 flex items-center gap-1.5 mb-1.5">
-                  <MessageSquare className="h-3.5 w-3.5" /> Comment (optional)
+                  <MessageSquare className="h-3.5 w-3.5" /> {nt.commentOptional}
                 </label>
                 <Textarea
                   value={comment}
                   onChange={e => setComment(e.target.value)}
-                  placeholder="Add a comment..."
+                  placeholder={nt.addComment}
                   rows={2}
                   className="text-sm resize-none"
                 />
@@ -470,15 +509,15 @@ export function NotificationBell({ requests, employees, companies, privileges, m
             <DialogFooter className="gap-2">
               <Button variant="outline" onClick={() => { setApprovalReq(null); setComment(""); }}
                 disabled={updateRequest.isPending}>
-                Cancel
+                {nt.cancel}
               </Button>
               <Button variant="destructive" onClick={handleReject} disabled={updateRequest.isPending}
                 className="bg-rose-500 hover:bg-rose-600">
-                {updateRequest.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <><X className="h-4 w-4 mr-1.5" />Reject</>}
+                {updateRequest.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <><X className="h-4 w-4 mr-1.5" />{nt.reject}</>}
               </Button>
               <Button onClick={handleApprove} disabled={updateRequest.isPending}
                 className="bg-teal-600 hover:bg-teal-700 text-white">
-                {updateRequest.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Check className="h-4 w-4 mr-1.5" />Approve</>}
+                {updateRequest.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Check className="h-4 w-4 mr-1.5" />{nt.approve}</>}
               </Button>
             </DialogFooter>
           </DialogContent>

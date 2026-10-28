@@ -589,7 +589,8 @@ export function DataImportCenter({ counts, labels, onSuccess, onReset }: DataImp
       id: "catalog",
       step: 1,
       title: "Privilege catalog",
-      description: "Master list of modules, functions, and roles (Business-Role.xlsx).",
+      description:
+        "Master list of modules, functions, and roles (Business-Role.xlsx). Optional Arabic columns: Models_ar, Functions_ar, Privileges_ar.",
       columns: "Models · Functions · Privileges",
       endpoint: "/api/imports/catalog",
       currentCount: counts.privileges,

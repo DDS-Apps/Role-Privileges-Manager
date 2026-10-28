@@ -12,9 +12,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Eye, EyeOff, LogIn } from "lucide-react";
+import { Loader2, Eye, EyeOff, LogIn, Globe } from "lucide-react";
 import { DallahLogo } from "@/components/ui/dallah-logo";
 import { MicrosoftSignInButton } from "@/components/ui/microsoft-sign-in-button";
+import { useAppLanguage } from "@/contexts/app-language";
+import { loginT } from "@/lib/login-i18n";
 
 function redirectAfterLogin(user: { isAdmin: boolean; companies: unknown[] }) {
   return user.isAdmin && user.companies.length === 0 ? "/admin" : "/";
@@ -22,6 +24,8 @@ function redirectAfterLogin(user: { isAdmin: boolean; companies: unknown[] }) {
 
 export default function LoginPage() {
   const [, navigate] = useLocation();
+  const { language, isRtl, toggleLanguage } = useAppLanguage();
+  const t = loginT(language);
   const { data: authUser } = useAuth();
   const { data: authConfig } = useAuthConfig();
   const login = useLogin();
@@ -130,15 +134,15 @@ export default function LoginPage() {
     } catch (err) {
       setSsoPending(false);
       toast({
-        title: "Microsoft sign-in failed",
-        description: err instanceof Error ? err.message : "SSO failed",
+        title: t.ssoFailedTitle,
+        description: err instanceof Error ? err.message : t.ssoFailed,
         variant: "destructive",
       });
     }
   };
 
   return (
-    <div className="min-h-screen flex" dir="ltr">
+    <div className="min-h-screen flex">
       <div className="hidden lg:flex lg:w-[45%] flex-col justify-between bg-gradient-to-br from-slate-900 via-slate-800 to-teal-900 p-12 text-white relative overflow-hidden">
         <div className="absolute -top-24 -left-24 w-96 h-96 rounded-full bg-teal-500/10 blur-3xl pointer-events-none" />
         <div className="absolute -bottom-24 -right-24 w-96 h-96 rounded-full bg-teal-400/10 blur-3xl pointer-events-none" />
@@ -146,36 +150,45 @@ export default function LoginPage() {
         <div className="relative z-10 flex items-center gap-3">
           <DallahLogo size={42} />
           <div>
-            <p className="font-bold text-lg leading-tight">RPM System</p>
-            <p className="text-teal-300 text-xs">Role & Privileges Manager</p>
+            <p className="font-bold text-lg leading-tight">{t.productName}</p>
+            <p className="text-teal-300 text-xs">{t.productTagline}</p>
           </div>
         </div>
 
         <div className="relative z-10 space-y-6">
           <h1 className="text-4xl font-bold leading-snug">
-            Business Users<br />
-            <span className="text-teal-400">Roles & Privileges</span><br />
-            Management
+            {t.heroTitle1}<br />
+            <span className="text-teal-400">{t.heroTitle2}</span><br />
+            {t.heroTitle3}
           </h1>
           <p className="text-slate-300 text-sm leading-relaxed max-w-xs">
-            Only allow-listed contacts can sign in. Microsoft proves who you are; this app decides who is allowed.
+            {t.heroBody}
           </p>
         </div>
 
-        <p className="relative z-10 text-slate-500 text-xs">© 2025 Dallah AlBarakah Group. All rights reserved.</p>
+        <p className="relative z-10 text-slate-500 text-xs">{t.copyright}</p>
       </div>
 
       <div className="flex-1 flex items-center justify-center p-6 bg-slate-50 dark:bg-slate-900">
         <div className="w-full max-w-md">
           <div className="flex items-center gap-2 mb-8 lg:hidden">
             <DallahLogo size={32} />
-            <span className="font-bold text-slate-800 dark:text-slate-100">RPM System</span>
+            <span className="font-bold text-slate-800 dark:text-slate-100">{t.productName}</span>
           </div>
 
-          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-700 p-8">
-            <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100 mb-1">Sign in</h2>
-            <p className="text-slate-500 dark:text-slate-400 text-sm mb-6">
-              Access is limited to contacts defined in the allow-list.
+          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-700 p-8 relative">
+            <button
+              type="button"
+              onClick={toggleLanguage}
+              className="absolute top-6 end-6 flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700"
+              aria-label={t.language}
+            >
+              <Globe className="h-3.5 w-3.5" />
+              {language.toUpperCase()}
+            </button>
+            <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100 mb-1">{t.signInTitle}</h2>
+            <p className="text-slate-500 dark:text-slate-400 text-sm mb-6 pe-16">
+              {t.signInSubtitle}
             </p>
 
             {ssoAvailable && (
@@ -190,7 +203,7 @@ export default function LoginPage() {
                     <div className="w-full border-t border-slate-200 dark:border-slate-600" />
                   </div>
                   <div className="relative flex justify-center text-xs uppercase">
-                    <span className="bg-white dark:bg-slate-800 px-2 text-slate-400">or local account</span>
+                    <span className="bg-white dark:bg-slate-800 px-2 text-slate-400">{t.orLocal}</span>
                   </div>
                 </div>
               </>
@@ -198,21 +211,20 @@ export default function LoginPage() {
 
             {!ssoAvailable && (
               <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-3 mb-4">
-                Microsoft SSO is not configured. Use a local allow-list account, or set
-                {" "}AZURE_AD_* / VITE_AZURE_AD_* environment variables.
+                {t.ssoNotConfigured}
               </p>
             )}
 
             <form onSubmit={handleLocal} className="space-y-4">
               <div>
                 <Label className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5 block">
-                  Username
+                  {t.username}
                 </Label>
                 <Input
                   type="text"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
-                  placeholder="local username"
+                  placeholder={t.usernamePlaceholder}
                   className="h-10"
                   autoComplete="username"
                 />
@@ -220,21 +232,21 @@ export default function LoginPage() {
 
               <div>
                 <Label className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5 block">
-                  Password
+                  {t.password}
                 </Label>
                 <div className="relative">
                   <Input
                     type={showPassword ? "text" : "password"}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    placeholder="Enter password"
-                    className="h-10 pr-10"
+                    placeholder={t.passwordPlaceholder}
+                    className="h-10 pe-10"
                     autoComplete="current-password"
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword((v) => !v)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                    className="absolute end-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
                   >
                     {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
@@ -247,9 +259,9 @@ export default function LoginPage() {
                 className="w-full h-10 bg-teal-600 hover:bg-teal-700 text-white font-medium rounded-lg mt-2"
               >
                 {login.isPending ? (
-                  <><Loader2 className="h-4 w-4 animate-spin mr-2" />Signing in…</>
+                  <><Loader2 className="h-4 w-4 animate-spin me-2" />{t.signingIn}</>
                 ) : (
-                  <><LogIn className="h-4 w-4 mr-2" />Sign in locally</>
+                  <><LogIn className="h-4 w-4 me-2" />{t.signInLocal}</>
                 )}
               </Button>
             </form>

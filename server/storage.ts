@@ -55,12 +55,19 @@ export interface IStorage {
   uploadCatalog(managerId: string, catalog: { module: string; function: string; role: string }[]): Promise<Privilege[]>;
   importPrivilegeCatalog(
     actorId: string,
-    catalog: { module: string; function: string; role: string }[],
+    catalog: {
+      module: string;
+      function: string;
+      role: string;
+      moduleAr?: string;
+      functionAr?: string;
+      roleAr?: string;
+    }[],
     mode?: "merge" | "replace",
   ): Promise<CatalogImportResult>;
   importCompanies(
     actorId: string,
-    rows: { id: string; name: string }[],
+    rows: { id: string; name: string; nameAr?: string }[],
     mode?: "merge" | "replace",
   ): Promise<CompanyImportResult>;
   importUserRoles(actorId: string, rows: UserRoleImportRow[], mode: UserRoleImportMode): Promise<UserRoleImportResult>;
@@ -1360,7 +1367,14 @@ export class JsonStorage implements IStorage {
 
   async importPrivilegeCatalog(
     actorId: string,
-    catalog: { module: string; function: string; role: string }[],
+    catalog: {
+      module: string;
+      function: string;
+      role: string;
+      moduleAr?: string;
+      functionAr?: string;
+      roleAr?: string;
+    }[],
     mode: "merge" | "replace" = "merge",
   ): Promise<CatalogImportResult> {
     await this.initialized;
@@ -1387,14 +1401,32 @@ export class JsonStorage implements IStorage {
           p.role.trim().toLowerCase() === item.role.trim().toLowerCase(),
       );
       if (existing) {
-        result.privilegesSkipped++;
+        let changed = false;
+        if (item.moduleAr && existing.moduleAr !== item.moduleAr) {
+          existing.moduleAr = item.moduleAr;
+          changed = true;
+        }
+        if (item.functionAr && existing.functionAr !== item.functionAr) {
+          existing.functionAr = item.functionAr;
+          changed = true;
+        }
+        if (item.roleAr && existing.roleAr !== item.roleAr) {
+          existing.roleAr = item.roleAr;
+          changed = true;
+        }
+        if (changed) result.privilegesUpdated = (result.privilegesUpdated ?? 0) + 1;
+        else result.privilegesSkipped++;
         continue;
       }
-      this.createPrivilegeFromImport(item.module, item.function, item.role);
+      this.createPrivilegeFromImport(item);
       result.privilegesCreated++;
     }
 
-    if (result.privilegesCreated > 0 || mode === "replace") {
+    if (
+      result.privilegesCreated > 0 ||
+      (result.privilegesUpdated ?? 0) > 0 ||
+      mode === "replace"
+    ) {
       await this.saveData();
     }
 
@@ -1406,7 +1438,7 @@ export class JsonStorage implements IStorage {
     await this.addAuditEntry(
       actorId,
       "UPLOAD_CATALOG",
-      `${actorName} imported privilege catalog (${mode}): ${result.privilegesCreated} new, ${result.privilegesSkipped} skipped`,
+      `${actorName} imported privilege catalog (${mode}): ${result.privilegesCreated} new, ${result.privilegesUpdated ?? 0} updated, ${result.privilegesSkipped} skipped`,
     );
 
     return result;
@@ -1414,7 +1446,7 @@ export class JsonStorage implements IStorage {
 
   async importCompanies(
     actorId: string,
-    rows: { id: string; name: string }[],
+    rows: { id: string; name: string; nameAr?: string }[],
     mode: "merge" | "replace" = "merge",
   ): Promise<CompanyImportResult> {
     await this.initialized;
@@ -1436,12 +1468,22 @@ export class JsonStorage implements IStorage {
       result.processed++;
       const existing = this.data.companies.find((c) => c.id === row.id);
       if (existing) {
+        let changed = false;
         if (existing.name !== row.name) {
           existing.name = row.name;
-          result.updated++;
+          changed = true;
         }
+        if (row.nameAr && existing.nameAr !== row.nameAr) {
+          existing.nameAr = row.nameAr;
+          changed = true;
+        }
+        if (changed) result.updated++;
       } else {
-        this.data.companies.push({ id: row.id, name: row.name });
+        this.data.companies.push({
+          id: row.id,
+          name: row.name,
+          ...(row.nameAr ? { nameAr: row.nameAr } : {}),
+        });
         result.created++;
       }
     }
@@ -1712,11 +1754,17 @@ export class JsonStorage implements IStorage {
     return this.findPrivilegesByModuleFunction(row.module, row.function);
   }
 
-  private createPrivilegeFromImport(
-    module: string,
-    functionName: string,
-    role: string,
-  ): Privilege {
+  private createPrivilegeFromImport(item: {
+    module: string;
+    function: string;
+    role: string;
+    moduleAr?: string;
+    functionAr?: string;
+    roleAr?: string;
+  }): Privilege {
+    const module = item.module;
+    const functionName = item.function;
+    const role = item.role;
     const modKey = module.replace(/[^A-Za-z]/g, "").toUpperCase().slice(0, 3) || "MOD";
     const sanRole = role
       .replace(/[^A-Za-z0-9]/g, "_")
@@ -1736,6 +1784,9 @@ export class JsonStorage implements IStorage {
       module: module.trim(),
       function: functionName.trim(),
       role: role.trim(),
+      ...(item.moduleAr?.trim() ? { moduleAr: item.moduleAr.trim() } : {}),
+      ...(item.functionAr?.trim() ? { functionAr: item.functionAr.trim() } : {}),
+      ...(item.roleAr?.trim() ? { roleAr: item.roleAr.trim() } : {}),
     };
     this.data.privileges.push(privilege);
     return privilege;
