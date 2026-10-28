@@ -1,10 +1,15 @@
 import fs from "fs";
+import path from "path";
 
+const repoRoot = path.resolve(import.meta.dirname, "..");
 const csvPath =
+  process.argv[2] ||
+  process.env.ORACLE_REPORTS_CSV ||
   "C:/Users/{DS}WaleedAlahdal/Downloads/Available Oracle Reports.csv";
-const dataPath = "c:/Cursor/Role-Privileges-Manager/data.json";
-const reportsRoleArPath =
-  "c:/Cursor/Role-Privileges-Manager/shared/catalog-reports-role-ar.ts";
+const dataPath = path.resolve(
+  process.argv[3] || process.env.RPM_DATA_PATH || path.join(repoRoot, "data.json"),
+);
+const reportsRoleArPath = path.join(repoRoot, "shared/catalog-reports-role-ar.ts");
 
 const SUB_AREA_AR = {
   "Accounts Payables": "حسابات الدائنين",
