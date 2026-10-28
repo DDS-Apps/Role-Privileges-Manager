@@ -1,5 +1,5 @@
 /**
- * Idempotent HR catalog updates (OD move + Employee Relation roles).
+ * Idempotent HR catalog updates (OD roles + workforce move + Employee Relation roles).
  * Usage: node scripts/patch-hr-catalog-od-er.mjs [path/to/data.json]
  */
 import fs from "fs";
@@ -39,6 +39,70 @@ for (const p of data.privileges) {
       p.role = next;
       changed++;
     }
+  }
+}
+
+const odRoles = [
+  {
+    id: "P_HR_1__OD_ORGANIZATION_DE_01",
+    role: "1. Organization Design (structures, spans, layers).",
+    roleAr: "1. تصميم الهيكل التنظيمي (الهياكل، نطاقات الإشراف، المستويات).",
+  },
+  {
+    id: "P_HR_2__OD_PROCESS_MAPPING_01",
+    role: "2. Process Mapping.",
+    roleAr: "2. رسم خرائط العمليات.",
+  },
+  {
+    id: "P_HR_3__OD_COMPETENCY_DICT_01",
+    role: "3. Competency dictionary development.",
+    roleAr: "3. تطوير قاموس الكفاءات.",
+  },
+  {
+    id: "P_HR_4__OD_COMPETENCY_MAP_01",
+    role: "4. Competency Mapping.",
+    roleAr: "4. ربط الكفاءات.",
+  },
+  {
+    id: "P_HR_5__OD_PEOPLE_ANALYTIC_01",
+    role: "5. People Analytics.",
+    roleAr: "5. تحليلات الموظفين.",
+  },
+  {
+    id: "P_HR_6__OD_HR_DASHBOARDS_01",
+    role: "6. HR Dashboards.",
+    roleAr: "6. لوحات معلومات الموارد البشرية.",
+  },
+];
+
+for (const od of odRoles) {
+  const existing = data.privileges.find((p) => p.id === od.id);
+  if (existing) {
+    if (existing.function !== "Organizational Development (OD)") {
+      existing.function = "Organizational Development (OD)";
+      changed++;
+    }
+    if (existing.module !== "HR") {
+      existing.module = "HR";
+      changed++;
+    }
+    if (existing.role !== od.role) {
+      existing.role = od.role;
+      changed++;
+    }
+    if (existing.roleAr !== od.roleAr) {
+      existing.roleAr = od.roleAr;
+      changed++;
+    }
+  } else {
+    data.privileges.push({
+      id: od.id,
+      module: "HR",
+      function: "Organizational Development (OD)",
+      role: od.role,
+      roleAr: od.roleAr,
+    });
+    changed++;
   }
 }
 
